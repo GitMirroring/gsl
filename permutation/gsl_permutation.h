@@ -76,6 +76,8 @@ size_t gsl_permutation_inversions (const gsl_permutation * p);
 size_t gsl_permutation_linear_cycles (const gsl_permutation * p);
 size_t gsl_permutation_canonical_cycles (const gsl_permutation * q);
 
+gsl_permutation gsl_permutation_view_array(size_t * base, const size_t n);
+
 INLINE_DECL size_t gsl_permutation_get (const gsl_permutation * p, const size_t i);
 
 #ifdef HAVE_INLINE

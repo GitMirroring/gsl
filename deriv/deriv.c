@@ -1,6 +1,6 @@
 /* deriv/deriv.c
  * 
- * Copyright (C) 2004, 2007 Brian Gough
+ * Copyright (C) 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,157 +22,746 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_deriv.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_permutation.h>
+#include <gsl/gsl_permute_vector.h>
+#include <gsl/gsl_sort_vector.h>
+#include <gsl/gsl_statistics.h>
 
-static void
-central_deriv (const gsl_function * f, double x, double h,
-               double *result, double *abserr_round, double *abserr_trunc)
+static int deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double stencil[],
+                      double weights[], gsl_vector_view * W);
+static int fd_apply(const gsl_function * f, const double x0, const double dx,
+                    const gsl_vector * weights, const double stencil[], const size_t stencil_size,
+                    const unsigned int deriv_order, double * result, double * abserr_round, unsigned int * neval);
+static int vec2mat(const gsl_vector * v, gsl_matrix * A);
+static int rombextrap(const double step_ratio, const gsl_vector * der_init, const unsigned int rombexpon[],
+                      const unsigned int nexpon, gsl_vector * der_romb, gsl_vector * errest);
+
+/*
+gsl_deriv_default_parameters()
+  Return default parameters for adaptive differentiation
+*/
+
+gsl_deriv_parameters
+gsl_deriv_default_parameters(void)
 {
-  /* Compute the derivative using the 5-point rule (x-h, x-h/2, x,
-     x+h/2, x+h). Note that the central point is not used.  
+  gsl_deriv_parameters params;
 
-     Compute the error using the difference between the 5-point and
-     the 3-point rule (x-h,x,x+h). Again the central point is not
-     used. */
+  params.deriv_order = 1;
+  params.method_order = 4;
+  params.stencil_type = GSL_DERIV_STENCIL_CENTRAL;
+  params.romberg_terms = 2;
+  params.fixed_step = -1.0;
 
-  double fm1 = GSL_FN_EVAL (f, x - h);
-  double fp1 = GSL_FN_EVAL (f, x + h);
+  /* default scale multipliers - similar to DERIVEST defaults */
+  params.max_scale = 1.0e2;
+  params.min_scale = 1.0e-6;
+  params.nscale = 26;
 
-  double fmh = GSL_FN_EVAL (f, x - h / 2);
-  double fph = GSL_FN_EVAL (f, x + h / 2);
+  return params;
+}
 
-  double r3 = 0.5 * (fp1 - fm1);
-  double r5 = (4.0 / 3.0) * (fph - fmh) - (1.0 / 3.0) * r3;
+/*
+gsl_deriv_scalar()
+  Computing derivative of function of scalar input with reasonable defaults
 
-  double e3 = (fabs (fp1) + fabs (fm1)) * GSL_DBL_EPSILON;
-  double e5 = 2.0 * (fabs (fph) + fabs (fmh)) * GSL_DBL_EPSILON + e3;
+Inputs: f           - function f(x)
+        x           - point at which to compute derivative
+        deriv_order - derivative order in [0 1 2 3 4]
+        result      - (output) derivative result
+        esterr      - (output) 95% uncertainty estimate of the derivative, such that
+                        abs(result - f'(x)) < esterr
 
-  /* The next term is due to finite precision in x+h = O (eps * x) */
+Return: success/error
+*/
 
-  double dy = GSL_MAX (fabs (r3 / h), fabs (r5 / h)) *(fabs (x) / h) * GSL_DBL_EPSILON;
+int
+gsl_deriv_scalar(const gsl_function * f, const double x,
+                 const unsigned int deriv_order, double * result, double * esterr)
+{
+  return gsl_deriv_scalar_fixed(f, x, -1.0, deriv_order, result, esterr);
+}
 
-  /* The truncation error in the r5 approximation itself is O(h^4).
-     However, for safety, we estimate the error from r5-r3, which is
-     O(h^2).  By scaling h we will minimise this estimated error, not
-     the actual truncation error in r5. */
+/*
+gsl_deriv_scalar_fixed()
+  Differentiate a scalar function with a fixed step size
 
-  *result = r5 / h;
-  *abserr_trunc = fabs ((r5 - r3) / h); /* Estimated truncation error O(h^2) */
-  *abserr_round = fabs (e5 / h) + dy;   /* Rounding error (cancellations) */
+Inputs: f           - function f(x)
+        x           - point at which to compute derivative
+        h           - step size
+        deriv_order - derivative order in [0 1 2 3 4]
+        result      - (output) derivative result
+        esterr      - (output) 95% uncertainty estimate of the derivative, such that
+                        abs(result - f'(x)) < esterr
+
+Return: success/error
+*/
+
+int
+gsl_deriv_scalar_fixed(const gsl_function * f, const double x, const double h,
+                       const unsigned int deriv_order, double * result, double * esterr)
+{
+  gsl_deriv_parameters params = gsl_deriv_default_parameters();
+  double final_step;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+
+  params.deriv_order = deriv_order;
+  params.fixed_step = h;
+
+  return gsl_deriv_scalar_driver(&params, f, x, result, esterr, &final_step, &neval, &diag);
+}
+
+/*
+gsl_deriv_scalar_driver()
+  Top-level driver for differentiation algorithms for a function
+of scalar input
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point at which to compute derivative
+        result     - (output) derivative result
+        esterr     - (output) 95% uncertainty estimate of the derivative(s), such that
+                       abs(result - f'(x)) < esterr
+        final_step - (output) final overall step size chosen for each derivative
+        neval      - (output) total number of function evaluations
+        diag       - (output) diagnostic information for adaptive algorithm (may be NULL)
+
+Return: success/error
+*/
+
+int
+gsl_deriv_scalar_driver(const gsl_deriv_parameters * params, const gsl_function * f, const double x,
+                        double * result, double * esterr, double * final_step, unsigned int * neval,
+                        gsl_deriv_diag * diag)
+{
+  gsl_vector_const_view xv = gsl_vector_const_view_array(&x, 1);
+  gsl_vector_view resultv = gsl_vector_view_array(result, 1);
+  gsl_vector_view esterrv = gsl_vector_view_array(esterr, 1);
+  gsl_vector_view fsv = gsl_vector_view_array(final_step, 1);
+
+  return gsl_deriv_driver(params,
+                          f,
+                          &xv.vector,
+                          &resultv.vector,
+                          &esterrv.vector,
+                          &fsv.vector,
+                          neval,
+                          diag);
+}
+
+/*
+gsl_deriv_driver()
+  Top-level driver for differentiation algorithms
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point(s) at which to compute derivative, length n
+        result     - (output) derivative result(s), length n
+        esterr     - (output) 95% uncertainty estimate of the derivative(s), such that
+                       abs(result - f'(x)) < esterr
+                     length n
+        final_step - (output) final overall step size chosen for each derivative, length n
+        neval      - (output) total number of function evaluations
+        diag       - (output) diagnostic information for adaptive algorithm (may be NULL)
+
+Return: success/error
+*/
+
+int
+gsl_deriv_driver(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x,
+                 gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval,
+                 gsl_deriv_diag * diag)
+{
+  const size_t n = x->size;
+
+  if (result->size != n)
+    {
+      GSL_ERROR ("result must have same length as x", GSL_EBADLEN);
+    }
+  else if (esterr->size != n)
+    {
+      GSL_ERROR ("esterr must have same length as x", GSL_EBADLEN);
+    }
+  else if (final_step->size != n)
+    {
+      GSL_ERROR ("final_step must have same length as x", GSL_EBADLEN);
+    }
+  else
+    {
+      int status;
+
+      if (params->fixed_step <= 0.0)
+        {
+          /* apply adaptive algorithm */
+          status = gsl_deriv_adaptive(params, f, x, result, esterr, final_step, neval, diag);
+        }
+      else
+        {
+          /* apply fixed step algorithm */
+          status = gsl_deriv_fixed(params, f, x, result, esterr, final_step, neval);
+        }
+
+      return status;
+    }
+}
+
+/*
+gsl_deriv_adaptive()
+  Implementation of adaptive differentiation
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point(s) at which to compute derivative, length n
+        result     - (output) derivative result(s), length n
+        esterr     - (output) 95% uncertainty estimate of the derivative(s), such that
+                       abs(result - f'(x)) < esterr
+                     length n
+        final_step - (output) final overall step size chosen for each derivative, length n
+        neval      - (output) total number of function evaluations
+        diag       - (output) diagnostic information (may be NULL)
+
+Return: success/error
+*/
+
+int
+gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x,
+                   gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval,
+                   gsl_deriv_diag * diag)
+{
+  const size_t n = x->size;
+
+  if (params->deriv_order > GSL_DERIV_MAX_DERIV_ORDER)
+    {
+      GSL_ERROR ("derivative order exceeds GSL_DERIV_MAX_DERIV_ORDER", GSL_EDOM);
+    }
+  else if (params->method_order < 1 || params->method_order > GSL_DERIV_MAX_METHOD_ORDER)
+    {
+      GSL_ERROR ("method order must be in [1,GSL_DERIV_MAX_METHOD_ORDER]", GSL_EDOM);
+    }
+  else if (params->romberg_terms > 3)
+    {
+      GSL_ERROR ("romberg terms must be in [0 1 2 3]", GSL_EDOM);
+    }
+  else if (result->size != n)
+    {
+      GSL_ERROR ("result must have same length as x", GSL_EBADLEN);
+    }
+  else if (esterr->size != n)
+    {
+      GSL_ERROR ("esterr must have same length as x", GSL_EBADLEN);
+    }
+  else if (final_step->size != n)
+    {
+      GSL_ERROR ("final_step must have same length as x", GSL_EBADLEN);
+    }
+  else
+    {
+      int status;
+      const gsl_deriv_scale_generator * scale_gen = gsl_deriv_scale_user;
+      const gsl_deriv_cand_filter * cfilter = gsl_deriv_cand_filter_trim;
+      const gsl_deriv_cand_select * cselect = gsl_deriv_cand_select_minerr;
+      gsl_deriv_scale_parameters scale_params;
+      gsl_deriv_diag diag_local;
+      gsl_deriv_diag * dptr = (diag == NULL) ? &diag_local : diag;
+      gsl_vector_view unit_weights; /* Fornberg weights for deriv_order */
+      size_t i;
+
+      *neval = 0;
+
+      dptr->params = *params;
+
+      /* initialize stencil and weights */
+      status = deriv_init(params, &(dptr->stencil_size), dptr->stencil, dptr->fornberg_weights, &unit_weights);
+      if (status)
+        return status;
+
+      /* initialize scale parameters */
+      status = scale_gen->init(params, &scale_params);
+      if (status)
+        return status;
+
+      dptr->scale_ratio = scale_params.ratio;
+      dptr->nscale = scale_params.nscale;
+
+      /* fill scale_multipliers array with geometric scales */
+      status = gsl_deriv_scale_fill(&scale_params, dptr->scale_multipliers);
+      if (status)
+        return status;
+
+      dptr->nromb = dptr->nscale - params->romberg_terms - 1;
+
+      for (i = 0; i < n; ++i)
+        {
+          const double xi = gsl_vector_get(x, i);
+          gsl_vector_view der_init = gsl_vector_view_array(dptr->der_init, dptr->nscale);
+          gsl_vector_view der_romb = gsl_vector_view_array(dptr->der_romb, dptr->nromb);
+          gsl_vector_view err_romb = gsl_vector_view_array(dptr->err_romb, dptr->nromb);
+          gsl_vector_view scale_romb = gsl_vector_view_array(dptr->scale_multipliers, dptr->nromb);
+          unsigned int rombexpon[4];
+          double final_scale;
+          size_t j;
+
+          dptr->x = xi;
+          dptr->coordinate_scale = GSL_MAX(fabs(xi), 0.02);
+
+          /*
+           * approximate derivative of function for each scale multiplier, using
+           * the relation:
+           *
+           * f_j^{(m)}(x_i) = 1/(dx_j)^m * sum_k w_k f(x_i + s_k*dx_j)
+           *
+           * where:
+           *
+           * x_i  : current point to evaluate derivative
+           * m    : deriv_order
+           * j    : scale
+           * w_k  : Fornberg weights for deriv_order
+           * s_k  : unit stencil point
+           * dx_j : coordinate_scale * scale_multiplier[j]
+           */
+
+          /* compute derivative estimates at each scale */
+          for (j = 0; j < scale_params.nscale; ++j)
+            {
+              double dx_j = dptr->coordinate_scale * dptr->scale_multipliers[j];
+
+              status = fd_apply(f, xi, dx_j, &unit_weights.vector,
+                                dptr->stencil, dptr->stencil_size, params->deriv_order,
+                                &(dptr->der_init[j]), NULL, neval);
+              if (status)
+                return status;
+            }
+
+          if (params->stencil_type == GSL_DERIV_STENCIL_CENTRAL)
+            {
+              for (j = 0; j < params->romberg_terms; ++j)
+                rombexpon[j] = 2*(j+1) + params->method_order - 2;
+            }
+          else
+            {
+              for (j = 0; j < params->romberg_terms; ++j)
+                rombexpon[j] = (j+1) + params->method_order - 1;
+            }
+
+          rombextrap(scale_params.ratio, &der_init.vector, rombexpon,
+                     params->romberg_terms, &der_romb.vector, &err_romb.vector);
+
+          /* filter out extremely incorrect candidates */
+          (cfilter->filter)(&der_romb.vector, &(dptr->cand));
+
+          /* select final candidate */
+          (cselect->select)(&(dptr->cand), &der_romb.vector, &err_romb.vector,
+                            &scale_romb.vector, &(dptr->der_select), &(dptr->err_select), &final_scale);
+
+          dptr->step_select = dptr->coordinate_scale * final_scale;
+
+          gsl_vector_set(result, i, dptr->der_select);
+          gsl_vector_set(esterr, i, dptr->err_select);
+          gsl_vector_set(final_step, i, dptr->step_select);
+        }
+
+      return GSL_SUCCESS;
+    }
+}
+
+/*
+gsl_deriv_fixed()
+  Implementation of fixed step differentiation
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point(s) at which to compute derivative, length n
+        result     - (output) derivative result(s), length n
+        esterr     - (output) absolute error estimate of the derivative(s), such that
+                       abs(result - f'(x)) < esterr
+                     length n
+        final_step - (output) final overall step size chosen for each derivative, length n
+        neval      - (output) total number of function evaluations
+
+Return: success/error
+*/
+
+int
+gsl_deriv_fixed(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x,
+                gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval)
+{
+  const size_t n = x->size;
+
+  if (params->deriv_order > GSL_DERIV_MAX_DERIV_ORDER)
+    {
+      GSL_ERROR ("derivative order exceeds GSL_DERIV_MAX_DERIV_ORDER", GSL_EDOM);
+    }
+  else if (params->method_order < 1 || params->method_order > GSL_DERIV_MAX_METHOD_ORDER)
+    {
+      GSL_ERROR ("method order must be in [1,GSL_DERIV_MAX_METHOD_ORDER]", GSL_EDOM);
+    }
+  else if (params->fixed_step <= 0.0)
+    {
+      GSL_ERROR ("fixed_step must be > 0", GSL_EDOM);
+    }
+  else if (result->size != n)
+    {
+      GSL_ERROR ("result must have same length as x", GSL_EBADLEN);
+    }
+  else if (esterr->size != n)
+    {
+      GSL_ERROR ("esterr must have same length as x", GSL_EBADLEN);
+    }
+  else if (final_step->size != n)
+    {
+      GSL_ERROR ("final_step must have same length as x", GSL_EBADLEN);
+    }
+  else
+    {
+      int status;
+      const double ratio = 2.0;
+      double stencil[GSL_DERIV_MAX_STENCIL];
+      double unit_weights_all[GSL_DERIV_MAX_STENCIL*(GSL_DERIV_MAX_DERIV_ORDER+1)];
+      gsl_vector_view unit_weights; /* Fornberg weights for deriv_order */
+      size_t stencil_size;
+      size_t i;
+
+      *neval = 0;
+
+      /* initialize stencil and weights */
+      status = deriv_init(params, &stencil_size, stencil, unit_weights_all, &unit_weights);
+      if (status)
+        return status;
+
+      for (i = 0; i < n; ++i)
+        {
+          const double xi = gsl_vector_get(x, i);
+          double D1, D2; /* derivative estimates */
+          double round1; /* roundoff error estimate for D1 */
+
+          /*
+           * approximate derivative of function at h and h/r:
+           * D1 = D(h)   (roundoff error round1)
+           * D2 = D(h/r)
+           *
+           * truncation error = |D(h) - D(h/r)|
+           * total error = trunc + round1
+           */
+
+          /* compute D(h) and roundoff error */
+          status = fd_apply(f, xi, params->fixed_step, &unit_weights.vector,
+                            stencil, stencil_size, params->deriv_order,
+                            &D1, &round1, neval);
+          if (status)
+            return status;
+
+          /* compute D(h/r) */
+          status = fd_apply(f, xi, params->fixed_step / ratio, &unit_weights.vector,
+                            stencil, stencil_size, params->deriv_order,
+                            &D2, NULL, neval);
+          if (status)
+            return status;
+
+          gsl_vector_set(result, i, D1);
+          gsl_vector_set(esterr, i, fabs(D1 - D2) + round1);
+          gsl_vector_set(final_step, i, params->fixed_step);
+        }
+
+      return GSL_SUCCESS;
+    }
 }
 
 int
-gsl_deriv_central (const gsl_function * f, double x, double h,
-                   double *result, double *abserr)
+gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag)
 {
-  double r_0, round, trunc, error;
-  central_deriv (f, x, h, &r_0, &round, &trunc);
-  error = round + trunc;
+  const gsl_deriv_parameters * params = &(diag->params);
+  gsl_matrix_const_view A = gsl_matrix_const_view_array(diag->fornberg_weights, params->deriv_order + 1, diag->stencil_size);
+  gsl_vector_const_view w = gsl_matrix_const_row(&A.matrix, params->deriv_order);
+  const gsl_deriv_cand_t * cand = &(diag->cand);
+  size_t i;
 
-  if (round < trunc && (round > 0 && trunc > 0))
+  fprintf(fp, "# x             = %.12e\n", diag->x);
+  fprintf(fp, "# deriv_order   = %u\n", params->deriv_order);
+  fprintf(fp, "# method_order  = %u\n", params->method_order);
+  fprintf(fp, "# romberg_terms = %u\n", params->romberg_terms);
+  fprintf(fp, "# fixed_step    = %.12e\n", params->fixed_step);
+  fprintf(fp, "# max_scale     = %.12e\n", params->max_scale);
+  fprintf(fp, "# min_scale     = %.12e\n", params->min_scale);
+  fprintf(fp, "# scale_ratio   = %.12e\n", diag->scale_ratio);
+  fprintf(fp, "# nscale        = %zu\n", params->nscale);
+
+  fprintf(fp, "# coord_scale   = %.12e\n", diag->coordinate_scale);
+  fprintf(fp, "# nromb         = %zu\n", diag->nromb);
+
+  fprintf(fp, "# stencil       = [ ");
+  for (i = 0; i < diag->stencil_size; ++i)
+    fprintf(fp, "%g ", diag->stencil[i]);
+  fprintf(fp, "]\n");
+
+  fprintf(fp, "# weights       = [ ");
+  for (i = 0; i < diag->stencil_size; ++i)
+    fprintf(fp, "%g ", gsl_vector_get(&w.vector, i));
+  fprintf(fp, "]\n");
+
+  fprintf(fp, "# der_select    = %.12e\n", diag->der_select);
+  fprintf(fp, "# err_select    = %.12e\n", diag->err_select);
+  fprintf(fp, "# step_select   = %.12e\n", diag->step_select);
+
+  i = 1;
+  fprintf(fp, "# Index 0\n");
+  fprintf(fp, "# Field %zu: scale multiplier\n", i++);
+  fprintf(fp, "# Field %zu: initial derivative estimate\n", i++);
+
+  for (i = 0; i < diag->nscale; ++i)
     {
-      double r_opt, round_opt, trunc_opt, error_opt;
-
-      /* Compute an optimised stepsize to minimize the total error,
-         using the scaling of the truncation error (O(h^2)) and
-         rounding error (O(1/h)). */
-
-      double h_opt = h * pow (round / (2.0 * trunc), 1.0 / 3.0);
-      central_deriv (f, x, h_opt, &r_opt, &round_opt, &trunc_opt);
-      error_opt = round_opt + trunc_opt;
-
-      /* Check that the new error is smaller, and that the new derivative 
-         is consistent with the error bounds of the original estimate. */
-
-      if (error_opt < error && fabs (r_opt - r_0) < 4.0 * error)
-        {
-          r_0 = r_opt;
-          error = error_opt;
-        }
+      fprintf(fp, "%20.12e %20.12e\n",
+              diag->scale_multipliers[i],
+              diag->der_init[i]);
     }
 
-  *result = r_0;
-  *abserr = error;
+  i = 1;
+  fprintf(fp, "\n\n# Index 1\n");
+  fprintf(fp, "# Field %zu: scale multiplier\n", i++);
+  fprintf(fp, "# Field %zu: Romberg derivative estimate\n", i++);
+  fprintf(fp, "# Field %zu: Romberg error estimate\n", i++);
+
+  for (i = 0; i < diag->nromb; ++i)
+    {
+      fprintf(fp, "%20.12e %20.12e %20.12e\n",
+              diag->scale_multipliers[i],
+              diag->der_romb[i],
+              diag->err_romb[i]);
+    }
+
+  i = 1;
+  fprintf(fp, "\n\n# Index 2\n");
+  fprintf(fp, "# Field %zu: scale multiplier\n", i++);
+  fprintf(fp, "# Field %zu: final candidate derivative estimate\n", i++);
+  fprintf(fp, "# Field %zu: final candidate error estimate\n", i++);
+
+  for (i = 0; i < cand->nkeep; ++i)
+    {
+      fprintf(fp, "%20.12e %20.12e %20.12e\n",
+              diag->scale_multipliers[cand->index[i]],
+              diag->der_romb[cand->index[i]],
+              diag->err_romb[cand->index[i]]);
+    }
 
   return GSL_SUCCESS;
 }
 
+/*********************************************
+ * INTERNAL ROUTINES                         *
+ *********************************************/
 
-static void
-forward_deriv (const gsl_function * f, double x, double h,
-               double *result, double *abserr_round, double *abserr_trunc)
+/*
+deriv_init()
+  Common initialization for fixed and adaptive differentiation
+
+Inputs: params       - deriv parameters
+        stencil_size - (output) stencil size depending on params
+        stencil      - (output) finite difference stencil, length >= GSL_DERIV_MAX_STENCIL
+        weights      - (output) Fornberg FD weights, length GSL_DERIV_MAX_STENCIL*(GSL_DERIV_MAX_DERIV_ORDER+1)
+        W            - (output) vector view for the weights corresponding to deriv_order, length stencil_size
+
+Return: success/error
+*/
+
+static int
+deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double stencil[],
+           double weights[], gsl_vector_view * W)
 {
-  /* Compute the derivative using the 4-point rule (x+h/4, x+h/2,
-     x+3h/4, x+h).
+  int status;
+  gsl_matrix_view A;
 
-     Compute the error using the difference between the 4-point and
-     the 2-point rule (x+h/2,x+h).  */
-
-  double f1 = GSL_FN_EVAL (f, x + h / 4.0);
-  double f2 = GSL_FN_EVAL (f, x + h / 2.0);
-  double f3 = GSL_FN_EVAL (f, x + (3.0 / 4.0) * h);
-  double f4 = GSL_FN_EVAL (f, x + h);
-
-  double r2 = 2.0*(f4 - f2);
-  double r4 = (22.0 / 3.0) * (f4 - f3) - (62.0 / 3.0) * (f3 - f2) +
-    (52.0 / 3.0) * (f2 - f1);
-
-  /* Estimate the rounding error for r4 */
-
-  double e4 = 2 * 20.67 * (fabs (f4) + fabs (f3) + fabs (f2) + fabs (f1)) * GSL_DBL_EPSILON;
-
-  /* The next term is due to finite precision in x+h = O (eps * x) */
-
-  double dy = GSL_MAX (fabs (r2 / h), fabs (r4 / h)) * fabs (x / h) * GSL_DBL_EPSILON;
-
-  /* The truncation error in the r4 approximation itself is O(h^3).
-     However, for safety, we estimate the error from r4-r2, which is
-     O(h).  By scaling h we will minimise this estimated error, not
-     the actual truncation error in r4. */
-
-  *result = r4 / h;
-  *abserr_trunc = fabs ((r4 - r2) / h); /* Estimated truncation error O(h) */
-  *abserr_round = fabs (e4 / h) + dy;
-}
-
-int
-gsl_deriv_forward (const gsl_function * f, double x, double h,
-                   double *result, double *abserr)
-{
-  double r_0, round, trunc, error;
-  forward_deriv (f, x, h, &r_0, &round, &trunc);
-  error = round + trunc;
-
-  if (round < trunc && (round > 0 && trunc > 0))
+  /* calculate stencil size */
+  gsl_deriv_stencil_size(params->deriv_order, params->method_order, params->stencil_type, stencil_size);
+  if (*stencil_size > GSL_DERIV_MAX_STENCIL)
     {
-      double r_opt, round_opt, trunc_opt, error_opt;
-
-      /* Compute an optimised stepsize to minimize the total error,
-         using the scaling of the estimated truncation error (O(h)) and
-         rounding error (O(1/h)). */
-
-      double h_opt = h * pow (round / (trunc), 1.0 / 2.0);
-      forward_deriv (f, x, h_opt, &r_opt, &round_opt, &trunc_opt);
-      error_opt = round_opt + trunc_opt;
-
-      /* Check that the new error is smaller, and that the new derivative 
-         is consistent with the error bounds of the original estimate. */
-
-      if (error_opt < error && fabs (r_opt - r_0) < 4.0 * error)
-        {
-          r_0 = r_opt;
-          error = error_opt;
-        }
+      GSL_ERROR("stencil_size exceeds GSL_DERIV_MAX_STENCIL", GSL_EBADLEN);
     }
 
-  *result = r_0;
-  *abserr = error;
+  /* fill unit scale stencil */
+  gsl_deriv_stencil_fill(params->stencil_type, *stencil_size, stencil);
+
+  /* compute Fornberg finite difference weights for unit stencil around point 0 */
+  status = gsl_deriv_fornberg_weights(stencil, *stencil_size, params->deriv_order, 0.0, weights);
+  if (status)
+    return status;
+
+  A = gsl_matrix_view_array(weights, params->deriv_order + 1, *stencil_size);
+  *W = gsl_matrix_row(&A.matrix, params->deriv_order);
 
   return GSL_SUCCESS;
 }
 
-int
-gsl_deriv_backward (const gsl_function * f, double x, double h,
-                    double *result, double *abserr)
+/*
+fd_apply()
+  Apply finite difference weights to a function on a scaled
+stencil to approximate the derivative of order m,
+
+f^{(m)}(x0) = 1/(dx)^m * sum_k w_k f(x0 + s_k*dx)
+
+Inputs: f            - function to evaluate
+        x0           - point on which to apply stencil
+        dx           - stencil scale factor
+        weights      - Fornberg weights
+        stencil      - FD stencil
+        stencil_size - length of stencil
+        deriv_order  - derivative order to approximate
+        result       - (output) f^{(m)}(x0) approximated by finite differences,
+                       where m is deriv_order
+        abserr_round - (output) roundoff error estimate (may be NULL)
+        neval        - (output) number of function evaluations
+
+Return: success/error
+
+Notes:
+1) function evaluations are added to neval as a running sum
+
+2) The roundoff error estimate is:
+
+abserr_round = eps (1/dx)^m sum_k |w_k f(x0 + s_k*dx)|
+*/
+
+static int
+fd_apply(const gsl_function * f, const double x0, const double dx,
+         const gsl_vector * weights, const double stencil[], const size_t stencil_size,
+         const unsigned int deriv_order, double * result, double * abserr_round, unsigned int * neval)
 {
-  return gsl_deriv_forward (f, x, -h, result, abserr);
+  if (weights->size != stencil_size)
+    {
+      GSL_ERROR ("weights does not match stencil_size", GSL_EBADLEN);
+    }
+  else
+    {
+      const double fac = gsl_pow_uint(1.0 / dx, deriv_order);
+      double sum = 0.0, sumabs = 0.0, c = 0.0;
+      size_t k;
+
+      /* compute finite difference approximation using Kahan summation */
+      for (k = 0; k < stencil_size; ++k)
+        {
+          const double wk = gsl_vector_get(weights, k);
+          const double x_eval = x0 + dx * stencil[k];
+          const double fk = GSL_FN_EVAL(f, x_eval);
+
+          const double term = wk * fk;
+          const double y = term - c;
+          const double t = sum + y;
+
+          c = (t - sum) - y;
+          sum = t;
+
+          /* accumulate absolute magnitude for roundoff estimate */
+          sumabs += fabs(term);
+        }
+
+      *result = sum * fac;
+      *neval += stencil_size;
+
+      if (abserr_round)
+        *abserr_round = GSL_DBL_EPSILON * sumabs * fac;
+
+      return GSL_SUCCESS;
+    }
+}
+
+/* A(i,j) = v(i+j-1) */
+static int
+vec2mat(const gsl_vector * v, gsl_matrix * A)
+{
+  const size_t M = A->size1;
+  const size_t N = A->size2;
+  size_t i, j;
+
+  for (i = 0; i < M; ++i)
+    {
+      for (j = 0; j < N; ++j)
+        gsl_matrix_set(A, i, j, gsl_vector_get(v, i + j));
+    }
+
+  return GSL_SUCCESS;
+}
+
+static int
+rombextrap(const double step_ratio, const gsl_vector * der_init, const unsigned int rombexpon[],
+           const unsigned int nexpon, gsl_vector * der_romb, gsl_vector * errest)
+{
+  const size_t M = nexpon + 2;
+  const size_t N = nexpon + 1;
+  const size_t nderiv = der_init->size;
+  const size_t nromb = nderiv - N;
+
+  if (nexpon > 3)
+    {
+      GSL_ERROR ("nexpon must be <= 3", GSL_EDOM);
+    }
+  else if (der_romb->size != nromb)
+    {
+      GSL_ERROR ("der_romb has wrong size", GSL_EBADLEN);
+    }
+  else if (errest->size != nromb)
+    {
+      GSL_ERROR ("errest has wrong size", GSL_EBADLEN);
+    }
+  else
+    {
+      const double t95 = 12.7062047361747; /* 97.5th percentile Student t-distribution with one dof */
+      const double srinv = 1.0 / step_ratio;
+      double rmat_data[5*4], T_data[4*4], rhs_data[5*GSL_DERIV_MAX_SCALES];
+      double coef_data[5*GSL_DERIV_MAX_SCALES], work_data[4*GSL_DERIV_MAX_SCALES];
+      double s_data[GSL_DERIV_MAX_SCALES], y_data[4];
+      gsl_matrix_view rmat = gsl_matrix_view_array(rmat_data, M, N);
+      gsl_matrix_view R = gsl_matrix_submatrix(&rmat.matrix, 0, 0, N, N);
+      gsl_matrix_view T = gsl_matrix_view_array(T_data, N, N);
+      gsl_matrix_view work = gsl_matrix_view_array(work_data, N, nromb);
+      gsl_matrix_view rhs = gsl_matrix_view_array(rhs_data, M, nromb);
+      gsl_matrix_view coef = gsl_matrix_view_array(coef_data, M, nromb);
+      gsl_vector_view y = gsl_vector_view_array(y_data, N);
+      gsl_vector_view s = gsl_vector_view_array(s_data, nromb);
+      gsl_vector_view v;
+      double sqrt_cov1;
+      size_t i, j;
+
+      for (i = 0; i < M; ++i)
+        gsl_matrix_set(&rmat.matrix, i, 0, 1.0);
+
+      for (j = 1; j < N; ++j)
+        {
+          const double base = gsl_pow_uint(srinv, rombexpon[j-1]);
+          double value = 1.0;
+
+          for (i = 0; i < M; ++i)
+            {
+              gsl_matrix_set(&rmat.matrix, i, j, value);
+              value *= base;
+            }
+        }
+
+      vec2mat(der_init, &rhs.matrix);
+
+      /* solve LS system and compute extrapolated coefficients */
+      gsl_linalg_QR_decomp_r(&rmat.matrix, &T.matrix);
+      gsl_linalg_QR_lssolvem_r(&rmat.matrix, &T.matrix, &rhs.matrix, &coef.matrix, &work.matrix);
+
+      v = gsl_matrix_row(&coef.matrix, 0);
+      gsl_vector_memcpy(der_romb, &v.vector);
+
+      for (j = 0; j < nromb; ++j)
+        {
+          gsl_vector_view cj = gsl_matrix_subcolumn(&coef.matrix, j, N, M - N);
+          s_data[j] = gsl_blas_dnrm2(&cj.vector);
+        }
+
+      /* solve R^T y = e_1 */
+      gsl_vector_set_zero(&y.vector);
+      y_data[0] = 1.0;
+      gsl_blas_dtrsv(CblasUpper, CblasTrans, CblasNonUnit, &R.matrix, &y.vector);
+
+      /* cov1 = (R^T R)^{-1}]_11 */
+      sqrt_cov1 = gsl_blas_dnrm2(&y.vector);
+
+      gsl_vector_axpby(t95 * sqrt_cov1, &s.vector, 0.0, errest);
+
+      return GSL_SUCCESS;
+    }
 }

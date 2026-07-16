@@ -1,6 +1,7 @@
 /* deriv/test.c
  * 
  * Copyright (C) 2000 David Morrison
+ * Copyright (C) 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,109 +24,27 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_deriv.h>
+#include <gsl/gsl_vector.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_rng.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_ieee_utils.h>
 
-double
-f1 (double x, void *params)
+/* generate random vector with elements in [a,b] */
+static void
+random_vector(const double a, const double b, gsl_vector * v, gsl_rng * r)
 {
-  return exp (x);
-}
+  size_t i;
 
-double
-df1 (double x, void *params)
-{
-  return exp (x);
-}
-
-double
-f2 (double x, void *params)
-{
-  if (x >= 0.0)
+  for (i = 0; i < v->size; ++i)
     {
-      return x * sqrt (x);
-    }
-  else
-    {
-      return 0.0;
+      double vi = (b - a) * gsl_rng_uniform(r) + a;
+      gsl_vector_set(v, i, vi);
     }
 }
 
-double
-df2 (double x, void *params)
-{
-  if (x >= 0.0)
-    {
-      return 1.5 * sqrt (x);
-    }
-  else
-    {
-      return 0.0;
-    }
-}
-
-double
-f3 (double x, void *params)
-{
-  if (x != 0.0)
-    {
-      return sin (1 / x);
-    }
-  else
-    {
-      return 0.0;
-    }
-}
-
-double
-df3 (double x, void *params)
-{
-  if (x != 0.0)
-    {
-      return -cos (1 / x) / (x * x);
-    }
-  else
-    {
-      return 0.0;
-    }
-}
-
-double
-f4 (double x, void *params)
-{
-  return exp (-x * x);
-}
-
-double
-df4 (double x, void *params)
-{
-  return -2.0 * x * exp (-x * x);
-}
-
-double
-f5 (double x, void *params)
-{
-  return x * x;
-}
-
-double
-df5 (double x, void *params)
-{
-  return 2.0 * x;
-}
-
-double
-f6 (double x, void *params)
-{
-  return 1.0 / x;
-}
-
-double
-df6 (double x, void *params)
-{
-  return -1.0 / (x * x);
-}
+#include "test_f.c"
+#include "test_fornberg.c"
 
 typedef int (deriv_fn) (const gsl_function * f, double x, double h, double * res, double *abserr);
 
@@ -155,30 +74,171 @@ test (deriv_fn * deriv, gsl_function * f, gsl_function * df, double x,
 }
 
 int
+test_deriv_adaptive_tol(const double tol, const deriv_test_function * TF, const double x,
+                        const gsl_deriv_stencil_t stencil_type, const char * desc)
+{
+  const double a = TF->a;
+  const gsl_function F   = { TF->f,   (void *) &a };
+  const gsl_function DF  = { TF->df,  (void *) &a };
+  const gsl_function D2F = { TF->d2f, (void *) &a };
+  const gsl_function D3F = { TF->d3f, (void *) &a };
+  const gsl_function D4F = { TF->d4f, (void *) &a };
+  const double expected_df  = GSL_FN_EVAL (&DF, x);
+  const double expected_d2f = GSL_FN_EVAL (&D2F, x);
+  const double expected_d3f = GSL_FN_EVAL (&D3F, x);
+  const double expected_d4f = GSL_FN_EVAL (&D4F, x);
+  gsl_deriv_parameters params = gsl_deriv_default_parameters();
+  double result, abserr, fs;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+
+  params.stencil_type = stencil_type;
+  if (TF->min_scale > 0.0)
+    params.min_scale = TF->min_scale;
+  if (TF->max_scale > 0.0)
+    params.max_scale = TF->max_scale;
+
+  params.deriv_order = 1;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_df, tol, "%s df adaptive %s x=%g a=%g", TF->desc, desc, x, a);
+
+  params.deriv_order = 2;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f adaptive %s x=%g a=%g", TF->desc, desc, x, a);
+
+  params.deriv_order = 3;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_d3f, 1.0e3*tol, "%s d3f adaptive %s x=%g a=%g", TF->desc, desc, x, a);
+
+  params.deriv_order = 4;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_d4f, 1.0e6*tol, "%s d4f adaptive %s x=%g a=%g", TF->desc, desc, x, a);
+  /*gsl_deriv_print_diag(stdout, &diag);
+  exit(1);*/
+
+  return 0;
+}
+
+int
+test_deriv_adaptive(const double tol, gsl_rng * rng_p)
+{
+  const size_t N = 10; /* number of random points per function */
+  const deriv_test_function * ptr;
+
+  for (ptr = test_functions; ptr->f != NULL; ++ptr)
+    {
+      size_t j;
+
+      test_deriv_adaptive_tol(tol, ptr,  1.0, GSL_DERIV_STENCIL_CENTRAL, "central");
+      test_deriv_adaptive_tol(1.0e1*tol, ptr,  1.0, GSL_DERIV_STENCIL_FORWARD, "forward");
+      test_deriv_adaptive_tol(1.0e1*tol, ptr,  1.0, GSL_DERIV_STENCIL_BACKWARD, "backward");
+
+      test_deriv_adaptive_tol(tol, ptr, -1.0, GSL_DERIV_STENCIL_CENTRAL, "central");
+      test_deriv_adaptive_tol(1.0e1*tol, ptr, -1.0, GSL_DERIV_STENCIL_FORWARD, "forward");
+      test_deriv_adaptive_tol(1.0e1*tol, ptr, -1.0, GSL_DERIV_STENCIL_BACKWARD, "backward");
+
+      for (j = 0; j < N; ++j)
+        {
+          double u = gsl_rng_uniform(rng_p);
+          double x = ptr->xmin + u * (ptr->xmax - ptr->xmin);
+
+          test_deriv_adaptive_tol(tol, ptr, x, GSL_DERIV_STENCIL_CENTRAL, "central random");
+          test_deriv_adaptive_tol(1.0e3*tol, ptr, x, GSL_DERIV_STENCIL_FORWARD, "forward random");
+          test_deriv_adaptive_tol(1.0e2*tol, ptr, x, GSL_DERIV_STENCIL_BACKWARD, "backward random");
+        }
+    }
+
+  return GSL_SUCCESS;
+}
+
+int
+test_deriv_fixed_tol(const double tol, const deriv_test_function * TF, const double x,
+                     const gsl_deriv_stencil_t stencil_type, const double h, const char * desc)
+{
+  const double a = TF->a;
+  const gsl_function F   = { TF->f,   (void *) &a };
+  const gsl_function DF  = { TF->df,  (void *) &a };
+  const gsl_function D2F = { TF->d2f, (void *) &a };
+  const double expected_df  = GSL_FN_EVAL (&DF, x);
+  const double expected_d2f = GSL_FN_EVAL (&D2F, x);
+  gsl_deriv_parameters params = gsl_deriv_default_parameters();
+  double result, abserr, fs;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+
+  params.stencil_type = stencil_type;
+  params.fixed_step = h;
+
+  params.deriv_order = 1;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_df, tol, "%s df fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h);
+
+  params.deriv_order = 2;
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h);
+
+  return 0;
+}
+
+int
+test_deriv_fixed(const double tol, gsl_rng * rng_p)
+{
+  const size_t N = 20; /* number of random points per function */
+  const deriv_test_function * ptr;
+
+  for (ptr = test_functions; ptr->f != NULL; ++ptr)
+    {
+      double h_fixed;
+      size_t j;
+
+      if (ptr->min_scale > 0.0 && ptr->max_scale > 0.0)
+        h_fixed = sqrt(ptr->min_scale * ptr->max_scale);
+      else
+        h_fixed = GSL_ROOT3_DBL_EPSILON;
+
+      for (j = 0; j < N; ++j)
+        {
+          double u = gsl_rng_uniform(rng_p);
+          double x = ptr->xmin + u * (ptr->xmax - ptr->xmin);
+
+          test_deriv_fixed_tol(tol, ptr, x, GSL_DERIV_STENCIL_CENTRAL, h_fixed, "central random");
+          test_deriv_fixed_tol(1.0e1*tol, ptr, x, GSL_DERIV_STENCIL_FORWARD, h_fixed, "forward random");
+          test_deriv_fixed_tol(tol, ptr, x, GSL_DERIV_STENCIL_BACKWARD, h_fixed, "backward random");
+        }
+    }
+
+  return GSL_SUCCESS;
+}
+
+int
 main ()
 {
-  gsl_function F1, DF1, F2, DF2, F3, DF3, F4, DF4, F5, DF5, F6, DF6;
+  const double tol = 1.0e-11;
+  gsl_rng * rng_p = gsl_rng_alloc(gsl_rng_default);
 
   gsl_ieee_env_setup ();
 
-  F1.function = &f1;
-  DF1.function = &df1;
+  test_fornberg(tol, rng_p);
+  test_deriv_adaptive(tol, rng_p);
+  test_deriv_fixed(1.0e-5, rng_p);
 
+#if 0
   F2.function = &f2;
   DF2.function = &df2;
 
   F3.function = &f3;
   DF3.function = &df3;
 
-  F4.function = &f4;
-  DF4.function = &df4;
-
   F5.function = &f5;
   DF5.function = &df5;
 
   F6.function = &f6;
   DF6.function = &df6;
-  
+
+  test_de (&F1, &DF1, 1.0, "exp(x), x=1, derivest");
+  /*test_de (&F1, &DF1, 2.0, "exp(x), x=2, derivest");*/
+
+#if 0/*XXX*/
   test (&gsl_deriv_central, &F1, &DF1, 1.0, "exp(x), x=1, central deriv");
   test (&gsl_deriv_forward, &F1, &DF1, 1.0, "exp(x), x=1, forward deriv");
   test (&gsl_deriv_backward, &F1, &DF1, 1.0, "exp(x), x=1, backward deriv");
@@ -202,6 +262,10 @@ main ()
   test (&gsl_deriv_central, &F6, &DF6, 10.0, "1/x, x=10, central deriv");
   test (&gsl_deriv_forward, &F6, &DF6, 10.0, "1/x, x=10, forward deriv");
   test (&gsl_deriv_backward, &F6, &DF6, 10.0, "1/x, x=10, backward deriv");
+#endif
+#endif
+
+  gsl_rng_free(rng_p);
 
   exit (gsl_test_summary ());
 }

@@ -2,6 +2,7 @@
 
 ** add functions:
    - gsl_matrix_axpby
+   - gsl_permutation_view_array
 
 ** new interface (gsl_sf_alf) for associated Legendre functions
 
