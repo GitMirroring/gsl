@@ -57,6 +57,7 @@ typedef struct
   double x;                                       /* point at which to compute derivative */
   double coordinate_scale;                        /* coordinate scale factor */
   double der_init[GSL_DERIV_MAX_SCALES];          /* initial derivative estimates */
+  double err_init[GSL_DERIV_MAX_SCALES];          /* initial derivative roundoff error */
   double der_romb[GSL_DERIV_MAX_SCALES];          /* derivative estimates after Romberg extrapolation */
   double err_romb[GSL_DERIV_MAX_SCALES];          /* error estimates for Romberg extrapolated derivatives */
   size_t nromb;                                   /* number of Romberg windows */

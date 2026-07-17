@@ -74,15 +74,42 @@ test (deriv_fn * deriv, gsl_function * f, gsl_function * df, double x,
 }
 
 int
+test_deriv_adaptive_diag(const deriv_test_t * test_t, const double x, const double a,
+                         const unsigned int deriv_order,
+                         const double min_scale, const double max_scale,
+                         const gsl_deriv_stencil_t stencil_type)
+{
+  const gsl_function F = { test_t->f, (void *) &a };
+  gsl_deriv_parameters params = gsl_deriv_default_parameters();
+  double result, abserr, fs;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+
+  params.stencil_type = stencil_type;
+  params.deriv_order = deriv_order;
+
+  if (min_scale > 0.0)
+    params.min_scale = min_scale;
+  if (max_scale > 0.0)
+    params.max_scale = max_scale;
+
+  gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
+  gsl_deriv_print_diag(stdout, &diag);
+
+  return 0;
+}
+
+int
 test_deriv_adaptive_tol(const double tol, const deriv_test_function * TF, const double x,
                         const gsl_deriv_stencil_t stencil_type, const char * desc)
 {
   const double a = TF->a;
-  const gsl_function F   = { TF->f,   (void *) &a };
-  const gsl_function DF  = { TF->df,  (void *) &a };
-  const gsl_function D2F = { TF->d2f, (void *) &a };
-  const gsl_function D3F = { TF->d3f, (void *) &a };
-  const gsl_function D4F = { TF->d4f, (void *) &a };
+  const deriv_test_t * test_t = TF->test_t;
+  const gsl_function F   = { test_t->f,   (void *) &a };
+  const gsl_function DF  = { test_t->df,  (void *) &a };
+  const gsl_function D2F = { test_t->d2f, (void *) &a };
+  const gsl_function D3F = { test_t->d3f, (void *) &a };
+  const gsl_function D4F = { test_t->d4f, (void *) &a };
   const double expected_df  = GSL_FN_EVAL (&DF, x);
   const double expected_d2f = GSL_FN_EVAL (&D2F, x);
   const double expected_d3f = GSL_FN_EVAL (&D3F, x);
@@ -113,8 +140,6 @@ test_deriv_adaptive_tol(const double tol, const deriv_test_function * TF, const 
   params.deriv_order = 4;
   gsl_deriv_scalar_driver(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
   gsl_test_rel(result, expected_d4f, 1.0e6*tol, "%s d4f adaptive %s x=%g a=%g", TF->desc, desc, x, a);
-  /*gsl_deriv_print_diag(stdout, &diag);
-  exit(1);*/
 
   return 0;
 }
@@ -125,7 +150,7 @@ test_deriv_adaptive(const double tol, gsl_rng * rng_p)
   const size_t N = 10; /* number of random points per function */
   const deriv_test_function * ptr;
 
-  for (ptr = test_functions; ptr->f != NULL; ++ptr)
+  for (ptr = test_functions; ptr->test_t != NULL; ++ptr)
     {
       size_t j;
 
@@ -156,9 +181,10 @@ test_deriv_fixed_tol(const double tol, const deriv_test_function * TF, const dou
                      const gsl_deriv_stencil_t stencil_type, const double h, const char * desc)
 {
   const double a = TF->a;
-  const gsl_function F   = { TF->f,   (void *) &a };
-  const gsl_function DF  = { TF->df,  (void *) &a };
-  const gsl_function D2F = { TF->d2f, (void *) &a };
+  const deriv_test_t * test_t = TF->test_t;
+  const gsl_function F   = { test_t->f,   (void *) &a };
+  const gsl_function DF  = { test_t->df,  (void *) &a };
+  const gsl_function D2F = { test_t->d2f, (void *) &a };
   const double expected_df  = GSL_FN_EVAL (&DF, x);
   const double expected_d2f = GSL_FN_EVAL (&D2F, x);
   gsl_deriv_parameters params = gsl_deriv_default_parameters();
@@ -186,7 +212,7 @@ test_deriv_fixed(const double tol, gsl_rng * rng_p)
   const size_t N = 20; /* number of random points per function */
   const deriv_test_function * ptr;
 
-  for (ptr = test_functions; ptr->f != NULL; ++ptr)
+  for (ptr = test_functions; ptr->test_t != NULL; ++ptr)
     {
       double h_fixed;
       size_t j;
@@ -217,6 +243,11 @@ main ()
   gsl_rng * rng_p = gsl_rng_alloc(gsl_rng_default);
 
   gsl_ieee_env_setup ();
+
+#if 0
+  test_deriv_adaptive_diag(&sina_test, 0.0, 100.0, 4, 1.0e-4, 1.0e4, GSL_DERIV_STENCIL_CENTRAL);
+  exit(1);
+#endif
 
   test_fornberg(tol, rng_p);
   test_deriv_adaptive(tol, rng_p);

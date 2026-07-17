@@ -30,14 +30,27 @@
 #include <gsl/gsl_sort_vector.h>
 #include <gsl/gsl_statistics.h>
 
+#define ROMBERG_MAX_TERMS          3
+#define ROMBERG_MAX_M              (ROMBERG_MAX_TERMS + 2)
+#define ROMBERG_MAX_N              (ROMBERG_MAX_TERMS + 1)
+
+typedef struct
+{
+  unsigned int expon[ROMBERG_MAX_TERMS];       /* exponent powers appearing in the truncation error expansion, length nexpon */
+  size_t nexpon;                               /* length of expon = romberg_terms */
+  double QR_data[ROMBERG_MAX_M*ROMBERG_MAX_N]; /* QR factorization of LS matrix, size M-by-N */
+  double T_data[ROMBERG_MAX_N*ROMBERG_MAX_N];  /* Householder reflector matrix, size N-by-N */
+  double sqrt_cov1;                            /* cov1 = (R^T R)^{-1}]_11 */
+} romb_state_t;
+
 static int deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double stencil[],
                       double weights[], gsl_vector_view * W);
 static int fd_apply(const gsl_function * f, const double x0, const double dx,
                     const gsl_vector * weights, const double stencil[], const size_t stencil_size,
                     const unsigned int deriv_order, double * result, double * abserr_round, unsigned int * neval);
 static int vec2mat(const gsl_vector * v, gsl_matrix * A);
-static int rombextrap(const double step_ratio, const gsl_vector * der_init, const unsigned int rombexpon[],
-                      const unsigned int nexpon, gsl_vector * der_romb, gsl_vector * errest);
+static int romb_init(const gsl_deriv_parameters * params, const double scale_ratio, romb_state_t * state);
+static int romb_extrap(const gsl_vector * der_init, gsl_vector * der_romb, gsl_vector * errest, romb_state_t * state);
 
 /*
 gsl_deriv_default_parameters()
@@ -69,7 +82,7 @@ gsl_deriv_scalar()
 
 Inputs: f           - function f(x)
         x           - point at which to compute derivative
-        deriv_order - derivative order in [0 1 2 3 4]
+        deriv_order - derivative order
         result      - (output) derivative result
         esterr      - (output) 95% uncertainty estimate of the derivative, such that
                         abs(result - f'(x)) < esterr
@@ -91,7 +104,7 @@ gsl_deriv_scalar_fixed()
 Inputs: f           - function f(x)
         x           - point at which to compute derivative
         h           - step size
-        deriv_order - derivative order in [0 1 2 3 4]
+        deriv_order - derivative order
         result      - (output) derivative result
         esterr      - (output) 95% uncertainty estimate of the derivative, such that
                         abs(result - f'(x)) < esterr
@@ -241,9 +254,9 @@ gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, 
     {
       GSL_ERROR ("method order must be in [1,GSL_DERIV_MAX_METHOD_ORDER]", GSL_EDOM);
     }
-  else if (params->romberg_terms > 3)
+  else if (params->romberg_terms > ROMBERG_MAX_TERMS)
     {
-      GSL_ERROR ("romberg terms must be in [0 1 2 3]", GSL_EDOM);
+      GSL_ERROR ("romberg terms must be <= ROMBERG_MAX_TERMS", GSL_EDOM);
     }
   else if (result->size != n)
     {
@@ -267,6 +280,7 @@ gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, 
       gsl_deriv_diag diag_local;
       gsl_deriv_diag * dptr = (diag == NULL) ? &diag_local : diag;
       gsl_vector_view unit_weights; /* Fornberg weights for deriv_order */
+      romb_state_t romb_state;
       size_t i;
 
       *neval = 0;
@@ -291,7 +305,11 @@ gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, 
       if (status)
         return status;
 
+      /* number of Romberg windows */
       dptr->nromb = dptr->nscale - params->romberg_terms - 1;
+
+      /* initialize Romberg state */
+      romb_init(params, scale_params.ratio, &romb_state);
 
       for (i = 0; i < n; ++i)
         {
@@ -300,7 +318,6 @@ gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, 
           gsl_vector_view der_romb = gsl_vector_view_array(dptr->der_romb, dptr->nromb);
           gsl_vector_view err_romb = gsl_vector_view_array(dptr->err_romb, dptr->nromb);
           gsl_vector_view scale_romb = gsl_vector_view_array(dptr->scale_multipliers, dptr->nromb);
-          unsigned int rombexpon[4];
           double final_scale;
           size_t j;
 
@@ -330,24 +347,13 @@ gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, 
 
               status = fd_apply(f, xi, dx_j, &unit_weights.vector,
                                 dptr->stencil, dptr->stencil_size, params->deriv_order,
-                                &(dptr->der_init[j]), NULL, neval);
+                                &(dptr->der_init[j]), &(dptr->err_init[j]), neval);
               if (status)
                 return status;
             }
 
-          if (params->stencil_type == GSL_DERIV_STENCIL_CENTRAL)
-            {
-              for (j = 0; j < params->romberg_terms; ++j)
-                rombexpon[j] = 2*(j+1) + params->method_order - 2;
-            }
-          else
-            {
-              for (j = 0; j < params->romberg_terms; ++j)
-                rombexpon[j] = (j+1) + params->method_order - 1;
-            }
-
-          rombextrap(scale_params.ratio, &der_init.vector, rombexpon,
-                     params->romberg_terms, &der_romb.vector, &err_romb.vector);
+          /* perform Romberg extrapolation */
+          romb_extrap(&der_init.vector, &der_romb.vector, &err_romb.vector, &romb_state);
 
           /* filter out extremely incorrect candidates */
           (cfilter->filter)(&der_romb.vector, &(dptr->cand));
@@ -509,12 +515,14 @@ gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag)
   fprintf(fp, "# Index 0\n");
   fprintf(fp, "# Field %zu: scale multiplier\n", i++);
   fprintf(fp, "# Field %zu: initial derivative estimate\n", i++);
+  fprintf(fp, "# Field %zu: initial derivative roundoff error\n", i++);
 
   for (i = 0; i < diag->nscale; ++i)
     {
-      fprintf(fp, "%20.12e %20.12e\n",
+      fprintf(fp, "%20.12e %20.12e %20.12e\n",
               diag->scale_multipliers[i],
-              diag->der_init[i]);
+              diag->der_init[i],
+              diag->err_init[i]);
     }
 
   i = 1;
@@ -682,18 +690,118 @@ vec2mat(const gsl_vector * v, gsl_matrix * A)
   return GSL_SUCCESS;
 }
 
+/*
+romb_init()
+  Initialize variables for Romberg extrapolation
+
+Inputs: params - deriv parameters
+        state  - (output) initialized state
+
+Return: success/error
+
+Notes:
+1) state variables initialized by this function are:
+expon
+nexpon
+QR_data
+T_data
+sqrt_cov1
+*/
+
 static int
-rombextrap(const double step_ratio, const gsl_vector * der_init, const unsigned int rombexpon[],
-           const unsigned int nexpon, gsl_vector * der_romb, gsl_vector * errest)
+romb_init(const gsl_deriv_parameters * params, const double scale_ratio, romb_state_t * state)
 {
+  const size_t nexpon = params->romberg_terms;
+
+  if (nexpon > ROMBERG_MAX_TERMS)
+    {
+      GSL_ERROR ("nexpon must be <= ROMBERG_MAX_TERMS", GSL_EDOM);
+    }
+  else
+    {
+      const size_t M = nexpon + 2;
+      const size_t N = nexpon + 1;
+      const double srinv = 1.0 / scale_ratio;
+      gsl_matrix_view A = gsl_matrix_view_array(state->QR_data, M, N);
+      gsl_matrix_view T = gsl_matrix_view_array(state->T_data, N, N);
+      gsl_matrix_const_view R = gsl_matrix_const_submatrix(&A.matrix, 0, 0, N, N);
+      double y_data[ROMBERG_MAX_N];
+      gsl_vector_view y = gsl_vector_view_array(y_data, N);
+      size_t i, j;
+
+      state->nexpon = nexpon;
+
+      /* store exponent powers appearing in truncation error expansion (depends on stencil) */
+      if (params->stencil_type == GSL_DERIV_STENCIL_CENTRAL)
+        {
+          for (j = 0; j < nexpon; ++j)
+            state->expon[j] = 2*(j+1) + params->method_order - 2;
+        }
+      else
+        {
+          for (j = 0; j < nexpon; ++j)
+            state->expon[j] = (j+1) + params->method_order - 1;
+        }
+
+      /* construct LS matrix for fitting a polynomial to each Romberg window */
+
+      for (i = 0; i < M; ++i)
+        gsl_matrix_set(&A.matrix, i, 0, 1.0);
+
+      for (j = 1; j < N; ++j)
+        {
+          const double base = gsl_pow_uint(srinv, state->expon[j-1]);
+          double value = 1.0;
+
+          for (i = 0; i < M; ++i)
+            {
+              gsl_matrix_set(&A.matrix, i, j, value);
+              value *= base;
+            }
+        }
+
+      /* compute QR decomposition of A matrix */
+      gsl_linalg_QR_decomp_r(&A.matrix, &T.matrix);
+
+      /* solve R^T y = e_1 */
+      gsl_vector_set_zero(&y.vector);
+      y_data[0] = 1.0;
+      gsl_blas_dtrsv(CblasUpper, CblasTrans, CblasNonUnit, &R.matrix, &y.vector);
+
+      /* cov1 = (R^T R)^{-1}]_11 */
+      state->sqrt_cov1 = gsl_blas_dnrm2(&y.vector);
+
+      return GSL_SUCCESS;
+    }
+}
+
+/*
+romb_extrap()
+  Perform Romberg extrapolation
+
+Inputs: der_init - initial derivative estimates
+        der_romb - (output) Romberg extrapolated estimates
+        errest   - (output) estimated error in extrapolated derivatives
+        state    - workspace
+
+Return: success/error
+
+Notes:
+1) romb_init() must be called prior to initialize state
+*/
+
+static int
+romb_extrap(const gsl_vector * der_init, gsl_vector * der_romb, gsl_vector * errest, romb_state_t * state)
+{
+  const size_t nexpon = state->nexpon;
   const size_t M = nexpon + 2;
   const size_t N = nexpon + 1;
   const size_t nderiv = der_init->size;
   const size_t nromb = nderiv - N;
 
-  if (nexpon > 3)
+  if (nexpon > ROMBERG_MAX_TERMS)
     {
-      GSL_ERROR ("nexpon must be <= 3", GSL_EDOM);
+      GSL_ERROR ("nexpon must be <= ROMBERG_MAX_TERMS", GSL_EDOM);
     }
   else if (der_romb->size != nromb)
     {
@@ -706,61 +814,37 @@ rombextrap(const double step_ratio, const gsl_vector * der_init, const unsigned 
   else
     {
       const double t95 = 12.7062047361747; /* 97.5th percentile Student t-distribution with one dof */
-      const double srinv = 1.0 / step_ratio;
-      double rmat_data[5*4], T_data[4*4], rhs_data[5*GSL_DERIV_MAX_SCALES];
-      double coef_data[5*GSL_DERIV_MAX_SCALES], work_data[4*GSL_DERIV_MAX_SCALES];
-      double s_data[GSL_DERIV_MAX_SCALES], y_data[4];
-      gsl_matrix_view rmat = gsl_matrix_view_array(rmat_data, M, N);
-      gsl_matrix_view R = gsl_matrix_submatrix(&rmat.matrix, 0, 0, N, N);
-      gsl_matrix_view T = gsl_matrix_view_array(T_data, N, N);
+      double rhs_data[ROMBERG_MAX_M*GSL_DERIV_MAX_SCALES];
+      double coef_data[ROMBERG_MAX_M*GSL_DERIV_MAX_SCALES], work_data[ROMBERG_MAX_N*GSL_DERIV_MAX_SCALES];
+      double s_data[GSL_DERIV_MAX_SCALES];
+      gsl_matrix_const_view QR = gsl_matrix_const_view_array(state->QR_data, M, N);
+      gsl_matrix_const_view T = gsl_matrix_const_view_array(state->T_data, N, N);
       gsl_matrix_view work = gsl_matrix_view_array(work_data, N, nromb);
       gsl_matrix_view rhs = gsl_matrix_view_array(rhs_data, M, nromb);
       gsl_matrix_view coef = gsl_matrix_view_array(coef_data, M, nromb);
-      gsl_vector_view y = gsl_vector_view_array(y_data, N);
       gsl_vector_view s = gsl_vector_view_array(s_data, nromb);
       gsl_vector_view v;
-      double sqrt_cov1;
-      size_t i, j;
+      size_t j;
 
-      for (i = 0; i < M; ++i)
-        gsl_matrix_set(&rmat.matrix, i, 0, 1.0);
-
-      for (j = 1; j < N; ++j)
-        {
-          const double base = gsl_pow_uint(srinv, rombexpon[j-1]);
-          double value = 1.0;
-
-          for (i = 0; i < M; ++i)
-            {
-              gsl_matrix_set(&rmat.matrix, i, j, value);
-              value *= base;
-            }
-        }
-
+      /* generate the Romberg windows and store in rhs matrix */
       vec2mat(der_init, &rhs.matrix);
 
       /* solve LS system and compute extrapolated coefficients */
-      gsl_linalg_QR_decomp_r(&rmat.matrix, &T.matrix);
-      gsl_linalg_QR_lssolvem_r(&rmat.matrix, &T.matrix, &rhs.matrix, &coef.matrix, &work.matrix);
+      gsl_linalg_QR_lssolvem_r(&QR.matrix, &T.matrix, &rhs.matrix, &coef.matrix, &work.matrix);
 
+      /* store extrapolated derivatives in output vector */
       v = gsl_matrix_row(&coef.matrix, 0);
       gsl_vector_memcpy(der_romb, &v.vector);
 
+      /* compute residual norms of each LS fit */
       for (j = 0; j < nromb; ++j)
         {
-          gsl_vector_view cj = gsl_matrix_subcolumn(&coef.matrix, j, N, M - N);
+          gsl_vector_const_view cj = gsl_matrix_const_subcolumn(&coef.matrix, j, N, M - N);
           s_data[j] = gsl_blas_dnrm2(&cj.vector);
         }
 
-      /* solve R^T y = e_1 */
-      gsl_vector_set_zero(&y.vector);
-      y_data[0] = 1.0;
-      gsl_blas_dtrsv(CblasUpper, CblasTrans, CblasNonUnit, &R.matrix, &y.vector);
-
-      /* cov1 = (R^T R)^{-1}]_11 */
-      sqrt_cov1 = gsl_blas_dnrm2(&y.vector);
-
-      gsl_vector_axpby(t95 * sqrt_cov1, &s.vector, 0.0, errest);
+      /* error estimates */
+      gsl_vector_axpby(t95 * state->sqrt_cov1, &s.vector, 0.0, errest);
 
       return GSL_SUCCESS;
     }

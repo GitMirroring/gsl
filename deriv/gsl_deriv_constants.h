@@ -36,7 +36,7 @@ __BEGIN_DECLS
 #define GSL_DERIV_MAX_DERIV_ORDER         10  /* maximum derivative order */
 #define GSL_DERIV_MAX_METHOD_ORDER        10  /* maximum method order */
 #define GSL_DERIV_MAX_STENCIL             21  /* maximum stencil length */
-#define GSL_DERIV_MAX_SCALES              100 /* maximum number of scale multipliers */
+#define GSL_DERIV_MAX_SCALES              50  /* maximum number of scale multipliers */
 
 __END_DECLS
 

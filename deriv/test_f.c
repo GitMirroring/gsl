@@ -31,6 +31,11 @@ typedef struct
   double (*d2f)(double x, void * params);
   double (*d3f)(double x, void * params);
   double (*d4f)(double x, void * params);
+} deriv_test_t;
+
+typedef struct
+{
+  const deriv_test_t * test_t;
   double xmin;
   double xmax;
   double a;
@@ -108,36 +113,48 @@ double p4_d2f   (double x, void * p) { U(p);       return  12.0*x*x; }
 double p4_d3f   (double x, void * p) { U(p);       return  24.0*x; }
 double p4_d4f   (double x, void * p) { U(x); U(p); return  24.0; }
 
+const deriv_test_t exp_test  = {  exp_f,  exp_df,  exp_d2f,  exp_d3f,  exp_d4f };
+const deriv_test_t exp2_test = { exp2_f, exp2_df, exp2_d2f, exp2_d3f, exp2_d4f };
+const deriv_test_t sin_test  = {  sin_f,  sin_df,  sin_d2f,  sin_d3f,  sin_d4f };
+const deriv_test_t cos_test  = {  cos_f,  cos_df,  cos_d2f,  cos_d3f,  cos_d4f };
+const deriv_test_t esin_test = { esin_f, esin_df, esin_d2f, esin_d3f, esin_d4f };
+const deriv_test_t expa_test = { expa_f, expa_df, expa_d2f, expa_d3f, expa_d4f };
+const deriv_test_t sina_test = { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f };
+const deriv_test_t p1_test   = {   p1_f,   p1_df,   p1_d2f,   p1_d3f,   p1_d4f };
+const deriv_test_t p2_test   = {   p2_f,   p2_df,   p2_d2f,   p2_d3f,   p2_d4f };
+const deriv_test_t p3_test   = {   p3_f,   p3_df,   p3_d2f,   p3_d3f,   p3_d4f };
+const deriv_test_t p4_test   = {   p4_f,   p4_df,   p4_d2f,   p4_d3f,   p4_d4f };
+
 /*
  * Library of test functions
  * The min_scale and max_scale were hand-tuned by examining
- * the diagnonstic information output by gsl_deriv_print_diag()
+ * the diagnostic information output by gsl_deriv_print_diag()
  */
 static const deriv_test_function test_functions[] =
 {
-  {  exp_f,  exp_df,  exp_d2f,  exp_d3f,  exp_d4f,  -5.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(x)" },
-  { exp2_f, exp2_df, exp2_d2f, exp2_d3f, exp2_d4f,  -5.0,   5.0,   0.0,    1.0e-8,  1.0,    "exp(-x*x)" },
-  {  sin_f,  sin_df,  sin_d2f,  sin_d3f,  sin_d4f,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "sin(x)" },
-  {  cos_f,  cos_df,  cos_d2f,  cos_d3f,  cos_d4f,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "cos(x)" },
-  { esin_f, esin_df, esin_d2f, esin_d3f, esin_d4f,  -3.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(-x)*sin(x)" },
+  {  &exp_test,  -5.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(x)" },
+  { &exp2_test,  -5.0,   5.0,   0.0,    1.0e-8,  1.0,    "exp(-x*x)" },
+  {  &sin_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "sin(x)" },
+  {  &cos_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "cos(x)" },
+  { &esin_test,  -3.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(-x)*sin(x)" },
 
-  { expa_f, expa_df, expa_d2f, expa_d3f, expa_d4f,  -5.0,   5.0,   0.01,   1.0e-3,  1.0e4,  "exp(a*x)" },
-  { expa_f, expa_df, expa_d2f, expa_d3f, expa_d4f,  -5.0,   5.0,   0.1,    1.0e-4,  1.0e3,  "exp(a*x)" },
-  { expa_f, expa_df, expa_d2f, expa_d3f, expa_d4f,  -5.0,   5.0,   1.0,   -1.0,    -1.0,    "exp(a*x)" },
-  { expa_f, expa_df, expa_d2f, expa_d3f, expa_d4f,  -3.0,   3.0,   10.0,   1.0e-6,  1.0e1,  "exp(a*x)" },
+  { &expa_test,  -5.0,   5.0,   0.01,   1.0e-3,  1.0e4,  "exp(a*x)" },
+  { &expa_test,  -5.0,   5.0,   0.1,    1.0e-4,  1.0e3,  "exp(a*x)" },
+  { &expa_test,  -5.0,   5.0,   1.0,   -1.0,    -1.0,    "exp(a*x)" },
+  { &expa_test,  -3.0,   3.0,   10.0,   1.0e-6,  1.0e1,  "exp(a*x)" },
 
-  { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f,  -M_PI,  M_PI,  0.01,   1.0e-3,  1.0e3,  "sin(a*x)" },
-  { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f,  -M_PI,  M_PI,  0.1,    1.0e-4,  1.0e2,  "sin(a*x)" },
-  { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f,  -M_PI,  M_PI,  1.0,    1.0e-5,  1.0e1,  "sin(a*x)" },
-  { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e0,  "sin(a*x)" },
-  { sina_f, sina_df, sina_d2f, sina_d3f, sina_d4f,  -M_PI,  M_PI,  100.0,  1.0e-7,  1.0e-1, "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  0.01,   1.0e-3,  1.0e3,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  0.1,    1.0e-4,  1.0e2,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  1.0,    1.0e-5,  1.0e1,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e0,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  100.0,  1.0e-7,  1.0e-1, "sin(a*x)" },
 
-  {  p1_f,    p1_df,   p1_d2f,   p1_d3f,   p1_d4f,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x" },
-  {  p2_f,    p2_df,   p2_d2f,   p2_d3f,   p2_d4f,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^2" },
-  {  p3_f,    p3_df,   p3_d2f,   p3_d3f,   p3_d4f,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^3" },
-  {  p4_f,    p4_df,   p4_d2f,   p4_d3f,   p4_d4f,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^4" },
+  {  &p1_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x" },
+  {  &p2_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^2" },
+  {  &p3_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^3" },
+  {  &p4_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^4" },
 
-  { NULL, NULL, NULL, NULL, NULL, 0.0, 0.0, 0.0, -1.0, -1.0, NULL }
+  { NULL, 0.0, 0.0, 0.0, -1.0, -1.0, NULL }
 };
 
 #if 0
