@@ -7,7 +7,6 @@ libgslderiv_la_SOURCES = \
   deriv.c                \
   deriv_old.c            \
   fornberg.c             \
-  scale_generator.c      \
   stencil.c
 
 TESTS = $(check_PROGRAMS)

@@ -38,7 +38,7 @@ __BEGIN_DECLS
 typedef struct
 {
   size_t nkeep;                       /* number of derivative candidates to keep */
-  size_t index[GSL_DERIV_MAX_SCALES]; /* indices of kept candidates */
+  size_t index[GSL_DERIV_MAX_STEPS];  /* indices of kept candidates */
 } gsl_deriv_cand_t;
 
 typedef struct
@@ -51,13 +51,14 @@ typedef struct
 {
   const char * name;
   int (*select)(const gsl_deriv_cand_t * cand, const gsl_vector * der,
-                const gsl_vector * err, const gsl_vector * scales,
-                double * der_est, double * err_est, double * scale_est);
+                const gsl_vector * err, const gsl_vector * steps,
+                double * der_est, double * err_est, double * step_est);
 } gsl_deriv_cand_select;
 
 /* candidate filter types */
 GSL_VAR const gsl_deriv_cand_filter * gsl_deriv_cand_filter_mad;
 GSL_VAR const gsl_deriv_cand_filter * gsl_deriv_cand_filter_trim;
+GSL_VAR const gsl_deriv_cand_filter * gsl_deriv_cand_filter_none;
 
 /* candidate selector types */
 GSL_VAR const gsl_deriv_cand_select * gsl_deriv_cand_select_minerr;

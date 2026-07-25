@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
-#include <gsl/gsl_deriv_scale.h>
 
 /*
 gsl_deriv_fornberg_weights()

@@ -1,4 +1,4 @@
-/* deriv/gsl_deriv_scale.h
+/* deriv/gsl_deriv_step.h
  * 
  * Copyright (C) 2026 Patrick Alken
  * 
@@ -17,12 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __GSL_DERIV_SCALE_H__
-#define __GSL_DERIV_SCALE_H__
+#ifndef __GSL_DERIV_STEP_H__
+#define __GSL_DERIV_STEP_H__
 #include <gsl/gsl_math.h>
-#include <gsl/gsl_vector.h>
-#include <gsl/gsl_types.h>
-#include <gsl/gsl_deriv_params.h>
 
 #undef __BEGIN_DECLS
 #undef __END_DECLS
@@ -36,25 +33,14 @@
 
 __BEGIN_DECLS
 
-/* parameters that define the dimensionless scale sequence */
-typedef struct
+/* step policies */
+typedef enum
 {
-  double max_scale; /* maximum scale multiplier */
-  double ratio;     /* geometric ratio */
-  size_t nscale;    /* number of scale multipliers */
-} gsl_deriv_scale_parameters;
-
-typedef struct
-{
-  const char * name;
-  int (*init)(const gsl_deriv_parameters * params, gsl_deriv_scale_parameters * sparams);
-} gsl_deriv_scale_generator;
-
-/* scale generator types */
-GSL_VAR const gsl_deriv_scale_generator * gsl_deriv_scale_user;
-
-int gsl_deriv_scale_fill(const gsl_deriv_scale_parameters * params, double scales[]);
+  GSL_DERIV_STEP_ABSOLUTE,
+  GSL_DERIV_STEP_RELATIVE,
+  GSL_DERIV_STEP_USER_SCALE
+} gsl_deriv_step_policy_t;
 
 __END_DECLS
 
-#endif /* __GSL_DERIV_SCALE_H__ */
+#endif /* __GSL_DERIV_STEP_H__ */

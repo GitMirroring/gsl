@@ -39,8 +39,8 @@ typedef struct
   double xmin;
   double xmax;
   double a;
-  double min_scale;
-  double max_scale;
+  double min_step;
+  double max_step;
   const char * desc;
 } deriv_test_function;
 
@@ -127,26 +127,26 @@ const deriv_test_t p4_test   = {   p4_f,   p4_df,   p4_d2f,   p4_d3f,   p4_d4f }
 
 /*
  * Library of test functions
- * The min_scale and max_scale were hand-tuned by examining
+ * The min_step and max_step were hand-tuned by examining
  * the diagnostic information output by gsl_deriv_print_diag()
  */
 static const deriv_test_function test_functions[] =
 {
-  {  &exp_test,  -5.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(x)" },
-  { &exp2_test,  -5.0,   5.0,   0.0,    1.0e-8,  1.0,    "exp(-x*x)" },
+  {  &exp_test,  -5.0,   5.0,   0.0,    1.0e-6,  1.0e0,  "exp(x)" },
+  { &exp2_test,  -5.0,   5.0,   0.0,    1.0e-6,  1.0e0,  "exp(-x*x)" },
   {  &sin_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "sin(x)" },
   {  &cos_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "cos(x)" },
   { &esin_test,  -3.0,   5.0,   0.0,    1.0e-4,  1.0e-1, "exp(-x)*sin(x)" },
 
-  { &expa_test,  -5.0,   5.0,   0.01,   1.0e-3,  1.0e4,  "exp(a*x)" },
-  { &expa_test,  -5.0,   5.0,   0.1,    1.0e-4,  1.0e3,  "exp(a*x)" },
+  { &expa_test,  -5.0,   5.0,   0.01,   1.0e-6,  1.0e2,  "exp(a*x)" },
+  { &expa_test,  -5.0,   5.0,   0.1,    1.0e-5,  1.0e2,  "exp(a*x)" },
   { &expa_test,  -5.0,   5.0,   1.0,   -1.0,    -1.0,    "exp(a*x)" },
-  { &expa_test,  -3.0,   3.0,   10.0,   1.0e-6,  1.0e1,  "exp(a*x)" },
+  { &expa_test,  -3.0,   3.0,   10.0,   1.0e-8,  1.0e0,  "exp(a*x)" },
 
-  { &sina_test,  -M_PI,  M_PI,  0.01,   1.0e-3,  1.0e3,  "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  0.1,    1.0e-4,  1.0e2,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  0.01,   1.0e-8,  1.0e3,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  0.1,    1.0e-8,  1.0e3,  "sin(a*x)" },
   { &sina_test,  -M_PI,  M_PI,  1.0,    1.0e-5,  1.0e1,  "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e0,  "sin(a*x)" },
+  { &sina_test,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e-1, "sin(a*x)" },
   { &sina_test,  -M_PI,  M_PI,  100.0,  1.0e-7,  1.0e-1, "sin(a*x)" },
 
   {  &p1_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x" },
