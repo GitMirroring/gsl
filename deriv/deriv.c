@@ -59,20 +59,22 @@ gsl_deriv_default_parameters()
 */
 
 gsl_deriv_parameters
-gsl_deriv_default_parameters(void)
+gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int method_order)
 {
+  /* theoretical step size to balance truncation and roundoff error */
+  const double h0 = pow(GSL_DBL_EPSILON, 1.0 / (double)(deriv_order + method_order));
   gsl_deriv_parameters params;
 
-  params.deriv_order = 1;
-  params.method_order = 4;
+  params.deriv_order = deriv_order;
+  params.method_order = method_order;
   params.stencil_type = GSL_DERIV_STENCIL_CENTRAL;
   params.romberg_terms = 2;
 
   /* default step range */
   params.step_policy = GSL_DERIV_STEP_ABSOLUTE;
-  params.min_step = 1.0e-8;
-  params.max_step = 1.0e-1;
-  params.nstep = 26;
+  params.min_step = 1.0e-2 * h0;
+  params.max_step = 1.0e3  * h0;
+  params.nstep = 25;
   params.scales = NULL;
 
   return params;

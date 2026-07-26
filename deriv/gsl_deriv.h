@@ -66,7 +66,7 @@ typedef struct
   double step_select;                             /* final selected step */
 } gsl_deriv_diag;
 
-gsl_deriv_parameters gsl_deriv_default_parameters(void);
+gsl_deriv_parameters gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int method_order);
 
 int gsl_deriv_fixed(const gsl_deriv_parameters * params, const gsl_function * f, const double x,
                     const double h, double * result, double * esterr, unsigned int * neval);
