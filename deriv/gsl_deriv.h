@@ -106,6 +106,11 @@ int gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_f
                           const gsl_vector * v, double * result, double * esterr, double * final_step, unsigned int * neval,
                           gsl_deriv_diag * diag, gsl_vector * work);
 
+/* gradient.c */
+
+int gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f, gsl_vector * x,
+                       gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval);
+
 /* deriv_old.c */
 
 int gsl_deriv_central (const gsl_function *f,

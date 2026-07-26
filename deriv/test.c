@@ -25,6 +25,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_deriv.h>
 #include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_test.h>
@@ -40,6 +41,24 @@ random_vector(const double a, const double b, gsl_vector * v, gsl_rng * r)
     {
       double vi = (b - a) * gsl_rng_uniform(r) + a;
       gsl_vector_set(v, i, vi);
+    }
+}
+
+/* generate random matrix with elements in [a,b] */
+static void
+random_matrix(const double a, const double b, gsl_matrix * C, gsl_rng * r)
+{
+  const size_t M = C->size1;
+  const size_t N = C->size1;
+  size_t i, j;
+
+  for (i = 0; i < M; ++i)
+    {
+      for (j = 0; j < N; ++j)
+        {
+          double Cij = (b - a) * gsl_rng_uniform(r) + a;
+          gsl_matrix_set(C, i, j, Cij);
+        }
     }
 }
 
@@ -60,6 +79,7 @@ test_parameters(const unsigned int deriv_order, const unsigned int method_order,
 #include "test_directional.c"
 #include "test_fixed.c"
 #include "test_fornberg.c"
+#include "test_gradient.c"
 
 typedef int (deriv_fn) (const gsl_function * f, double x, double h, double * res, double *abserr);
 
@@ -108,13 +128,12 @@ main ()
   exit(1);
 #endif
 
-#if 1
   test_fornberg(tol, rng_p);
   test_deriv_fixed(1.0e1*tol, test_normal_functions, rng_p);
   test_deriv_adaptive(tol, test_normal_functions, rng_p);
   test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p); /* tight tolerance for polynomials */
-#endif
   test_directional(1.0e2*tol, test_directional_functions, rng_p);
+  test_gradient(tol, test_gradient_functions, rng_p);
 
 #if 0
   F2.function = &f2;
