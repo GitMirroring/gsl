@@ -46,15 +46,15 @@ test_directional_tol(const double tol, const directional_test_function * TF, con
   gsl_vector * work = gsl_vector_alloc(n);
   gsl_deriv_diag diag;
 
-  params = test_parameters(1, method_order, stencil_type, step_policy);
+  params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
   gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
   gsl_test_rel(result, expected_df, tol, "%s df directional %s", TF->desc, desc);
 
-  params = test_parameters(2, method_order, stencil_type, step_policy);
+  params = test_parameters(2, method_order, stencil_type, step_policy, -1.0, -1.0);
   gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
   gsl_test_rel(result, expected_d2f, tol, "%s d2f directional %s", TF->desc, desc);
 
-  params = test_parameters(3, method_order, stencil_type, step_policy);
+  params = test_parameters(3, method_order, stencil_type, step_policy, -1.0, -1.0);
   gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
   gsl_test_rel(result, expected_d3f, tol, "%s d3f directional %s", TF->desc, desc);
 

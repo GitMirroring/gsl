@@ -77,19 +77,19 @@ test_deriv_adaptive_tol(const double tol, const deriv_test_function * TF, const 
   unsigned int neval;
   gsl_deriv_diag diag;
 
-  params = test_parameters(1, method_order, stencil_type, step_policy);
+  params = test_parameters(1, method_order, stencil_type, step_policy, TF->min_step, TF->max_step);
   gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
   gsl_test_rel(result, expected_df, tol, "%s df adaptive %s x=%.12e a=%g", TF->desc, desc, x, a);
 
-  params = test_parameters(2, method_order, stencil_type, step_policy);
+  params = test_parameters(2, method_order, stencil_type, step_policy, TF->min_step, TF->max_step);
   gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
   gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f adaptive %s x=%.12e a=%g", TF->desc, desc, x, a);
 
-  params = test_parameters(3, method_order, stencil_type, step_policy);
+  params = test_parameters(3, method_order, stencil_type, step_policy, TF->min_step, TF->max_step);
   gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
   gsl_test_rel(result, expected_d3f, 1.0e3*tol, "%s d3f adaptive %s x=%.12e a=%g", TF->desc, desc, x, a);
 
-  params = test_parameters(4, method_order, stencil_type, step_policy);
+  params = test_parameters(4, method_order, stencil_type, step_policy, TF->min_step, TF->max_step);
   gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
   gsl_test_rel(result, expected_d4f, 1.0e6*tol, "%s d4f adaptive %s x=%.12e a=%g", TF->desc, desc, x, a);
 

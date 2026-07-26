@@ -50,7 +50,7 @@ test_gradient_tol(const double tol, const gradient_test_function * TF, const gsl
   /* compute gradient */
   (TF->df)(x, (void *) A, g);
 
-  params = test_parameters(1, method_order, stencil_type, step_policy);
+  params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
   gsl_deriv_gradient(&params, &F, (gsl_vector *) x, result, abserr, fs, &neval);
 
   for (i = 0; i < n; ++i)

@@ -64,12 +64,20 @@ random_matrix(const double a, const double b, gsl_matrix * C, gsl_rng * r)
 
 gsl_deriv_parameters
 test_parameters(const unsigned int deriv_order, const unsigned int method_order,
-                const gsl_deriv_stencil_t stencil_type, const gsl_deriv_step_policy_t step_policy)
+                const gsl_deriv_stencil_t stencil_type, const gsl_deriv_step_policy_t step_policy,
+                const double min_step_1, const double max_step_1)
 {
+  /* this factor scales the input step range (tuned for deriv_order=1) to higher deriv orders */
+  const double step_fac = pow(GSL_DBL_EPSILON, 1.0/(deriv_order+method_order) - 1.0/(method_order+1.0));
   gsl_deriv_parameters params = gsl_deriv_default_parameters(deriv_order, method_order);
 
   params.stencil_type = stencil_type;
   params.step_policy = step_policy;
+
+  if (min_step_1 > 0.0)
+    params.min_step = min_step_1 * step_fac;
+  if (max_step_1 > 0.0)
+    params.max_step = max_step_1 * step_fac;
 
   return params;
 }
@@ -117,41 +125,39 @@ main ()
   gsl_ieee_env_setup ();
 
 #if 0
-  test_deriv_adaptive_diag(&tanh_test,
-                           -4.997505021747e+00,
-                           0.0,\
-                           4,
-                           -1.0,\
-                           -1.0,
+  /* diagnostic output */
+  test_deriv_adaptive_diag(&sina_test,
+                           2.906189932906e+00,
+                           1.0,
+                           1,
+                           1.0e-3,
+                           1.0e1,
                            GSL_DERIV_STENCIL_BACKWARD,
-                           GSL_DERIV_STEP_RELATIVE);
+                           GSL_DERIV_STEP_ABSOLUTE);
   exit(1);
 #endif
 
+  /* test Fornberg weights */
   test_fornberg(tol, rng_p);
+
+  /* test fixed step algorithm */
   test_deriv_fixed(1.0e1*tol, test_normal_functions, rng_p);
+
+  /* test adaptive algorithm */
   test_deriv_adaptive(tol, test_normal_functions, rng_p);
   test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p); /* tight tolerance for polynomials */
+  test_deriv_adaptive(tol, test_scale_functions, rng_p);
+
+  /* test directional derivative */
   test_directional(1.0e2*tol, test_directional_functions, rng_p);
+
+  /* test gradient */
   test_gradient(tol, test_gradient_functions, rng_p);
 
 #if 0
-  F2.function = &f2;
-  DF2.function = &df2;
-
   F3.function = &f3;
   DF3.function = &df3;
 
-  F5.function = &f5;
-  DF5.function = &df5;
-
-  F6.function = &f6;
-  DF6.function = &df6;
-
-  test_de (&F1, &DF1, 1.0, "exp(x), x=1, derivest");
-  /*test_de (&F1, &DF1, 2.0, "exp(x), x=2, derivest");*/
-
-#if 0/*XXX*/
   test (&gsl_deriv_central, &F1, &DF1, 1.0, "exp(x), x=1, central deriv");
   test (&gsl_deriv_forward, &F1, &DF1, 1.0, "exp(x), x=1, forward deriv");
   test (&gsl_deriv_backward, &F1, &DF1, 1.0, "exp(x), x=1, backward deriv");
@@ -175,7 +181,6 @@ main ()
   test (&gsl_deriv_central, &F6, &DF6, 10.0, "1/x, x=10, central deriv");
   test (&gsl_deriv_forward, &F6, &DF6, 10.0, "1/x, x=10, forward deriv");
   test (&gsl_deriv_backward, &F6, &DF6, 10.0, "1/x, x=10, backward deriv");
-#endif
 #endif
 
   gsl_rng_free(rng_p);
