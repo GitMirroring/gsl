@@ -6,6 +6,7 @@ libgslderiv_la_SOURCES = \
   cand.c                 \
   deriv.c                \
   deriv_old.c            \
+  directionaldiff.c      \
   fornberg.c             \
   stencil.c
 

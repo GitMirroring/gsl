@@ -57,6 +57,7 @@ test_parameters(const unsigned int deriv_order, const unsigned int method_order,
 
 #include "test_f.c"
 #include "test_adaptive.c"
+#include "test_directional.c"
 #include "test_fixed.c"
 #include "test_fornberg.c"
 
@@ -107,16 +108,13 @@ main ()
   exit(1);
 #endif
 
-  test_fornberg(tol, rng_p);
-#if 0
-  test_deriv_fixed(1.0e-5, test_normal_functions, rng_p);
-#endif
 #if 1
+  test_fornberg(tol, rng_p);
+  test_deriv_fixed(1.0e1*tol, test_normal_functions, rng_p);
   test_deriv_adaptive(tol, test_normal_functions, rng_p);
-
-  /* polynomial tests can use a much tighter tolerance */
-  test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p);
+  test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p); /* tight tolerance for polynomials */
 #endif
+  test_directional(1.0e2*tol, test_directional_functions, rng_p);
 
 #if 0
   F2.function = &f2;

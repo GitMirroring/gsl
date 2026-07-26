@@ -66,6 +66,16 @@ typedef struct
   double step_select;                             /* final selected step */
 } gsl_deriv_diag;
 
+/* definition of an arbitrary real-valued function with gsl_vector input */
+typedef struct
+{
+  double (* f) (const gsl_vector * x, void * params);
+  size_t n;
+  void * params;
+} gsl_deriv_function;
+
+#define GSL_DERIV_FN_EVAL(F,x) (*((F)->f))(x,(F)->params)
+
 gsl_deriv_parameters gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int method_order);
 
 int gsl_deriv_fixed(const gsl_deriv_parameters * params, const gsl_function * f, const double x,
@@ -89,6 +99,12 @@ int gsl_deriv_fornberg_weights(const double nodes[], const unsigned int n,
                                double weights[]);
 
 int gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag);
+
+/* directionaldiff.c */
+
+int gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x,
+                          const gsl_vector * v, double * result, double * esterr, double * final_step, unsigned int * neval,
+                          gsl_deriv_diag * diag, gsl_vector * work);
 
 /* deriv_old.c */
 

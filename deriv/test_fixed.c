@@ -31,7 +31,7 @@
 
 int
 test_deriv_fixed_tol(const double tol, const deriv_test_function * TF, const double x,
-                     const gsl_deriv_stencil_t stencil_type, const double h, const char * desc)
+                     const gsl_deriv_stencil_t stencil_type, const char * desc)
 {
   const unsigned int method_order = 4;
   const double a = TF->a;
@@ -42,16 +42,18 @@ test_deriv_fixed_tol(const double tol, const deriv_test_function * TF, const dou
   const double expected_df  = GSL_FN_EVAL (&DF, x);
   const double expected_d2f = GSL_FN_EVAL (&D2F, x);
   gsl_deriv_parameters params;
-  double result, abserr;
+  double result, abserr, h0;
   unsigned int neval;
 
   params = test_parameters(1, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE);
-  gsl_deriv_fixed(&params, &F, x, h, &result, &abserr, &neval);
-  gsl_test_rel(result, expected_df, tol, "%s df fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h);
+  h0 = pow(GSL_DBL_EPSILON, 1.0 / (double)(1 + method_order));
+  gsl_deriv_fixed(&params, &F, x, h0, &result, &abserr, &neval);
+  gsl_test_rel(result, expected_df, tol, "%s df fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h0);
 
   params = test_parameters(2, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE);
-  gsl_deriv_fixed(&params, &F, x, h, &result, &abserr, &neval);
-  gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h);
+  h0 = pow(GSL_DBL_EPSILON, 1.0 / (double)(2 + method_order));
+  gsl_deriv_fixed(&params, &F, x, h0, &result, &abserr, &neval);
+  gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h0);
 
   return 0;
 }
@@ -64,22 +66,16 @@ test_deriv_fixed(const double tol, const deriv_test_function * functions, gsl_rn
 
   for (ptr = functions; ptr->test_t != NULL; ++ptr)
     {
-      double h_fixed;
       size_t j;
-
-      if (ptr->min_step > 0.0 && ptr->max_step > 0.0)
-        h_fixed = sqrt(ptr->min_step * ptr->max_step);
-      else
-        h_fixed = GSL_ROOT3_DBL_EPSILON;
 
       for (j = 0; j < N; ++j)
         {
           double u = gsl_rng_uniform(rng_p);
           double x = ptr->xmin + u * (ptr->xmax - ptr->xmin);
 
-          test_deriv_fixed_tol(tol, ptr, x, GSL_DERIV_STENCIL_CENTRAL, h_fixed, "central random");
-          test_deriv_fixed_tol(1.0e1*tol, ptr, x, GSL_DERIV_STENCIL_FORWARD, h_fixed, "forward random");
-          test_deriv_fixed_tol(tol, ptr, x, GSL_DERIV_STENCIL_BACKWARD, h_fixed, "backward random");
+          test_deriv_fixed_tol(tol,       ptr, x, GSL_DERIV_STENCIL_CENTRAL,  "central random");
+          test_deriv_fixed_tol(1.0e1*tol, ptr, x, GSL_DERIV_STENCIL_FORWARD,  "forward random");
+          test_deriv_fixed_tol(tol,       ptr, x, GSL_DERIV_STENCIL_BACKWARD, "backward random");
         }
     }
 
