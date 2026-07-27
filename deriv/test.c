@@ -1,6 +1,5 @@
 /* deriv/test.c
  * 
- * Copyright (C) 2000 David Morrison
  * Copyright (C) 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
@@ -31,6 +30,8 @@
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_ieee_utils.h>
 
+#define U(x) ((void) (x))              /* avoid unused parameter warnings */
+
 /* generate random vector with elements in [a,b] */
 static void
 random_vector(const double a, const double b, gsl_vector * v, gsl_rng * r)
@@ -49,7 +50,7 @@ static void
 random_matrix(const double a, const double b, gsl_matrix * C, gsl_rng * r)
 {
   const size_t M = C->size1;
-  const size_t N = C->size1;
+  const size_t N = C->size2;
   size_t i, j;
 
   for (i = 0; i < M; ++i)
@@ -88,33 +89,8 @@ test_parameters(const unsigned int deriv_order, const unsigned int method_order,
 #include "test_fixed.c"
 #include "test_fornberg.c"
 #include "test_gradient.c"
-
-typedef int (deriv_fn) (const gsl_function * f, double x, double h, double * res, double *abserr);
-
-void
-test (deriv_fn * deriv, gsl_function * f, gsl_function * df, double x, 
-      const char * desc)
-{
-  double result, abserr;
-  double expected = GSL_FN_EVAL (df, x);
-  (*deriv) (f, x, 1e-4, &result, &abserr);
-
-  gsl_test_abs (result, expected, GSL_MIN(1e-4,fabs(expected)) + GSL_DBL_EPSILON, desc);
-
-  if (abserr < fabs(result-expected)) 
-    {
-      gsl_test_factor (abserr, fabs(result-expected), 2, "%s error estimate", desc);
-    }
-  else if (result == expected || expected == 0.0)
-    {
-      gsl_test_abs (abserr, 0.0, 1e-6, "%s abserr", desc);
-    }
-  else
-    {
-      double d = fabs(result - expected);
-      gsl_test_abs (abserr, fabs(result-expected), 1e6*d, "%s abserr", desc);
-    }
-}
+#include "test_jacobian.c"
+#include "test_old.c"
 
 int
 main ()
@@ -154,34 +130,11 @@ main ()
   /* test gradient */
   test_gradient(tol, test_gradient_functions, rng_p);
 
-#if 0
-  F3.function = &f3;
-  DF3.function = &df3;
+  /* test Jacobian */
+  test_jacobian(1.0e1*tol, test_jacobian_functions, rng_p);
 
-  test (&gsl_deriv_central, &F1, &DF1, 1.0, "exp(x), x=1, central deriv");
-  test (&gsl_deriv_forward, &F1, &DF1, 1.0, "exp(x), x=1, forward deriv");
-  test (&gsl_deriv_backward, &F1, &DF1, 1.0, "exp(x), x=1, backward deriv");
-
-  test (&gsl_deriv_central, &F2, &DF2, 0.1, "x^(3/2), x=0.1, central deriv");
-  test (&gsl_deriv_forward, &F2, &DF2, 0.1, "x^(3/2), x=0.1, forward deriv");
-  test (&gsl_deriv_backward, &F2, &DF2, 0.1, "x^(3/2), x=0.1, backward deriv");
-
-  test (&gsl_deriv_central, &F3, &DF3, 0.45, "sin(1/x), x=0.45, central deriv");
-  test (&gsl_deriv_forward, &F3, &DF3, 0.45, "sin(1/x), x=0.45, forward deriv");
-  test (&gsl_deriv_backward, &F3, &DF3, 0.45, "sin(1/x), x=0.45, backward deriv");
-
-  test (&gsl_deriv_central, &F4, &DF4, 0.5, "exp(-x^2), x=0.5, central deriv");
-  test (&gsl_deriv_forward, &F4, &DF4, 0.5, "exp(-x^2), x=0.5, forward deriv");
-  test (&gsl_deriv_backward, &F4, &DF4, 0.5, "exp(-x^2), x=0.5, backward deriv");
-
-  test (&gsl_deriv_central, &F5, &DF5, 0.0, "x^2, x=0, central deriv");
-  test (&gsl_deriv_forward, &F5, &DF5, 0.0, "x^2, x=0, forward deriv");
-  test (&gsl_deriv_backward, &F5, &DF5, 0.0, "x^2, x=0, backward deriv");
-
-  test (&gsl_deriv_central, &F6, &DF6, 10.0, "1/x, x=10, central deriv");
-  test (&gsl_deriv_forward, &F6, &DF6, 10.0, "1/x, x=10, forward deriv");
-  test (&gsl_deriv_backward, &F6, &DF6, 10.0, "1/x, x=10, backward deriv");
-#endif
+  /* test old/legacy routines */
+  test_old();
 
   gsl_rng_free(rng_p);
 

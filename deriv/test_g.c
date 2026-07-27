@@ -39,8 +39,6 @@ typedef struct
   const char * desc;
 } gradient_test_function;
 
-#define U(x)       ((void) (x))                /* avoid unused parameter warnings */
-
 double
 g_qform_f(const gsl_vector * x, void * p)
 {

@@ -23,6 +23,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_deriv_constants.h>
 #include <gsl/gsl_deriv_cand.h>
+#include <gsl/gsl_deriv_jacobian.h>
 #include <gsl/gsl_deriv_params.h>
 #include <gsl/gsl_deriv_stencil.h>
 
@@ -66,10 +67,10 @@ typedef struct
   double step_select;                             /* final selected step */
 } gsl_deriv_diag;
 
-/* definition of an arbitrary real-valued function with gsl_vector input */
+/* definition of an arbitrary function f: R^n -> R */
 typedef struct
 {
-  double (* f) (const gsl_vector * x, void * params);
+  double (*f) (const gsl_vector * x, void * params);
   size_t n;
   void * params;
 } gsl_deriv_function;
@@ -91,8 +92,6 @@ int gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function *
 int gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x,
                          gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval,
                          gsl_deriv_diag * diag);
-
-int gsl_deriv_geometric_fill(const double max_val, const double ratio, const size_t n, double result[]);
 
 int gsl_deriv_fornberg_weights(const double nodes[], const unsigned int n,
                                const unsigned int max_deriv, const double x0,

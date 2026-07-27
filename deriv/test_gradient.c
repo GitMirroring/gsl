@@ -95,6 +95,13 @@ test_gradient(const double tol, const gradient_test_function * functions, gsl_rn
               random_matrix(-1.0, 1.0, A, rng_p);
 
               test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
+              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
+
+              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
+              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
+
+              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE, "backward absolute");
+              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE, "backward relative");
             }
         }
 

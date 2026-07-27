@@ -40,7 +40,6 @@ typedef struct
   const char * desc;
 } directional_test_function;
 
-#define U(x)       ((void) (x))                /* avoid unused parameter warnings */
 #define S(x,i,val)  double val = gsl_vector_get(x,i)
 
 double d_qform_f   (const gsl_vector * x, void * p) { U(p); double xnorm = gsl_blas_dnrm2(x); return xnorm*xnorm; }

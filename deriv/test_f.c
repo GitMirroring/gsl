@@ -44,7 +44,6 @@ typedef struct
   const char * desc;
 } deriv_test_function;
 
-#define U(x) ((void) (x))              /* avoid unused parameter warnings */
 #define A(x)  double a = *(double*)p   /* avoid unused parameter warnings */
 
 double exp_f    (double x, void * p) { U(p); return exp(x); }
@@ -207,7 +206,7 @@ static const deriv_test_function test_normal_functions[] =
   { &rat2_test,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "1/(1+x^2)" },
   { &rat3_test,  -10.0,  10.0,  0.0,   -1.0,    -1.0,    "x/(1+x^2)" },
 
-  { NULL, 0.0, 0.0, 0.0, -1.0, -1.0, NULL }
+  {       NULL,   0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
 };
 
 static const deriv_test_function test_poly_functions[] =
@@ -216,7 +215,7 @@ static const deriv_test_function test_poly_functions[] =
   {  &p2_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^2" },
   {  &p3_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^3" },
   {  &p4_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^4" },
-  { NULL, 0.0, 0.0, 0.0, -1.0, -1.0, NULL }
+  {      NULL,    0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
 };
 
 /* the min/max step values were hand tuned using the diagnostic output */
@@ -233,5 +232,5 @@ static const deriv_test_function test_scale_functions[] =
   { &sina_test,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e-1, "sin(a*x)" },
   { &sina_test,  -M_PI,  M_PI,  100.0,  1.0e-7,  1.0e-3, "sin(a*x)" },
 
-  { NULL, 0.0, 0.0, 0.0, -1.0, -1.0, NULL }
+  {      NULL,    0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
 };

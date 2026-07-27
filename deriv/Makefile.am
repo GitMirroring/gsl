@@ -9,6 +9,7 @@ libgslderiv_la_SOURCES = \
   directionaldiff.c      \
   fornberg.c             \
   gradient.c             \
+  jacobian.c             \
   stencil.c
 
 TESTS = $(check_PROGRAMS)
