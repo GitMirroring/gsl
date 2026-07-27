@@ -135,12 +135,46 @@ j_sep_df(const gsl_vector * x, void * p, gsl_matrix * J)
   return GSL_SUCCESS;
 }
 
+int
+j_coup_f(const gsl_vector * x, void * p, gsl_vector * y)
+{
+  const double x1 = gsl_vector_get(x, 0);
+  const double x2 = gsl_vector_get(x, 1);
+  const double x3 = gsl_vector_get(x, 2);
+  U(p);
+  gsl_vector_set(y, 0, exp(x1*x2));
+  gsl_vector_set(y, 1, sin(x1+x2+x3));
+  gsl_vector_set(y, 2, log(1.0+x1*x1+x2*x2+x3*x3));
+  return GSL_SUCCESS;
+}
+
+int
+j_coup_df(const gsl_vector * x, void * p, gsl_matrix * J)
+{
+  const double x1 = gsl_vector_get(x, 0);
+  const double x2 = gsl_vector_get(x, 1);
+  const double x3 = gsl_vector_get(x, 2);
+  const double denom = 1.0 + x1*x1 + x2*x2 + x3*x3;
+  U(p);
+  gsl_matrix_set(J, 0, 0,  x2*exp(x1*x2));
+  gsl_matrix_set(J, 0, 1,  x1*exp(x1*x2));
+  gsl_matrix_set(J, 0, 2,  0.0);
+  gsl_matrix_set(J, 1, 0,  cos(x1+x2+x3));
+  gsl_matrix_set(J, 1, 1,  cos(x1+x2+x3));
+  gsl_matrix_set(J, 1, 2,  cos(x1+x2+x3));
+  gsl_matrix_set(J, 2, 0,  2.0*x1/denom);
+  gsl_matrix_set(J, 2, 1,  2.0*x2/denom);
+  gsl_matrix_set(J, 2, 2,  2.0*x3/denom);
+  return GSL_SUCCESS;
+}
+
 static const jacobian_test_function test_jacobian_functions[] =
 {
   { j_const_f,  j_const_df,  3, 3, -10.0, 10.0, "constant" },
   { j_linear_f, j_linear_df, 0, 0, -10.0, 10.0, "linear" },
   { j_quad_f,   j_quad_df,   2, 3, -10.0, 10.0, "quadratic" },
   { j_sep_f,    j_sep_df,    3, 3, -5.0,  5.0,  "separable" },
+  { j_coup_f,   j_coup_df,   3, 3, -3.0,  3.0,  "coupled" },
 
   { NULL,       NULL,        0, 0,  0.0,  0.0,  NULL }
 };
