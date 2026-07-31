@@ -14,6 +14,14 @@ finite differencing.  An adaptive algorithm is used to find the best
 choice of finite difference and to estimate the error in the derivative.
 These functions are declared in the header file :file:`gsl_deriv.h`.
 
+Derivative of a Scalar or Vector-valued Function
+================================================
+
+.. function:: int gsl_deriv_fixed (const gsl_deriv_parameters * params, const gsl_function * f, const double x, const double h, double * result, double * esterr, unsigned int * neval)
+              int gsl_deriv_fixed_v (const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x, const double h, gsl_vector * result, gsl_vector * esterr, unsigned int * neval)
+
+   test
+
 Functions
 =========
 
