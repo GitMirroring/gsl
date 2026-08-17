@@ -40,13 +40,13 @@ typedef struct
   unsigned int deriv_order;            /* derivative order (<= GSL_DERIV_MAX_DERIV_ORDER) */
   unsigned int method_order;           /* method order (<= GSL_DERIV_MAX_METHOD_ORDER) */
   gsl_deriv_stencil_t stencil_type;    /* stencil type, GSL_DERIV_STENCIL_xxx */
-  unsigned int romberg_terms;          /* number of Romberg terms */
+  unsigned int romberg_terms;          /* number of truncation terms in Romberg fit */
 
   gsl_deriv_step_policy_t step_policy; /* step policy */
   double min_step;                     /* minimum step size (in units of x) */
   double max_step;                     /* maximum step size (in units of x) */
   size_t nstep;                        /* number of step sizes */
-  gsl_vector * scales;                 /* user-supplied scales, same length as x */
+  const gsl_vector * scales;           /* user-supplied scales, same length as x */
 } gsl_deriv_parameters;
 
 __END_DECLS
