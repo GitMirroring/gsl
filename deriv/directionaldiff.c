@@ -127,6 +127,10 @@ gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_funct
     {
       GSL_ERROR ("work must have same length as x", GSL_EBADLEN);
     }
+  else if (params->step_policy == GSL_DERIV_STEP_USER_SCALE)
+    {
+      GSL_ERROR ("step_policy cannot be USER_SCALE for directional derivative", GSL_EDOM);
+    }
   else
     {
       int status;

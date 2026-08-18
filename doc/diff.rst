@@ -223,7 +223,7 @@ estimate the function derivative.
 
 .. function:: int gsl_deriv_directional_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x, const gsl_vector * v, const double h, double * result, double * esterr, unsigned int * neval, gsl_vector * work)
 
-   This function computes the :math:`m`-th directional derivative of the function
+   This function estimates the :math:`m`-th directional derivative of the function
    :math:`f(x)` in the direction of the vector :math:`v`,
    :math:`D_v^{(m)} f(x) = \frac{d^m}{dt^m} f(x + t v) \left. \right|_{t=0}`.
    The fixed absolute step size :math:`h` applies to the scalar parameter
@@ -254,6 +254,72 @@ estimate the function derivative.
 Adaptive Differentiation
 ========================
 
+These functions use the adaptive algorithm described above
+to select a finite-difference step size and compute the
+derivative estimate and associated absolute error.
+
+.. function:: int gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, const double x, double * result, double * esterr, double * final_step, unsigned int * neval, gsl_deriv_diag * diag)
+              int gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x, gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval, gsl_deriv_diag * diag)
+
+   These functions estimate :math:`f^{(m)}(x)` using the
+   adaptive algorithm described above to select a finite-difference
+   step size. The :data:`params` input specifies
+   the parameters controlling the adaptive algorithm.
+   The estimated derivative and absolute error are returned in :data:`result`
+   and :data:`esterr`, respectively, and the selected step size (after
+   applying the step policy) is returned in :data:`final_step`.
+   The total number of function evaluations is returned in :data:`neval`.
+   The function :func:`gsl_deriv_adaptive` operates on a single point,
+   while :func:`gsl_deriv_adaptive_v` applies the same differentiation
+   operation independently to each element of the input vector; for the
+   latter, :data:`result`, :data:`esterr`, and :data:`final_step` contain one
+   value for each input point.
+
+   If :data:`diag` is non-null, diagnostic information is returned for
+   the derivative estimate. For :func:`gsl_deriv_adaptive_v`, the diagnostic
+   information corresponds only to the last element processed.
+   This information can be used to assess the reliability of the estimate
+   and whether the sampled step range adequately encompasses the plateau region.
+
+.. function:: int gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x, const gsl_vector * v, double * result, double * esterr, double * final_step, unsigned int * neval, gsl_deriv_diag * diag, gsl_vector * work)
+
+   This function estimates the :math:`m`-th directional derivative of the function
+   :math:`f(x)` in the direction of the vector :math:`v`,
+   :math:`D_v^{(m)} f(x) = \frac{d^m}{dt^m} f(x + t v) \left. \right|_{t=0}`,
+   using the adaptive algorithm described above. The adaptive step sizes
+   apply to the scalar parameter :math:`t`, so finite-difference evaluations
+   are performed along the line :math:`x + t v`. Since the derivative is
+   evaluated at :math:`t=0`, :macro:`GSL_DERIV_STEP_RELATIVE` is equivalent
+   to :macro:`GSL_DERIV_STEP_ABSOLUTE` for this function. :macro:`GSL_DERIV_STEP_USER_SCALE`
+   is not supported for directional derivatives.
+   The vector :math:`v` is used as supplied and is not normalized. The estimated
+   directional derivative is returned in :data:`result` and the
+   estimated absolute error is returned in :data:`esterr`. The
+   selected step size is returned in :data:`final_step`.
+   The number of function evaluations is returned in :data:`neval`.
+   Additional workspace of length :math:`n` is required in :data:`work`,
+   where :math:`n` is the length of the vectors :math:`x` and :math:`v`.
+
+   If :data:`diag` is non-null, diagnostic information is returned for
+   the derivative estimate. This information can be used to assess the
+   reliability of the estimate and whether the sampled step range adequately
+   encompasses the plateau region.
+
+.. function:: int gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x, gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval, gsl_vector * work)
+
+   This function estimates the vector of partial derivatives
+   :math:`\partial^m f(x) / \partial x_j^m` using the adaptive
+   algorithm described above to select finite-difference
+   step sizes independently for each input :math:`x_j`, with
+   the remaining components of :math:`x` held fixed.
+   The derivative estimates and corresponding estimated absolute
+   errors are returned in :data:`result` and :data:`esterr`,
+   respectively.  The selected step sizes (after
+   applying the step policy) are returned in :data:`final_step`.
+   The number of function evaluations is returned in :data:`neval`.
+   Additional workspace of length :math:`n` is required in :data:`work`,
+   where :math:`n` is the length of the vector :math:`x`.
+
 Jacobian Calculation
 ====================
 
@@ -275,12 +341,12 @@ the calculation of higher order derivatives by specifying the
 
 .. function:: gsl_deriv_jacobian_workspace * gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows, const size_t ncols)
 
-   This function allocates a workspace suitable for Jacobian calculations
-   for both fixed-step and adaptive routines. The input :data:`nrows`
+   This function allocates a workspace suitable for calculations of
+   :math:`J^{(m)}` for both fixed-step and adaptive routines. The input :data:`nrows`
    specifies :math:`l`, the dimension of the output of :math:`F(x)`,
-   and the number of rows of the Jacobian. The input :data:`ncols`
+   and the number of rows of the derivative matrix. The input :data:`ncols`
    specifies :math:`n`, the dimension of the input :math:`x` and 
-   the number of columns of the Jacobian.
+   the number of columns of the derivative matrix.
 
 .. function:: void gsl_deriv_jacobian_free(gsl_deriv_jacobian_workspace * w)
 
@@ -288,13 +354,30 @@ the calculation of higher order derivatives by specifying the
 
 .. function:: int gsl_deriv_jacobian_fixed(const gsl_deriv_vec_function * F, const gsl_vector * x, const gsl_vector * h, gsl_matrix * J, gsl_matrix * esterr, unsigned int * neval, gsl_deriv_jacobian_workspace * w)
 
-   This function computes the :math:`l`-by-:math:`n` Jacobian matrix :math:`J`
+   This function estimates the :math:`l`-by-:math:`n` matrix :math:`J^{(m)}`
    associated with the function :math:`F(x)`. The function uses fixed step
    sizes, specified in :math:`h`, to compute the derivatives. The element
    :math:`h_j` specifies the absolute step size used to compute all derivatives
-   in column :math:`j` of the Jacobian, corresponding to differentiation with
+   in column :math:`j` of the derivative matrix, corresponding to differentiation with
    respect to :math:`x_j`. The estimated absolute error of each element of
-   the Jacobian is returned in the :math:`l`-by-:math:`n` matrix :data:`esterr`.
+   the derivative matrix is returned in the :math:`l`-by-:math:`n` matrix :data:`esterr`.
+   The total number of function evaluations is provided in :data:`neval` on output.
+   The workspace :data:`w` must be allocated by calling
+   :func:`gsl_deriv_jacobian_alloc`.
+
+.. function:: int gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x, gsl_matrix * J, gsl_matrix * esterr, gsl_matrix * final_step, unsigned int * neval, gsl_deriv_jacobian_workspace * w)
+
+   This function estimates the :math:`l`-by-:math:`n` matrix :math:`J^{(m)}`
+   associated with the function :math:`F(x)`, using the adaptive algorithm described
+   above to select finite-difference step sizes. For each input :math:`x_j`,
+   the function computes finite-difference estimates for the entire :math:`j`-th
+   column using a common sequence of step sizes. Romberg extrapolation and
+   candidate selection are then performed independently for each matrix
+   element :math:`J_{ij}^{(m)}`, so different elements within a column may select different
+   final step sizes.  The estimated absolute error of each element of
+   the derivative matrix is returned in the :math:`l`-by-:math:`n` matrix :data:`esterr`.
+   The selected step sizes (after applying the step policy) are returned
+   in the :math:`l`-by-:math:`n` matrix :data:`final_step`.
    The total number of function evaluations is provided in :data:`neval` on output.
    The workspace :data:`w` must be allocated by calling
    :func:`gsl_deriv_jacobian_alloc`.
