@@ -34,6 +34,90 @@ typedef struct
 static double grad_func(double x, void * vparams);
 
 /*
+gsl_deriv_gradient_fixed()
+  Compute vector of partial derivatives of a function
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point at which to compute derivative, length n
+        h          - vector of absolute fixed steps sizes
+        result     - (output) result(i) = d^m f/dx_i^m, length n
+        esterr     - (output) absolute error estimate
+                       abs(result - f'(x)) < esterr
+                     length n
+        neval      - (output) total number of function evaluations
+        work       - workspace, length n
+
+Return: success/error
+
+Notes:
+*/
+
+int
+gsl_deriv_gradient_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                         const gsl_vector * x, const gsl_vector * h,
+                         gsl_vector * result, gsl_vector * esterr, unsigned int * neval,
+                         gsl_vector * work)
+{
+  const size_t n = x->size;
+
+  if (n != h->size)
+    {
+      GSL_ERROR ("h must have same length as x", GSL_EBADLEN);
+    }
+  else if (n != result->size)
+    {
+      GSL_ERROR ("result must have same length as x", GSL_EBADLEN);
+    }
+  else if (n != esterr->size)
+    {
+      GSL_ERROR ("esterr must have same length as x", GSL_EBADLEN);
+    }
+  else if (n != work->size)
+    {
+      GSL_ERROR ("work must have same length as x", GSL_EBADLEN);
+    }
+  else
+    {
+      gsl_function F;
+      grad_parameters grad_params;
+      size_t i;
+
+      gsl_vector_memcpy(work, x);
+
+      grad_params.x = work;
+      grad_params.f = f;
+
+      F.function = grad_func;
+      F.params = &grad_params;
+
+      for (i = 0; i < n; ++i)
+        {
+          int status;
+          double xi = gsl_vector_get(x, i);
+          double hi = gsl_vector_get(h, i);
+          double out_i, err_i;
+
+          grad_params.idx = i;
+
+          /* compute df/dx_i, holding other parameters fixed */
+          status = gsl_deriv_fixed(params, &F, xi, hi, &out_i, &err_i, neval);
+          if (status)
+            return status;
+
+          /* restore x(i) */
+          gsl_vector_set(work, i, xi);
+
+          /* store outputs */
+          gsl_vector_set(result, i, out_i);
+          gsl_vector_set(esterr, i, err_i);
+        }
+
+      return GSL_SUCCESS;
+    }
+}
+
+/*
 gsl_deriv_gradient()
   Compute vector of partial derivatives of a function
 
@@ -46,17 +130,17 @@ Inputs: params     - derivative parameters
                      length n
         final_step - (output) final overall step size chosen for derivative, length n
         neval      - (output) total number of function evaluations
+        work       - workspace, length n
 
 Return: success/error
 
 Notes:
-1) The elements of 'x' are changed during the function, but are restored
-to the original values on output
 */
 
 int
-gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f, gsl_vector * x,
-                   gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval)
+gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                   const gsl_vector * x, gsl_vector * result, gsl_vector * esterr,
+                   gsl_vector * final_step, unsigned int * neval, gsl_vector * work)
 {
   const size_t n = x->size;
 
@@ -72,13 +156,19 @@ gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function
     {
       GSL_ERROR ("final_step must have same length as x", GSL_EBADLEN);
     }
+  else if (n != work->size)
+    {
+      GSL_ERROR ("work must have same length as x", GSL_EBADLEN);
+    }
   else
     {
       gsl_function F;
       grad_parameters grad_params;
       size_t i;
 
-      grad_params.x = x;
+      gsl_vector_memcpy(work, x);
+
+      grad_params.x = work;
       grad_params.f = f;
 
       F.function = grad_func;
@@ -99,7 +189,7 @@ gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function
             return status;
 
           /* restore x(i) */
-          gsl_vector_set(x, i, xi);
+          gsl_vector_set(work, i, xi);
 
           /* store outputs */
           gsl_vector_set(result, i, out_i);
@@ -119,6 +209,6 @@ grad_func(double x_idx, void * vparams)
 
   gsl_vector_set(params->x, params->idx, x_idx);
 
-  /* return f(x + t*v) */
+  /* evaluate f with x(idx) = x_idx */
   return GSL_DERIV_FN_EVAL(params->f, params->x);
 }

@@ -63,6 +63,12 @@ random_matrix(const double a, const double b, gsl_matrix * C, gsl_rng * r)
     }
 }
 
+static double
+test_h0(const unsigned int deriv_order, const unsigned int method_order)
+{
+  return pow(GSL_DBL_EPSILON, 1.0 / (double) (deriv_order + method_order));
+}
+
 gsl_deriv_parameters
 test_parameters(const unsigned int deriv_order, const unsigned int method_order,
                 const gsl_deriv_stencil_t stencil_type, const gsl_deriv_step_policy_t step_policy,
@@ -125,13 +131,16 @@ main ()
   test_deriv_adaptive(tol, test_scale_functions, rng_p);
 
   /* test directional derivative */
-  test_directional(1.0e2*tol, test_directional_functions, rng_p);
+  test_directional(1.0e2*tol, test_directional_functions, 0, rng_p); /* adaptive */
+  test_directional(1.0e5*tol, test_directional_functions, 1, rng_p); /* fixed */
 
   /* test gradient */
-  test_gradient(tol, test_gradient_functions, rng_p);
+  test_gradient(1.0e1*tol, test_gradient_functions, 0, rng_p); /* adaptive */
+  test_gradient(1.0e2*tol, test_gradient_functions, 1, rng_p); /* fixed */
 
   /* test Jacobian */
-  test_jacobian(1.0e1*tol, test_jacobian_functions, rng_p);
+  test_jacobian(1.0e2*tol, test_jacobian_functions, 0, rng_p); /* adaptive */
+  test_jacobian(1.0e2*tol, test_jacobian_functions, 1, rng_p); /* fixed */
 
   /* test old/legacy routines */
   test_old();

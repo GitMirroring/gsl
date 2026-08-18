@@ -32,8 +32,9 @@
 #include "test_g.c"
 
 int
-test_gradient_tol(const double tol, const gradient_test_function * TF, const gsl_vector * x,
-                  const gsl_matrix * A, const gsl_deriv_stencil_t stencil_type,
+test_gradient_tol(const double tol, const gradient_test_function * TF, const int fixed_step,
+                  const gsl_vector * x, const gsl_matrix * A,
+                  const gsl_deriv_stencil_t stencil_type,
                   const gsl_deriv_step_policy_t step_policy, const char * desc)
 {
   const unsigned int method_order = 4;
@@ -44,6 +45,7 @@ test_gradient_tol(const double tol, const gradient_test_function * TF, const gsl
   gsl_vector * result = gsl_vector_alloc(n);
   gsl_vector * abserr = gsl_vector_alloc(n);
   gsl_vector * fs = gsl_vector_alloc(n);
+  gsl_vector * work = gsl_vector_alloc(n);
   unsigned int neval;
   size_t i;
 
@@ -51,26 +53,40 @@ test_gradient_tol(const double tol, const gradient_test_function * TF, const gsl
   (TF->df)(x, (void *) A, g);
 
   params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
-  gsl_deriv_gradient(&params, &F, (gsl_vector *) x, result, abserr, fs, &neval);
+
+  if (fixed_step)
+    {
+      gsl_vector * h = gsl_vector_alloc(n);
+      double h0 = test_h0(1, method_order);
+
+      gsl_vector_set_all(h, h0);
+      gsl_deriv_gradient_fixed(&params, &F, x, h, result, abserr, &neval, work);
+
+      gsl_vector_free(h);
+    }
+  else
+    gsl_deriv_gradient(&params, &F, x, result, abserr, fs, &neval, work);
 
   for (i = 0; i < n; ++i)
     {
       double result_i = gsl_vector_get(result, i);
       double expected_i = gsl_vector_get(g, i);
 
-      gsl_test_rel(result_i, expected_i, tol, "%s gradient[%zu,%zu] %s", TF->desc, n, i, desc);
+      gsl_test_rel(result_i, expected_i, tol, "%s gradient[%zu,%zu] %s fixed=%d", TF->desc, n, i, desc, fixed_step);
     }
 
   gsl_vector_free(g);
   gsl_vector_free(result);
   gsl_vector_free(abserr);
   gsl_vector_free(fs);
+  gsl_vector_free(work);
 
   return 0;
 }
 
 int
-test_gradient(const double tol, const gradient_test_function * functions, gsl_rng * rng_p)
+test_gradient(const double tol, const gradient_test_function * functions,
+              const int fixed_step, gsl_rng * rng_p)
 {
   const size_t M = 10; /* maximum vector size */
   const size_t N = 20; /* number of random points per function */
@@ -94,14 +110,14 @@ test_gradient(const double tol, const gradient_test_function * functions, gsl_rn
               random_vector(ptr->xmin, ptr->xmax, x, rng_p);
               random_matrix(-1.0, 1.0, A, rng_p);
 
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
 
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
 
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE, "backward absolute");
-              test_gradient_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE, "backward relative");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE, "backward absolute");
+              test_gradient_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE, "backward relative");
             }
         }
 

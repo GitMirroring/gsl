@@ -38,12 +38,14 @@ gsl_deriv_jacobian_alloc()
 
 Inputs: params - deriv parameters
         nrows  - number of outputs of F function (rows of Jacobian matrix)
+        ncols  - number of inputs of F function (columns of Jacobian matrix)
 
 Return: pointer to workspace
 */
 
 gsl_deriv_jacobian_workspace *
-gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows)
+gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows,
+                         const size_t ncols)
 {
   int status;
   gsl_deriv_jacobian_workspace * w;
@@ -56,6 +58,7 @@ gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows
 
   w->params = *params;
   w->nrows = nrows;
+  w->ncols = ncols;
 
   w->romb_state = malloc(sizeof(romb_state_t));
   if (w->romb_state == NULL)
@@ -94,6 +97,13 @@ gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows
     {
       gsl_deriv_jacobian_free(w);
       GSL_ERROR_NULL("failed to allocate work2l", GSL_ENOMEM);
+    }
+
+  w->workn = gsl_vector_alloc(ncols);
+  if (w->workn == NULL)
+    {
+      gsl_deriv_jacobian_free(w);
+      GSL_ERROR_NULL("failed to allocate workn", GSL_ENOMEM);
     }
 
   w->der_init = gsl_matrix_alloc(nrows, GSL_DERIV_MAX_STEPS);
@@ -141,6 +151,9 @@ gsl_deriv_jacobian_free(gsl_deriv_jacobian_workspace * w)
   if (w->work2l)
     gsl_vector_free(w->work2l);
 
+  if (w->workn)
+    gsl_vector_free(w->workn);
+
   if (w->der_init)
     gsl_matrix_free(w->der_init);
 
@@ -154,6 +167,108 @@ gsl_deriv_jacobian_free(gsl_deriv_jacobian_workspace * w)
     gsl_vector_free(w->err_romb);
 
   free(w);
+}
+
+/*
+gsl_deriv_jacobian_fixed()
+  Compute Jacobian matrix of function:
+
+F: R^n -> R^l
+
+J_ij = dF(x)_i/dx_j
+
+Inputs: F          - function to differentiate, returns l values
+        x          - point at which to compute derivative, length n
+        h          - vector of absolute step sizes, length n
+        J          - (output) J(i,j) = dF(x)_i/dx_j, l-by-n
+        esterr     - (output) absolute error estimates, l-by-n
+        neval      - (output) total number of function evaluations
+        w          - workspace
+
+Return: success/error
+
+Notes:
+*/
+
+int
+gsl_deriv_jacobian_fixed(const gsl_deriv_vec_function * F, const gsl_vector * x,
+                         const gsl_vector * h, gsl_matrix * J, gsl_matrix * esterr,
+                         unsigned int * neval, gsl_deriv_jacobian_workspace * w)
+{
+  const size_t n = x->size;
+  const size_t l = F->m;
+
+  if (n != w->ncols)
+    {
+      GSL_ERROR ("x does not match workspace", GSL_EBADLEN);
+    }
+  else if (l != w->nrows)
+    {
+      GSL_ERROR ("F does not match workspace", GSL_EBADLEN);
+    }
+  else if (n != h->size)
+    {
+      GSL_ERROR ("h does not match workspace", GSL_EBADLEN);
+    }
+  else if (J->size1 != l || J->size2 != n)
+    {
+      GSL_ERROR ("J has wrong size", GSL_EBADLEN);
+    }
+  else if (esterr->size1 != l || esterr->size2 != n)
+    {
+      GSL_ERROR ("esterr must have same size as J", GSL_EBADLEN);
+    }
+  else
+    {
+      const gsl_deriv_parameters * params = &(w->params);
+      const double ratio = 2.0;
+      size_t j;
+
+      *neval = 0;
+
+      gsl_vector_memcpy(w->workn, x);
+
+      for (j = 0; j < n; ++j)
+        {
+          int status;
+          double hj = gsl_vector_get(h, j);
+          gsl_vector_view D1 = gsl_matrix_column(J, j);
+          gsl_vector_view D2 = gsl_matrix_column(w->der_init, 0);
+          gsl_vector_view E1 = gsl_matrix_column(esterr, j);
+          gsl_vector_view E2 = gsl_matrix_column(w->err_init, 0);
+          size_t k;
+
+          /*
+           * compute j-th column of Jacobian steps hj and hj/2
+           *
+           * truncation error = |D(h) - D(h/2)|
+           * total error = trunc + round(h)
+           */
+
+          status = fd_apply_vector(F, w->workn, j, hj, &(w->unit_weights.vector),
+                                   w->stencil, w->stencil_size, params->deriv_order,
+                                   &D1.vector, &E1.vector, neval, w->work2l);
+          if (status)
+            return status;
+
+          status = fd_apply_vector(F, w->workn, j, hj/ratio, &(w->unit_weights.vector),
+                                   w->stencil, w->stencil_size, params->deriv_order,
+                                   &D2.vector, &E2.vector, neval, w->work2l);
+          if (status)
+            return status;
+
+          /* add truncation error to esterr */
+          for (k = 0; k < l; ++k)
+            {
+              double D1k = gsl_vector_get(&D1.vector, k);
+              double D2k = gsl_vector_get(&D2.vector, k);
+              double * ptr = gsl_vector_ptr(&E1.vector, k);
+              *ptr += fabs(D1k - D2k);
+            }
+        }
+
+      return GSL_SUCCESS;
+    }
 }
 
 /*
@@ -187,7 +302,15 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
   const size_t n = x->size;
   const size_t l = F->m;
 
-  if (J->size1 != l || J->size2 != n)
+  if (n != w->ncols)
+    {
+      GSL_ERROR ("x does not match workspace", GSL_EBADLEN);
+    }
+  else if (l != w->nrows)
+    {
+      GSL_ERROR ("F does not match workspace", GSL_EBADLEN);
+    }
+  else if (J->size1 != l || J->size2 != n)
     {
       GSL_ERROR ("J has wrong size", GSL_EBADLEN);
     }
@@ -208,6 +331,8 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
       size_t j;
 
       *neval = 0;
+
+      gsl_vector_memcpy(w->workn, x);
 
       for (j = 0; j < n; ++j)
         {
@@ -245,7 +370,7 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
               gsl_vector_view der_init = gsl_matrix_column(w->der_init, k);
               gsl_vector_view err_init = gsl_matrix_column(w->err_init, k);
 
-              status = fd_apply_vector(F, (gsl_vector *) x, j, h_jk, &(w->unit_weights.vector),
+              status = fd_apply_vector(F, w->workn, j, h_jk, &(w->unit_weights.vector),
                                        w->stencil, w->stencil_size, params->deriv_order,
                                        &der_init.vector, &err_init.vector, neval, w->work2l);
               if (status)

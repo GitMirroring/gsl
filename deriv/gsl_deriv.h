@@ -101,14 +101,26 @@ int gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag);
 
 /* directionaldiff.c */
 
-int gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x,
-                          const gsl_vector * v, double * result, double * esterr, double * final_step, unsigned int * neval,
+int gsl_deriv_directional_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                                const gsl_vector * x, const gsl_vector * v, const double h,
+                                double * result, double * esterr, unsigned int * neval,
+                                gsl_vector * work);
+
+int gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                          const gsl_vector * x, const gsl_vector * v, double * result,
+                          double * esterr, double * final_step, unsigned int * neval,
                           gsl_deriv_diag * diag, gsl_vector * work);
 
 /* gradient.c */
 
-int gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f, gsl_vector * x,
-                       gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval);
+int gsl_deriv_gradient_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                             const gsl_vector * x, const gsl_vector * h,
+                             gsl_vector * result, gsl_vector * esterr, unsigned int * neval,
+                             gsl_vector * work);
+
+int gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                       const gsl_vector * x, gsl_vector * result, gsl_vector * esterr,
+                       gsl_vector * final_step, unsigned int * neval, gsl_vector * work);
 
 /* deriv_old.c */
 

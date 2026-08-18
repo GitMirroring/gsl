@@ -32,8 +32,9 @@
 #include "test_j.c"
 
 int
-test_jacobian_tol(const double tol, const jacobian_test_function * TF, const gsl_vector * x,
-                  const gsl_matrix * A, const gsl_deriv_stencil_t stencil_type,
+test_jacobian_tol(const double tol, const jacobian_test_function * TF, const int fixed_step,
+                  const gsl_vector * x, const gsl_matrix * A,
+                  const gsl_deriv_stencil_t stencil_type,
                   const gsl_deriv_step_policy_t step_policy, const char * desc)
 {
   const unsigned int method_order = 4;
@@ -53,8 +54,20 @@ test_jacobian_tol(const double tol, const jacobian_test_function * TF, const gsl
   (TF->df)(x, (void *) A, J);
 
   params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
-  w = gsl_deriv_jacobian_alloc(&params, m);
-  gsl_deriv_jacobian(&F, (gsl_vector *) x, result, abserr, fs, &neval, w);
+  w = gsl_deriv_jacobian_alloc(&params, m, n);
+
+  if (fixed_step)
+    {
+      gsl_vector * h = gsl_vector_alloc(n);
+      double h0 = test_h0(1, method_order);
+
+      gsl_vector_set_all(h, h0);
+      gsl_deriv_jacobian_fixed(&F, x, h, result, abserr, &neval, w);
+
+      gsl_vector_free(h);
+    }
+  else
+    gsl_deriv_jacobian(&F, x, result, abserr, fs, &neval, w);
 
   for (i = 0; i < m; ++i)
     {
@@ -62,7 +75,7 @@ test_jacobian_tol(const double tol, const jacobian_test_function * TF, const gsl
         {
           double result_ij = gsl_matrix_get(result, i, j);
           double expected_ij = gsl_matrix_get(J, i, j);
-          gsl_test_rel(result_ij, expected_ij, tol, "%s jacobian[%zu,%zu] %s", TF->desc, i, j, desc);
+          gsl_test_rel(result_ij, expected_ij, tol, "%s jacobian[%zu,%zu] %s fixed=%d", TF->desc, i, j, desc, fixed_step);
         }
     }
 
@@ -76,7 +89,8 @@ test_jacobian_tol(const double tol, const jacobian_test_function * TF, const gsl
 }
 
 int
-test_jacobian(const double tol, const jacobian_test_function * functions, gsl_rng * rng_p)
+test_jacobian(const double tol, const jacobian_test_function * functions,
+              const int fixed_step, gsl_rng * rng_p)
 {
   const size_t M = 10; /* maximum F size */
   const size_t N = 10; /* maximum x size */
@@ -106,14 +120,14 @@ test_jacobian(const double tol, const jacobian_test_function * functions, gsl_rn
                   random_vector(ptr->xmin, ptr->xmax, x, rng_p);
                   random_matrix(-1.0, 1.0, A, rng_p);
 
-                  test_jacobian_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
-                  test_jacobian_tol(tol, ptr, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
+                  test_jacobian_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
+                  test_jacobian_tol(tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
 
-                  test_jacobian_tol(1.0e1*tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
-                  test_jacobian_tol(1.0e1*tol, ptr, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
+                  test_jacobian_tol(1.0e1*tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
+                  test_jacobian_tol(1.0e1*tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
 
-                  test_jacobian_tol(1.0e1*tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE,  "backward absolute");
-                  test_jacobian_tol(1.0e1*tol, ptr, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE,  "backward relative");
+                  test_jacobian_tol(1.0e1*tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE,  "backward absolute");
+                  test_jacobian_tol(1.0e1*tol, ptr, fixed_step, x, A, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE,  "backward relative");
                 }
             }
 

@@ -30,7 +30,8 @@
 #include "test_d.c"
 
 int
-test_directional_tol(const double tol, const directional_test_function * TF, const gsl_vector * x,
+test_directional_tol(const double tol, const directional_test_function * TF,
+                     const int fixed_step, const gsl_vector * x,
                      const gsl_vector * v, const gsl_deriv_stencil_t stencil_type,
                      const gsl_deriv_step_policy_t step_policy, const char * desc)
 {
@@ -47,16 +48,35 @@ test_directional_tol(const double tol, const directional_test_function * TF, con
   gsl_deriv_diag diag;
 
   params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
-  gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
-  gsl_test_rel(result, expected_df, tol, "%s df directional %s", TF->desc, desc);
+
+  if (fixed_step)
+    {
+      double h0 = test_h0(1, method_order);
+      gsl_deriv_directional_fixed(&params, &F, x, v, h0, &result, &abserr, &neval, work);
+    }
+  else
+    gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
+
+  gsl_test_rel(result, expected_df, tol, "%s df directional %s fixed=%d", TF->desc, desc, fixed_step);
 
   params = test_parameters(2, method_order, stencil_type, step_policy, -1.0, -1.0);
-  gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
-  gsl_test_rel(result, expected_d2f, tol, "%s d2f directional %s", TF->desc, desc);
 
-  params = test_parameters(3, method_order, stencil_type, step_policy, -1.0, -1.0);
-  gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
-  gsl_test_rel(result, expected_d3f, tol, "%s d3f directional %s", TF->desc, desc);
+  if (fixed_step)
+    {
+      double h0 = test_h0(2, method_order);
+      gsl_deriv_directional_fixed(&params, &F, x, v, h0, &result, &abserr, &neval, work);
+    }
+  else
+    gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
+
+  gsl_test_rel(result, expected_d2f, tol, "%s d2f directional %s fixed=%d", TF->desc, desc, fixed_step);
+
+  if (!fixed_step)
+    {
+      params = test_parameters(3, method_order, stencil_type, step_policy, -1.0, -1.0);
+      gsl_deriv_directional(&params, &F, x, v, &result, &abserr, &fs, &neval, &diag, work);
+      gsl_test_rel(result, expected_d3f, tol, "%s d3f directional %s", TF->desc, desc);
+    }
 
   gsl_vector_free(work);
 
@@ -64,7 +84,8 @@ test_directional_tol(const double tol, const directional_test_function * TF, con
 }
 
 int
-test_directional(const double tol, const directional_test_function * functions, gsl_rng * rng_p)
+test_directional(const double tol, const directional_test_function * functions,
+                 const int fixed_step, gsl_rng * rng_p)
 {
   const size_t M = 10; /* maximum vector size */
   const size_t N = 20; /* number of random points per function */
@@ -88,14 +109,14 @@ test_directional(const double tol, const directional_test_function * functions, 
               random_vector(ptr->xmin, ptr->xmax, x, rng_p);
               random_vector(-1.0, 1.0, v, rng_p);
 
-              test_directional_tol(tol, ptr, x, v, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
-              test_directional_tol(tol, ptr, x, v, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
+              test_directional_tol(tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_ABSOLUTE,  "central absolute");
+              test_directional_tol(tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_CENTRAL, GSL_DERIV_STEP_RELATIVE,  "central relative");
 
-              test_directional_tol(1.0e2*tol, ptr, x, v, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
-              test_directional_tol(1.0e2*tol, ptr, x, v, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
+              test_directional_tol(1.0e2*tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_ABSOLUTE,  "forward absolute");
+              test_directional_tol(1.0e2*tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_FORWARD, GSL_DERIV_STEP_RELATIVE,  "forward relative");
 
-              test_directional_tol(1.0e2*tol, ptr, x, v, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE, "backward absolute");
-              test_directional_tol(1.0e2*tol, ptr, x, v, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE, "backward relative");
+              test_directional_tol(1.0e2*tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_ABSOLUTE, "backward absolute");
+              test_directional_tol(1.0e2*tol, ptr, fixed_step, x, v, GSL_DERIV_STENCIL_BACKWARD, GSL_DERIV_STEP_RELATIVE, "backward relative");
             }
         }
 

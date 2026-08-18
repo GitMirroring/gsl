@@ -53,6 +53,7 @@ typedef struct
   gsl_deriv_parameters params;
   
   size_t nrows;                                   /* number of rows of Jacobian matrix */
+  size_t ncols;                                   /* number of columns of Jacobian matrix */
 
   double h[GSL_DERIV_MAX_STEPS];                  /* step sizes (same units as input x) */
   double step_ratio;                              /* step ratio */
@@ -68,15 +69,21 @@ typedef struct
   gsl_matrix * der_init;                          /* initial derivative estimates, nrows-by-MAX_STEPS */
   gsl_matrix * err_init;                          /* initial derivative roundoff error, nrows-by-MAX_STEPS */
   gsl_vector * work2l;                            /* workspace, length 2*nrows */
+  gsl_vector * workn;                             /* workspace, length ncols */
   size_t nromb;                                   /* number of Romberg windows */
   void * romb_state;                              /* Romberg state variables */
   gsl_vector * der_romb;                          /* Romberg derivative estimates, length nromb */
   gsl_vector * err_romb;                          /* Romberg error estimates, length nromb */
 } gsl_deriv_jacobian_workspace;
 
-gsl_deriv_jacobian_workspace * gsl_deriv_jacobian_alloc();
+gsl_deriv_jacobian_workspace * gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params,
+                                                        const size_t nrows, const size_t ncols);
 
 void gsl_deriv_jacobian_free(gsl_deriv_jacobian_workspace * w);
+
+int gsl_deriv_jacobian_fixed(const gsl_deriv_vec_function * F, const gsl_vector * x,
+                             const gsl_vector * h, gsl_matrix * J, gsl_matrix * esterr,
+                             unsigned int * neval, gsl_deriv_jacobian_workspace * w);
 
 int gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
                        gsl_matrix * J, gsl_matrix * esterr, gsl_matrix * final_step, unsigned int * neval,

@@ -35,8 +35,66 @@ typedef struct
 static double dd_func(double t, void * vparams);
 
 /*
+gsl_deriv_directional_fixed()
+  Compute directional derivative of a function using
+fixed-step differentiation
+
+Inputs: params     - derivative parameters
+        f          - function to differentiate
+        x          - point at which to compute derivative, length n
+        v          - direction for computing derivative, length n
+        h          - absolute step size
+        result     - (output) derivative result
+        esterr     - (output) absolute error estimate, such that
+                       abs(result - f'(x)) < esterr
+        neval      - (output) total number of function evaluations
+        work       - workspace, length n
+
+Return: success/error
+*/
+
+int
+gsl_deriv_directional_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                            const gsl_vector * x, const gsl_vector * v, const double h,
+                            double * result, double * esterr, unsigned int * neval,
+                            gsl_vector * work)
+{
+  const size_t n = x->size;
+
+  if (n != v->size)
+    {
+      GSL_ERROR ("v must have same length as x", GSL_EBADLEN);
+    }
+  else if (n != work->size)
+    {
+      GSL_ERROR ("work must have same length as x", GSL_EBADLEN);
+    }
+  else
+    {
+      int status;
+      gsl_function F;
+      dd_parameters dd_params;
+
+      dd_params.x = x;
+      dd_params.v = v;
+      dd_params.f = f;
+      dd_params.work = work;
+
+      F.function = dd_func;
+      F.params = &dd_params;
+
+      status = gsl_deriv_fixed(params, &F, 0.0, h, result, esterr, neval);
+      if (status)
+        return status;
+
+      return GSL_SUCCESS;
+    }
+}
+
+/*
 gsl_deriv_directional()
-  Compute directional derivative of a function
+  Compute directional derivative of a function using
+adaptive differentiation
 
 Inputs: params     - derivative parameters
         f          - function to differentiate
@@ -54,8 +112,9 @@ Return: success/error
 */
 
 int
-gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x,
-                      const gsl_vector * v, double * result, double * esterr, double * final_step, unsigned int * neval,
+gsl_deriv_directional(const gsl_deriv_parameters * params, const gsl_deriv_function * f,
+                      const gsl_vector * x, const gsl_vector * v, double * result,
+                      double * esterr, double * final_step, unsigned int * neval,
                       gsl_deriv_diag * diag, gsl_vector * work)
 {
   const size_t n = x->size;

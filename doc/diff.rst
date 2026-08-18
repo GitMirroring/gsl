@@ -221,6 +221,84 @@ estimate the function derivative.
    while :func:`gsl_deriv_fixed_v` applies the same differentiation
    operation independently to each element of the input vector.
 
+.. function:: int gsl_deriv_directional_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x, const gsl_vector * v, const double h, double * result, double * esterr, unsigned int * neval, gsl_vector * work)
+
+   This function computes the :math:`m`-th directional derivative of the function
+   :math:`f(x)` in the direction of the vector :math:`v`,
+   :math:`D_v^{(m)} f(x) = \frac{d^m}{dt^m} f(x + t v) \left. \right|_{t=0}`.
+   The fixed absolute step size :math:`h` applies to the scalar parameter
+   :math:`t`, so finite difference evaluations are performed at
+   :math:`x + h s_k v`. The vector :math:`v` is used as supplied and
+   is not normalized. The estimated
+   directional derivative is returned in :data:`result` and the
+   estimated absolute error is returned in :data:`esterr`. The
+   number of function evaluations is returned in :data:`neval`.
+   Additional workspace of length :math:`n` is required in :data:`work`,
+   where :math:`n` is the length of the vectors :math:`x` and :math:`v`.
+
+.. function:: int gsl_deriv_gradient_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f, const gsl_vector * x, const gsl_vector * h, gsl_vector * result, gsl_vector * esterr, unsigned int * neval, gsl_vector * work)
+
+   This function computes the vector of partial derivatives
+   :math:`\partial^m f(x) / \partial x_j^m` using fixed absolute
+   step sizes provided in the vector :math:`h`. The element
+   :math:`h_j` specifies the fixed absolute step used to
+   compute the derivative with respect to :math:`x_j` (the
+   remaining components of :math:`x` are held fixed).
+   The output vector is stored in :data:`result` and the absolute
+   estimated errors for each partial derivative are stored
+   in the output :data:`esterr`. The number of function evaluations
+   is returned in :data:`neval`.
+   Additional workspace of length :math:`n` is required in :data:`work`,
+   where :math:`n` is the length of the vector :math:`x`.
+
+Adaptive Differentiation
+========================
+
+Jacobian Calculation
+====================
+
+For the map
+
+.. math:: F: \mathbb{R}^n \rightarrow \mathbb{R}^l
+
+with
+
+.. math:: F(x) = \left\{ f_1(x), f_2(x), \dots, f_l(x) \right\}
+
+GSL computes the :math:`l`-by-:math:`n` matrix
+
+.. math:: J_{ij}^{(m)} = \frac{\partial^m f_i(x)}{\partial x_j^m}
+
+The classical Jacobian corresponds to :math:`m = 1`, but GSL supports
+the calculation of higher order derivatives by specifying the
+:code:`deriv_order` parameter.
+
+.. function:: gsl_deriv_jacobian_workspace * gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows, const size_t ncols)
+
+   This function allocates a workspace suitable for Jacobian calculations
+   for both fixed-step and adaptive routines. The input :data:`nrows`
+   specifies :math:`l`, the dimension of the output of :math:`F(x)`,
+   and the number of rows of the Jacobian. The input :data:`ncols`
+   specifies :math:`n`, the dimension of the input :math:`x` and 
+   the number of columns of the Jacobian.
+
+.. function:: void gsl_deriv_jacobian_free(gsl_deriv_jacobian_workspace * w)
+
+   This function frees the memory associated with :data:`w`.
+
+.. function:: int gsl_deriv_jacobian_fixed(const gsl_deriv_vec_function * F, const gsl_vector * x, const gsl_vector * h, gsl_matrix * J, gsl_matrix * esterr, unsigned int * neval, gsl_deriv_jacobian_workspace * w)
+
+   This function computes the :math:`l`-by-:math:`n` Jacobian matrix :math:`J`
+   associated with the function :math:`F(x)`. The function uses fixed step
+   sizes, specified in :math:`h`, to compute the derivatives. The element
+   :math:`h_j` specifies the absolute step size used to compute all derivatives
+   in column :math:`j` of the Jacobian, corresponding to differentiation with
+   respect to :math:`x_j`. The estimated absolute error of each element of
+   the Jacobian is returned in the :math:`l`-by-:math:`n` matrix :data:`esterr`.
+   The total number of function evaluations is provided in :data:`neval` on output.
+   The workspace :data:`w` must be allocated by calling
+   :func:`gsl_deriv_jacobian_alloc`.
+
 Obsolete Functions
 ==================
 
