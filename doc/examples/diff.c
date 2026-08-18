@@ -5,29 +5,32 @@
 double f (double x, void * params)
 {
   (void)(params); /* avoid unused parameter warning */
-  return pow (x, 1.5);
+  return log(1.0 + x);
 }
 
 int
 main (void)
 {
+  gsl_deriv_parameters params = gsl_deriv_default_parameters(1, 4);
   gsl_function F;
-  double result, abserr;
+  double result, abserr, fs;
+  unsigned int neval;
 
   F.function = &f;
   F.params = 0;
 
-  printf ("f(x) = x^(3/2)\n");
+  printf ("f(x) = log(1+x)\n");
 
-  gsl_deriv_central (&F, 2.0, 1e-8, &result, &abserr);
-  printf ("x = 2.0\n");
-  printf ("f'(x) = %.10f +/- %.10f\n", result, abserr);
-  printf ("exact = %.10f\n\n", 1.5 * sqrt(2.0));
+  gsl_deriv_adaptive(&params, &F, 5.0, &result, &abserr, &fs, &neval, NULL);
+  printf ("x = 5.0, h_final = %.12e, neval = %u\n", fs, neval);
+  printf ("f'(x) = %.12e +/- %.12e\n", result, abserr);
+  printf ("exact = %.12e\n\n", 1.0/6.0);
 
-  gsl_deriv_forward (&F, 0.0, 1e-8, &result, &abserr);
-  printf ("x = 0.0\n");
-  printf ("f'(x) = %.10f +/- %.10f\n", result, abserr);
-  printf ("exact = %.10f\n", 0.0);
+  params.stencil_type = GSL_DERIV_STENCIL_FORWARD;
+  gsl_deriv_adaptive(&params, &F, -0.9, &result, &abserr, &fs, &neval, NULL);
+  printf ("x = -0.9, h_final = %.12e, neval = %u\n", fs, neval);
+  printf ("f'(x) = %.12e +/- %.12e\n", result, abserr);
+  printf ("exact = %.12e\n\n", 10.0);
 
   return 0;
 }

@@ -174,7 +174,7 @@ specific differentiation problem.
 
 .. function:: gsl_deriv_parameters gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int method_order)
 
-   This function calculates default parameters given the
+   This function returns default parameters given the
    derivative order :math:`m`, specified by :data:`deriv_order` and
    the method order :math:`p`, specified by :data:`method_order`.
    The default values are shown in the table below.
@@ -190,6 +190,51 @@ specific differentiation problem.
    nstep         :math:`25`
    scales        :code:`NULL`
    ============= ==================================
+
+Providing Functions for Differentiation
+=======================================
+
+.. type:: gsl_deriv_function
+
+   This data type defines a general function with vector input and scalar output, with parameters,
+
+   .. math:: f: \mathbb{R}^n \rightarrow \mathbb{R}
+
+   :code:`double (* f) (const gsl_vector * x, void * params)`
+
+      this function should return the value
+      :math:`f(x,params)` for argument :data:`x` and parameters :data:`params`
+
+   :code:`size_t n`
+
+      the size of the input vector :data:`x`.
+
+   :code:`void * params`
+
+      a pointer to the parameters of the function
+
+.. type:: gsl_deriv_vec_function
+
+   This data type defines a general function with vector input and vector output, with parameters,
+
+   .. math:: F: \mathbb{R}^n \rightarrow \mathbb{R}^m
+
+   :code:`int (* f) (const gsl_vector * x, void * params, gsl_vector * f)`
+
+      This function should store the value :math:`F(x)` into the vector
+      :data:`f` for argument :data:`x` and parameters :data:`params`.
+
+   :code:`size_t n`
+
+      the size of the input vector :data:`x`.
+
+   :code:`size_t m`
+
+      the size of the output vector :data:`f`.
+
+   :code:`void * params`
+
+      a pointer to the parameters of the function
 
 Fixed Step Differentiation
 ==========================
@@ -437,11 +482,14 @@ Obsolete Functions
 Examples
 ========
 
+Ordinary Derivative
+-------------------
+
 The following code estimates the derivative of the function 
-:math:`f(x) = x^{3/2}`
-at :math:`x = 2` and at :math:`x = 0`.  The function :math:`f(x)` is
-undefined for :math:`x < 0` so the derivative at :math:`x=0` is computed
-using :func:`gsl_deriv_forward`.
+:math:`f(x) = \log{(1+x)}`
+at :math:`x = 5` and at :math:`x = -0.9`.  The function :math:`f(x)` is
+undefined for :math:`x \leq -1` so the derivative at :math:`x=-0.9` is computed
+using a forward stencil.
 
 .. include:: examples/diff.c
    :code:
@@ -449,6 +497,57 @@ using :func:`gsl_deriv_forward`.
 Here is the output of the program,
 
 .. include:: examples/diff.txt
+   :code:
+
+Directional Derivative
+----------------------
+
+The following code estimates the directional derivative of the function 
+:math:`f(x) = \left| x \right|^2`. The derivative in the direction
+:math:`v` is given by :math:`D_v f(x) = 2 x \cdot v`.
+
+.. include:: examples/diff_d.c
+   :code:
+
+Here is the output of the program,
+
+.. include:: examples/diff_d.txt
+   :code:
+
+Gradient Example
+----------------
+
+The following code estimates the gradient of the function 
+:math:`f(x) = x^T A x` for a symmetric matrix :math:`A`.
+The gradient is given by :math:`\nabla f(x) = 2 A x`.
+
+.. include:: examples/diff_g.c
+   :code:
+
+Here is the output of the program,
+
+.. include:: examples/diff_g.txt
+   :code:
+
+Jacobian Example
+----------------
+
+The following code estimates the Jacobian of the function 
+:math:`F(x_1,x_2) = \left( x_1^2, x_1 x_2, x_2^2 \right)`.
+The Jacobian matrix is given by
+
+.. math:: J = \begin{pmatrix}
+                2 x_1 & 0 \\
+                x_2 & x_1 \\
+                0 & 2 x_2
+              \end{pmatrix}
+
+.. include:: examples/diff_j.c
+   :code:
+
+Here is the output of the program,
+
+.. include:: examples/diff_j.txt
    :code:
 
 References and Further Reading
