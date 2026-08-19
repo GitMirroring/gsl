@@ -19,6 +19,8 @@ figures =                              \
   images/bspline_per.png               \
   images/bspline_proj.png              \
   images/cheb.png                      \
+  images/deriv_1.png                   \
+  images/deriv_2.png                   \
   images/dwt.png                       \
   images/fft-complex-radix2.png        \
   images/fft-real-mixedradix.png       \

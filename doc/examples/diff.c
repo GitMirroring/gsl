@@ -17,7 +17,7 @@ main (void)
   unsigned int neval;
 
   F.function = &f;
-  F.params = 0;
+  F.params = NULL;
 
   printf ("f(x) = log(1+x)\n");
 

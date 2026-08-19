@@ -365,6 +365,19 @@ derivative estimate and associated absolute error.
    Additional workspace of length :math:`n` is required in :data:`work`,
    where :math:`n` is the length of the vector :math:`x`.
 
+Diagnostic Output
+-----------------
+
+Some of the adaptive functions provide a diagnostic output
+structure,
+
+.. type:: gsl_deriv_diag
+
+which can be analyzed to determine if the adaptive algorithm
+is correctly locating the plateau region between where truncation
+and roundoff error dominate. An example program which analyzes
+this structure is provided in the :ref:`sec_examples-diag` section below.
+
 Jacobian Calculation
 ====================
 
@@ -550,6 +563,32 @@ Here is the output of the program,
 
 .. include:: examples/diff_j.txt
    :code:
+
+Higher Order Derivatives
+------------------------
+
+This example computes the first and tenth derivatives
+(:math:`m=1` and :math:`m=10`) of the function :math:`f(x) = e^x`.
+Since :math:`f^{(m)}(x) = e^x` for all :math:`m`, the exact result
+is known for any derivative order.
+The derivative order can be changed by using the :code:`deriv_order` argument
+to :func:`gsl_deriv_default_parameters`. Higher order numerical
+derivatives are increasingly sensitive to roundoff error, since the
+roundoff contribution scales approximately as :math:`\epsilon/h^m`. The
+adaptive algorithm therefore generally selects different step sizes as
+:math:`m` changes.
+
+The program source code is below.
+
+.. include:: examples/diff_exp.c
+   :code:
+
+Here is the output of the program,
+
+.. include:: examples/diff_exp.txt
+   :code:
+
+.. _sec_examples-diag:
 
 Diagnostic Example
 ------------------
