@@ -382,7 +382,7 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
 }
 
 int
-gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag)
+gsl_deriv_diag_print(FILE * fp, const gsl_deriv_diag * diag)
 {
   const gsl_deriv_parameters * params = &(diag->params);
   gsl_matrix_const_view A = gsl_matrix_const_view_array(diag->fornberg_weights, params->deriv_order + 1, diag->stencil_size);

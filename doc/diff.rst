@@ -487,9 +487,9 @@ Ordinary Derivative
 
 The following code estimates the derivative of the function 
 :math:`f(x) = \log{(1+x)}`
-at :math:`x = 5` and at :math:`x = -0.9`.  The function :math:`f(x)` is
-undefined for :math:`x \leq -1` so the derivative at :math:`x=-0.9` is computed
-using a forward stencil.
+at :math:`x = 5` and at :math:`x = -0.9`.  Since the function :math:`f(x)` is
+undefined for :math:`x \leq -1` a forward stencil is used at :math:`x=-0.9`
+to ensure that all function evaluations remain within the domain.
 
 .. include:: examples/diff.c
    :code:
@@ -503,7 +503,7 @@ Directional Derivative
 ----------------------
 
 The following code estimates the directional derivative of the function 
-:math:`f(x) = \left| x \right|^2`. The derivative in the direction
+:math:`f(x) = \| x \|^2`. The derivative in the direction
 :math:`v` is given by :math:`D_v f(x) = 2 x \cdot v`.
 
 .. include:: examples/diff_d.c
@@ -519,7 +519,8 @@ Gradient Example
 
 The following code estimates the gradient of the function 
 :math:`f(x) = x^T A x` for a symmetric matrix :math:`A`.
-The gradient is given by :math:`\nabla f(x) = 2 A x`.
+Assuming a Cartesian input vector, the gradient is given by
+:math:`\nabla f(x) = 2 A x`.
 
 .. include:: examples/diff_g.c
    :code:
@@ -550,6 +551,116 @@ Here is the output of the program,
 .. include:: examples/diff_j.txt
    :code:
 
+Diagnostic Example
+------------------
+
+Here we illustrate the diagnostic output of the
+adaptive differentiation routines on the function
+
+.. math:: f(x) = x^{3/2}
+
+which has derivatives
+
+.. math::
+
+   f'(x) &= \frac{3}{2} \sqrt{x} \\
+   f''(x) &= \frac{3}{4 \sqrt{x}}
+
+The domain of this function is :math:`x \geq 0`, and the one-sided
+derivative :math:`f'(0) = 0` exists. However, :math:`f''(x)` diverges
+as :math:`x \rightarrow 0^{+}`.  Therefore, at the point :math:`x=0`,
+the function does not have the higher-order smoothness required for the
+nominal finite-difference truncation-error expansion. In particular,
+the finite-difference estimates do not follow the integer-power error
+model assumed by the Romberg extrapolation.
+
+We illustrate the situation by first computing the derivative at
+:math:`x=1` which does satisfy smoothness requirements, and then at
+:math:`x=0` which does not. We use a forward stencil for both examples
+for two reasons: (1) since the domain of the function is :math:`x \geq 0`,
+we want to avoid taking steps into the :math:`x < 0` region, and (2)
+we want to hold the stencil type fixed when comparing the behavior at
+the smooth point :math:`x=1` and the endpoint :math:`x=0`.
+
+The source code is below.
+
+.. include:: examples/diff_diag.c
+   :code:
+
+Here is the output for applying the adaptive algorithm to :math:`x=1`.
+
+.. code-block:: console
+
+   $ ./diff_diag 1 > diff_diag_x1.txt
+
+.. include:: examples/diff_diag_x1_output.txt
+   :code:
+
+The diagnostic output is organized into 3 blocks. The
+first block contains the initial derivative estimates
+and roundoff error estimates computed by applying the
+finite-difference formula at each step size. The second
+block is the result of applying the Romberg extrapolation
+and error estimation, and is usually the most useful data
+to plot. The third block is the result after applying
+the candidate filter (which removes any :code:`nan` values).
+The figures below plot the data from the second block
+(Romberg extrapolated derivative estimates and associated
+error estimates).
+
+.. figure:: /images/deriv_1.png
+
+We see that the left figure exhibits a clear plateau in the
+derivative estimates, and the right figure shows a clear
+minimum in the error curve. At smaller step sizes the error
+curve eventually increases and becomes irregular as roundoff
+error becomes important, while at larger step sizes it rises
+rapidly as truncation error dominates.
+The derivative candidate corresponding to the minimum of the
+estimated error curve is selected as the final derivative estimate.
+
+Now we compute the result for :math:`x=0`.
+
+.. code-block:: console
+
+   $ ./diff_diag 0 > diff_diag_x0.txt
+
+.. include:: examples/diff_diag_x0_output.txt
+   :code:
+
+We see that the adaptive algorithm estimates the derivative as
+:math:`f'(0) \approx 1.269 \cdot 10^{-3}`, which is not satisfactory, as the
+correct value is :math:`f'(0) = 0`. The diagnostic output below explains
+the problem.
+
+.. figure:: /images/deriv_2.png
+
+In contrast to the :math:`x=1` case, the derivative estimates show no
+plateau and the estimated error continues to decrease over the sampled
+range as :math:`h` decreases. Consequently, the adaptive algorithm is driven toward the
+smallest available steps rather than identifying an interior region
+in which truncation and roundoff errors are balanced.
+
+At :math:`x=0`, the finite-difference approximation becomes
+
+.. math:: D_h f(0) = \frac{1}{h} \sum_k w_k \left( h s_k \right)^{3/2} = \left( \sum_k w_k s_k^{3/2} \right) \sqrt{h}
+
+and so :math:`D_h f(0) \propto \sqrt{h}`. Thus, the observed convergence order
+at :math:`x=0` is :math:`1/2`, regardless of the nominal method order :math:`p` of the
+forward stencil. However, for a sufficiently smooth function, the Romberg model
+for a forward stencil is
+
+.. math:: D(h) = D_0 + C_1 h^p + C_2 h^{p+1} + \cdots
+
+Therefore, the finite-difference approximations do not follow the asymptotic model
+assumed by the Romberg extrapolation at :math:`x=0`.
+Extending the search to smaller step sizes may reduce the raw finite-difference
+error, but it does not correct the mismatch between the observed :math:`\sqrt{h}`
+convergence and the integer-power truncation model assumed by the Romberg extrapolation.
+For this particular problem, a sufficiently small fixed step can give a useful
+approximation because the raw finite-difference estimate still converges to
+:math:`f'(0) = 0`, albeit only as :math:`O(\sqrt{h})`.
+
 References and Further Reading
 ==============================
 
@@ -559,7 +670,7 @@ The algorithms used by these functions are described in the following sources:
   Section 25.3.4, and Table 25.5 (Coefficients for Differentiation).
 
 * J. D'Errico, *Adaptive robust numerical differentiation (DERIVEST)*,
-  https://www.mathworks.com/matlabcentral/fileexchange/13490-adaptive-robust-numerical-differentiation, MATLAB Central File Exchange, 2026.
+  https://www.mathworks.com/matlabcentral/fileexchange/13490-adaptive-robust-numerical-differentiation, MATLAB Central File Exchange, 2007.
 
 * B. Fornberg, *Calculation of weights in finite difference formulas*,
   SIAM Rev., Vol 40, No. 3, pp. 685-691, 1998.

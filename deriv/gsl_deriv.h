@@ -97,7 +97,7 @@ int gsl_deriv_fornberg_weights(const double nodes[], const unsigned int n,
                                const unsigned int max_deriv, const double x0,
                                double weights[]);
 
-int gsl_deriv_print_diag(FILE * fp, const gsl_deriv_diag * diag);
+int gsl_deriv_diag_print(FILE * fp, const gsl_deriv_diag * diag);
 
 /* directionaldiff.c */
 

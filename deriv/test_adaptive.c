@@ -50,7 +50,7 @@ test_deriv_adaptive_diag(const deriv_test_t * test_t, const double x, const doub
     params.max_step = max_step;
 
   gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
-  gsl_deriv_print_diag(stdout, &diag);
+  gsl_deriv_diag_print(stdout, &diag);
 
   return 0;
 }
