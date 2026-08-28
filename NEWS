@@ -1,5 +1,7 @@
 * What is new in gsl-2.9:
 
+** new adaptive differentation module (gsl_deriv)
+
 ** add functions:
    - gsl_matrix_axpby
    - gsl_permutation_view_array

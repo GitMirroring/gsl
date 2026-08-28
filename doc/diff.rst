@@ -378,6 +378,12 @@ is correctly locating the plateau region between where truncation
 and roundoff error dominate. An example program which analyzes
 this structure is provided in the :ref:`sec_examples-diag` section below.
 
+.. function:: int gsl_deriv_diag_print(FILE * fp, const gsl_deriv_diag * diag)
+
+   This function outputs the diagnostic information contained in
+   :data:`diag` to the file pointer :data:`fp`. The printed output
+   is in ASCII format suitable for use with the :code:`gnuplot` program.
+
 Jacobian Calculation
 ====================
 

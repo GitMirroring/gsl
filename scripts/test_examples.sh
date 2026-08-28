@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+#
+# First compile the example programs:
+# > cd doc/examples && make check
 
 exdir="doc/examples"
 
@@ -66,6 +69,12 @@ dotest cheb cheb.txt "" ""
 dotest combination combination.txt "" ""
 dotest const const.txt "" ""
 dotest diff diff.txt "" ""
+dotest diff_d diff_d.txt "" ""
+dotest diff_g diff_g.txt "" ""
+dotest diff_j diff_j.txt "" ""
+dotest diff_exp diff_exp.txt "" ""
+dotest diff_diag diff_diag_x1.txt diff_diag_x1_output.txt "1"
+dotest diff_diag diff_diag_x0.txt diff_diag_x0_output.txt "0"
 dotest dwt dwt.txt "" "${exdir}/ecg.dat"
 dotest eigen eigen.txt "" ""
 dotest eigen_nonsymm eigen_nonsymm.txt "" ""
