@@ -62,7 +62,7 @@ Return: GSL_SUCCESS on success
 */
 
 int
-gsl_new_sf_sinc_e(const double x, gsl_sf_result * result)
+gsl_sf_sinc_e(const double x, gsl_sf_result * result)
 {
   int status;
   const double a = fabs(x);
@@ -102,7 +102,7 @@ gsl_new_sf_sinc_e(const double x, gsl_sf_result * result)
   return GSL_SUCCESS;
 }
 
-double gsl_new_sf_sinc(const double x) { EVAL_RESULT(gsl_new_sf_sinc_e(x, &result)); }
+double gsl_sf_sinc(const double x) { EVAL_RESULT(gsl_sf_sinc_e(x, &result)); }
 
 /**********************************
  * INTERNAL ROUTINES              *

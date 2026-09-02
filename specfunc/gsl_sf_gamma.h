@@ -36,36 +36,15 @@
 
 __BEGIN_DECLS
 
-
-/* Log[Gamma(x)], x not a negative integer
- * Uses real Lanczos method.
- * Returns the real part of Log[Gamma[x]] when x < 0,
- * i.e. Log[|Gamma[x]|].
- *
- * exceptions: GSL_EDOM, GSL_EROUND
- */
-int gsl_sf_lngamma_e(double x, gsl_sf_result * result);
-double gsl_sf_lngamma(const double x);
-
 /* gamma/lngamma.c */
-int gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result);
-int gsl_new_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
+int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
+int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
 int gsl_sf_lngamma_local_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_sgn_local_e(const double x, gsl_sf_result * result, double * sgn);
 int gsl_sf_lngamma_1p_e(const double x, gsl_sf_result * result);
 
-double gsl_new_sf_lngamma(const double x);
+double gsl_sf_lngamma(const double x);
 double gsl_sf_lngamma_1p(const double x);
-
-/* Log[Gamma(x)], x not a negative integer
- * Uses real Lanczos method. Determines
- * the sign of Gamma[x] as well as Log[|Gamma[x]|] for x < 0.
- * So Gamma[x] = sgn * Exp[result_lg].
- *
- * exceptions: GSL_EDOM, GSL_EROUND
- */
-int gsl_sf_lngamma_sgn_e(double x, gsl_sf_result * result_lg, double *sgn);
-
 
 /* Gamma(x), x not a negative integer
  * Uses real Lanczos method.

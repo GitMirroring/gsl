@@ -382,7 +382,7 @@ test_lngamma(void)
 {
   int s = 0;
 
-  s += test_lngamma_f(gsl_new_sf_lngamma_e, gsl_new_sf_lngamma_sgn_e);
+  s += test_lngamma_f(gsl_sf_lngamma_e, gsl_sf_lngamma_sgn_e);
   s += test_lngamma_f(gsl_sf_lngamma_local_e, gsl_sf_lngamma_sgn_local_e);
 
   return s;

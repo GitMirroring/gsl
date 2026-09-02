@@ -75,35 +75,6 @@ cosh_m1_series(const double x, double * result)
 }
 
 
-/* Chebyshev expansion for f(t) = sinc((t+1)/2), -1 < t < 1
- */
-static double sinc_data[17] = {
-  1.133648177811747875422,
- -0.532677564732557348781,
- -0.068293048346633177859,
-  0.033403684226353715020,
-  0.001485679893925747818,
- -0.000734421305768455295,
- -0.000016837282388837229,
-  0.000008359950146618018,
-  0.000000117382095601192,
- -0.000000058413665922724,
- -0.000000000554763755743,
-  0.000000000276434190426,
-  0.000000000001895374892,
- -0.000000000000945237101,
- -0.000000000000004900690,
-  0.000000000000002445383,
-  0.000000000000000009925
-};
-static cheb_series sinc_cs = {
-  sinc_data,
-  16,
-  -1, 1,
-  10
-};
-
-
 /* Chebyshev expansion for f(t) = g((t+1)Pi/8), -1<t<1
  * g(x) = (sin(x)/x - 1)/(x*x)
  */
@@ -485,17 +456,6 @@ int gsl_sf_lncosh_e(const double x, gsl_sf_result * result)
   }
 }
 
-
-/*
-inline int gsl_sf_sincos_e(const double theta, double * s, double * c)
-{
-  double tan_half = tan(0.5 * theta);
-  double den = 1. + tan_half*tan_half;
-  double cos_theta = (1.0 - tan_half*tan_half) / den;
-  double sin_theta = 2.0 * tan_half / den;
-}
-*/
-
 int
 gsl_sf_polar_to_rect(const double r, const double theta,
                           gsl_sf_result * x, gsl_sf_result * y)
@@ -634,89 +594,6 @@ int gsl_sf_cos_err_e(const double x, const double dx, gsl_sf_result * result)
   return stat_c;
 }
 
-
-#if 0
-int
-gsl_sf_sin_pi_x_e(const double x, gsl_sf_result * result)
-{
-  /* CHECK_POINTER(result) */
-
-  if(-100.0 < x && x < 100.0) {
-    result->val = sin(M_PI * x) / (M_PI * x);
-    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_SUCCESS;
-  }
-  else {
-    const double N = floor(x + 0.5);
-    const double f = x - N;
-
-    if(N < INT_MAX && N > INT_MIN) {
-      /* Make it an integer if we can. Saves another
-       * call to floor().
-       */
-      const int intN    = (int)N;
-      const double sign = ( GSL_IS_ODD(intN) ? -1.0 : 1.0 );
-      result->val = sign * sin(M_PI * f);
-      result->err = GSL_DBL_EPSILON * fabs(result->val);
-    }
-    else if(N > 2.0/GSL_DBL_EPSILON || N < -2.0/GSL_DBL_EPSILON) {
-      /* All integer-valued floating point numbers
-       * bigger than 2/eps=2^53 are actually even.
-       */
-      result->val = 0.0;
-      result->err = 0.0;
-    }
-    else {
-      const double resN = N - 2.0*floor(0.5*N); /* 0 for even N, 1 for odd N */
-      const double sign = ( fabs(resN) > 0.5 ? -1.0 : 1.0 );
-      result->val = sign * sin(M_PI*f);
-      result->err = GSL_DBL_EPSILON * fabs(result->val);
-    }
-
-    return GSL_SUCCESS;
-  }
-}
-#endif
-
-
-int gsl_sf_sinc_e(double x, gsl_sf_result * result)
-{
-  /* CHECK_POINTER(result) */
-
-  {
-    const double ax = fabs(x);
-
-    if(ax < 0.8) {
-      /* Do not go to the limit of the fit since
-       * there is a zero there and the Chebyshev
-       * accuracy will go to zero.
-       */
-      return cheb_eval_e(&sinc_cs, 2.0*ax-1.0, result);
-    }
-    else if(ax < 100.0) {
-      /* Small arguments are no problem.
-       * We trust the library sin() to
-       * roughly machine precision.
-       */
-      result->val = sin(M_PI * ax)/(M_PI * ax);
-      result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-      return GSL_SUCCESS;
-    }
-    else {
-      /* Large arguments must be handled separately.
-       */
-      const double r = M_PI*ax;
-      gsl_sf_result s;
-      int stat_s = gsl_sf_sin_e(r, &s);
-      result->val = s.val/r;
-      result->err = s.err/r + 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-      return stat_s;
-    }
-  }
-}
-
-
-
 /*-*-*-*-*-*-*-*-*-* Functions w/ Natural Prototypes *-*-*-*-*-*-*-*-*-*-*/
 
 #include "eval.h"
@@ -756,16 +633,4 @@ double gsl_sf_angle_restrict_pos(const double theta)
 {
   double result = theta;
   EVAL_DOUBLE(gsl_sf_angle_restrict_pos_e(&result));
-}
-
-#if 0
-double gsl_sf_sin_pi_x(const double x)
-{
-  EVAL_RESULT(gsl_sf_sin_pi_x_e(x, &result));
-}
-#endif
-
-double gsl_sf_sinc(const double x)
-{
-  EVAL_RESULT(gsl_sf_sinc_e(x, &result));
 }

@@ -86,7 +86,7 @@ static int lngamma_1p_recurrence(const double x, gsl_sf_result * result);
 #define LNGAMMA_X_RECUR_STIRLING           (8.0)
 
 int
-gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result)
+gsl_sf_lngamma_e(const double x, gsl_sf_result * result)
 {
 #ifdef HAVE_LGAMMA
 
@@ -102,7 +102,7 @@ gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result)
 }
 
 int
-gsl_new_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn)
+gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn)
 {
 #ifdef HAVE_LGAMMA_R
 
@@ -326,11 +326,11 @@ gsl_sf_lngamma_1p_e(const double x, gsl_sf_result * result)
     }
   else
     {
-      return gsl_new_sf_lngamma_e(1.0 + x, result);
+      return gsl_sf_lngamma_e(1.0 + x, result);
     }
 }
 
-double gsl_new_sf_lngamma(const double x) { EVAL_RESULT(gsl_new_sf_lngamma_e(x, &result)); }
+double gsl_sf_lngamma(const double x) { EVAL_RESULT(gsl_sf_lngamma_e(x, &result)); }
 double gsl_sf_lngamma_1p(const double x) { EVAL_RESULT(gsl_sf_lngamma_1p_e(x, &result)); }
 
 /********************************************
