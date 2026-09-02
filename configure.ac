@@ -4,6 +4,7 @@ AC_INIT([gsl],[2.8+])
 AC_CONFIG_SRCDIR(gsl_math.h)
 
 AM_INIT_AUTOMAKE([gnu])
+AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([config.h])
 AM_MAINTAINER_MODE
 
@@ -219,6 +220,8 @@ dnl Use alternate libm if specified by user
 if test "x$LIBS" = "x" ; then
   AC_CHECK_LIB(m, cos)
 fi
+
+AC_SEARCH_LIBS([lgamma], [m], [AC_DEFINE([HAVE_LGAMMA], [1], [Define to 1 if you have the lgamma function.])])
 
 dnl Remember to put a definition in acconfig.h for each of these
 AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1

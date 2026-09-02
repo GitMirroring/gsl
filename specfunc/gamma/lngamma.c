@@ -26,6 +26,10 @@
 #include "error.h"
 #include "eval.h"
 
+#ifdef HAVE_LGAMMA
+static int lngamma_system_e(const double x, gsl_sf_result * result);
+#endif
+
 static int lngamma_near1(const double x, gsl_sf_result * result);
 static int lngamma_near2(const double x, gsl_sf_result * result);
 static int lngamma_middle(const double x, gsl_sf_result * result);
@@ -77,7 +81,25 @@ static int lngamma_1p_recurrence(const double x, gsl_sf_result * result);
 #define LNGAMMA_X_NEAR2_RECUR              (2.3)
 #define LNGAMMA_X_RECUR_STIRLING           (8.0)
 
+int
+gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result)
+{
+#ifdef HAVE_LGAMMA
+
+  /* use system lgamma() */
+  return lngamma_system_e(x, result);
+
+#else
+
+  /* use local fallback function */
+  return gsl_sf_lngamma_local_e(x, result);
+
+#endif
+}
+
 /*
+ * Local fallback function when lgamma() is not available.
+ *
  * Compute log(Gamma(x)).
  *
  * The positive domain is divided among three direct rational
@@ -103,10 +125,15 @@ static int lngamma_1p_recurrence(const double x, gsl_sf_result * result);
  * separately as part of the complete lngamma implementation.
  */
 int
-gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result)
+gsl_sf_lngamma_local_e(const double x, gsl_sf_result * result)
 {
   int status;
   gsl_sf_result r;
+
+  if (x == 0.0)
+    {
+      DOMAIN_ERROR(result);
+    }
 
   if (x <= LNGAMMA_X_NEG0_MIN)
     {
@@ -255,6 +282,24 @@ double gsl_sf_lngamma_1p(const double x) { EVAL_RESULT(gsl_sf_lngamma_1p_e(x, &r
 /********************************************
  * INTERNAL ROUTINES FOR LNGAMMA            *
  ********************************************/
+
+#ifdef HAVE_LGAMMA
+
+static int
+lngamma_system_e(const double x, gsl_sf_result * result)
+{
+  if (x <= 0.0 && x == floor(x))
+    {
+      DOMAIN_ERROR(result);
+    }
+
+  result->val = lgamma(x);
+  result->err = 8.0 * GSL_DBL_EPSILON * (fabs(result->val) + 1.0);
+
+  return GSL_SUCCESS;
+}
+
+#endif /* HAVE_LGAMMA */
 
 /*
  * Approximate log(Gamma(x)) near x = 1.
@@ -845,12 +890,15 @@ lngamma_neg_minus3_minus2(const double x, gsl_sf_result * result)
  *
  *   log|Gamma(x)| = log(pi / |x sin(pi*x)|) - log(Gamma(-x)).
  *
- * The reflected argument lies in (1,2), so it is evaluated by the
- * existing positive-argument lngamma dispatcher.
+ * The reflected argument -x lies in (1,2), so it is evaluated directly
+ * with the appropriate near-1, middle, or near-2 positive-argument
+ * kernel.  This keeps the local fallback independent of the system
+ * lgamma() implementation.
  */
 static int
 lngamma_neg_minus2_minus1(const double x, gsl_sf_result * result)
 {
+  const double ax = -x;
   gsl_sf_result rs, rg;
   double nadj, err_nadj;
   int status;
@@ -868,7 +916,13 @@ lngamma_neg_minus2_minus1(const double x, gsl_sf_result * result)
       DOMAIN_ERROR(result);
     }
 
-  status = gsl_new_sf_lngamma_e(-x, &rg);
+  if (ax <= LNGAMMA_X_NEAR1_MIDDLE)
+    status = lngamma_near1(ax, &rg);
+  else if (ax <= LNGAMMA_X_MIDDLE_NEAR2)
+    status = lngamma_middle(ax, &rg);
+  else
+    status = lngamma_near2(ax, &rg);
+
   if (status)
     {
       *result = rg;

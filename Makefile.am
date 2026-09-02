@@ -17,6 +17,8 @@ CLEANFILES = gsl.pc gsl-config
 
 EXTRA_DIST = autogen.sh gsl-config.in gsl.pc.in configure.ac THANKS BUGS gsl.spec.in gsl.m4 test_gsl_histogram.sh pkgconfig.test
 
+ACLOCAL_AMFLAGS = -I m4
+
 lib_LTLIBRARIES = libgsl.la
 libgsl_la_SOURCES = version.c
 libgsl_la_LIBADD = $(GSL_LIBADD) $(SUBLIBS)

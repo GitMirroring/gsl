@@ -2,6 +2,11 @@
 
 ** new adaptive differentation module (gsl_deriv)
 
+** new or overhauled special functions:
+   - gsl_sf_lngamma
+   - gsl_sf_lngamma_1p
+   - gsl_sf_sinc
+
 ** add functions:
    - gsl_matrix_axpby
    - gsl_permutation_view_array

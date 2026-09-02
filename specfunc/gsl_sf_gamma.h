@@ -49,6 +49,7 @@ double gsl_sf_lngamma(const double x);
 
 /* gamma/lngamma.c */
 int gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result);
+int gsl_sf_lngamma_local_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_1p_e(const double x, gsl_sf_result * result);
 
 double gsl_new_sf_lngamma(const double x);
