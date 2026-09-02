@@ -9,11 +9,14 @@ noinst_HEADERS = bessel_amp_phase.h bessel_olver.h bessel_temme.h bessel.h hyper
 AM_CPPFLAGS = -I$(top_srcdir)
 
 include gamma/sources.mk
+include trig/sources.mk
 
 include gamma/test_sources.mk
+include trig/test_sources.mk
 
 libgslspecfunc_la_SOURCES = \
-  ${gamma_sources}          \
+  ${GAMMA_SOURCES}          \
+  ${TRIG_SOURCES}          \
   airy.c                    \
   airy_der.c                \
   airy_zero.c               \
@@ -110,7 +113,8 @@ test_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la
 test_new_SOURCES =      \
   test_new.c            \
   test_sf_new.c         \
-  ${GAMMA_TEST_SOURCES}
+  ${GAMMA_TEST_SOURCES} \
+  ${TRIG_TEST_SOURCES}
 
 test_new_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la  ../sort/libgslsort.la ../matrix/libgslmatrix.la ../vector/libgslvector.la ../blas/libgslblas.la ../cblas/libgslcblas.la ../block/libgslblock.la ../complex/libgslcomplex.la ../poly/libgslpoly.la ../ieee-utils/libgslieeeutils.la  ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
   
