@@ -30,6 +30,10 @@
 static int lngamma_system_e(const double x, gsl_sf_result * result);
 #endif
 
+#ifdef HAVE_LGAMMA_R
+static int lngamma_system_sgn_e(const double x, gsl_sf_result * result, double * sgn);
+#endif
+
 static int lngamma_near1(const double x, gsl_sf_result * result);
 static int lngamma_near2(const double x, gsl_sf_result * result);
 static int lngamma_middle(const double x, gsl_sf_result * result);
@@ -97,10 +101,26 @@ gsl_new_sf_lngamma_e(const double x, gsl_sf_result * result)
 #endif
 }
 
+int
+gsl_new_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn)
+{
+#ifdef HAVE_LGAMMA_R
+
+  /* use system lgamma_r() */
+  return lngamma_system_sgn_e(x, result, sgn);
+
+#else
+
+  /* use local fallback function */
+  return gsl_sf_lngamma_sgn_local_e(x, result);
+
+#endif
+}
+
 /*
  * Local fallback function when lgamma() is not available.
  *
- * Compute log(Gamma(x)).
+ * Compute log|Gamma(x)|.
  *
  * The positive domain is divided among three direct rational
  * approximations, a recurrence region, and a large-x Stirling
@@ -219,6 +239,40 @@ gsl_sf_lngamma_local_e(const double x, gsl_sf_result * result)
     return lngamma_stirling(x, result);
 }
 
+int
+gsl_sf_lngamma_sgn_local_e(const double x, gsl_sf_result * result, double * sgn)
+{
+  if (x > 0.0)
+    {
+      *sgn = 1.0;
+      return gsl_sf_lngamma_local_e(x, result);
+    }
+  else
+    {
+      gsl_sf_result rs;
+      int status;
+
+      status = gsl_sf_sin_pi_e(x, &rs);
+      if (status)
+        {
+          result->val = GSL_NAN;
+          result->err = GSL_NAN;
+          *sgn = GSL_NAN;
+          return status;
+        }
+
+      if (rs.val == 0.0)
+        {
+          *sgn = 0.0;
+          DOMAIN_ERROR(result);
+        }
+
+      *sgn = (rs.val < 0.0) ? -1.0 : 1.0;
+
+      return gsl_sf_lngamma_local_e(x, result);
+    }
+}
+
 /*
  * Compute log(Gamma(1+x)) for x > -1.
  *
@@ -300,6 +354,29 @@ lngamma_system_e(const double x, gsl_sf_result * result)
 }
 
 #endif /* HAVE_LGAMMA */
+
+#ifdef HAVE_LGAMMA_R
+
+static int
+lngamma_system_sgn_e(const double x, gsl_sf_result * result, double * sgn)
+{
+  int signp;
+
+  if (x <= 0.0 && x == floor(x))
+    {
+      *sgn = 0.0;
+      DOMAIN_ERROR(result);
+    }
+
+  result->val = lgamma_r(x, &signp);
+  result->err = 8.0 * GSL_DBL_EPSILON * (fabs(result->val) + 1.0);
+
+  *sgn = signp;
+
+  return GSL_SUCCESS;
+}
+
+#endif /* HAVE_LGAMMA_R */
 
 /*
  * Approximate log(Gamma(x)) near x = 1.
