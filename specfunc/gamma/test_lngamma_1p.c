@@ -1,8 +1,6 @@
 /* specfunc/gamma/test_lngamma_1p.c
  *
  * Unit tests for gsl_sf_lngamma_1p_e().
- *
- * Copyright (C) 2026 Patrick Alken
  */
 
 #include <config.h>

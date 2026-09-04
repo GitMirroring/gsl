@@ -219,6 +219,11 @@ double gsl_sf_gamma_inc_Q(const double a, const double x);
 int gsl_sf_gamma_inc_P_e(const double a, const double x, gsl_sf_result * result);
 double gsl_sf_gamma_inc_P(const double a, const double x);
 
+/* gamma/gamma_inc.c */
+int gsl_new_sf_gamma_inc_P_e(const double a, const double x, gsl_sf_result * result);
+int gsl_new_sf_gamma_inc_Q_e(const double a, const double x, gsl_sf_result * result);
+double gsl_new_sf_gamma_inc_P(const double a, const double x);
+double gsl_new_sf_gamma_inc_Q(const double a, const double x);
 
 /* Non-normalized Incomplete Gamma Function
  *
