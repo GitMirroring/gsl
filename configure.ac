@@ -229,6 +229,7 @@ AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
 AC_CHECK_DECLS(fesettrapenable,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
+AC_CHECK_DECLS(fma,,,[#include <math.h>]) 
 AC_CHECK_DECLS(hypot,,,[#include <math.h>]) 
 AC_CHECK_DECLS(expm1,,,[#include <math.h>])
 AC_CHECK_DECLS(acosh,,,[#include <math.h>])
@@ -611,6 +612,7 @@ cheb/Makefile                \
 combination/Makefile         \
 complex/Makefile             \
 const/Makefile               \
+dd/Makefile                  \
 deriv/Makefile               \
 dht/Makefile                 \
 diff/Makefile                \
