@@ -26,19 +26,8 @@
 
 #include "internal.h"
 
-/* three-term expansion used during range reduction */
-typedef struct
-{
-  double a;
-  double b;
-  double c;
-} dd_exp3;
-
 static gsl_dd mul_pwr2_extred(const gsl_dd a, const double c);
 static gsl_dd ldexp_extred(const gsl_dd a, const int e);
-static void exp3_add_double(dd_exp3 * x, const double q);
-static void exp3_renorm(dd_exp3 * x);
-static gsl_dd exp3_to_dd(const dd_exp3 x);
 
 /*
  * Multiply a double-double number by a power of two.
@@ -70,70 +59,4 @@ ldexp_extred(const gsl_dd a, const int e)
   r.hi = ldexp(a.hi, e);
   r.lo = ldexp(a.lo, e);
   return r;
-}
-
-/*
- * Accumulate a binary64 value into a three-term expansion.
- *
- * Add q to the leading component with TwoSum, then propagate the
- * resulting residual through the second component.  Any residual from
- * that addition is accumulated in the third component.
- *
- * This expansion is used only while forming the high-accuracy exp()
- * range reduction; it is not a general triple-double arithmetic type.
- */
-static void
-exp3_add_double(dd_exp3 * x, const double q)
-{
-  gsl_dd s, t;
-
-  s = two_sum(x->a, q);
-  t = two_sum(x->b, s.lo);
-
-  x->a = s.hi;
-  x->b = t.hi;
-  x->c += t.lo;
-}
-
-/*
- * Renormalize a three-term range-reduction expansion.
- *
- * Fold the third component into the second with TwoSum, then propagate
- * the leading part of that result into the first component.  The
- * remaining residual is retained in the second component and the third
- * component is cleared.
- *
- * The resulting first two components are suitable for subsequent
- * compression to a normalized double-double value.
- */
-static void
-exp3_renorm(dd_exp3 * x)
-{
-  gsl_dd t, u;
-
-  t = two_sum(x->b, x->c);
-  u = two_sum(x->a, t.hi);
-
-  x->a = u.hi;
-  x->b = u.lo + t.lo;
-  x->c = 0.0;
-}
-
-/*
- * Compress a three-term range-reduction expansion to double-double.
- *
- * Combine the two trailing components with TwoSum, add their leading
- * contribution to the first component, and renormalize the resulting
- * two-word value with FastTwoSum.
- */
-static gsl_dd
-exp3_to_dd(const dd_exp3 x)
-{
-  gsl_dd t, u;
-
-  t = two_sum(x.b, x.c);
-  u = two_sum(x.a, t.hi);
-  u.lo += t.lo;
-
-  return fast_two_sum(u.hi, u.lo);
 }

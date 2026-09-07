@@ -21,10 +21,63 @@
 #define __INTERNAL_H__
 
 #define DD_SPLIT                 134217729.0
-#define DD_LN2_HI                6.93147180369123816490e-01
-#define DD_LN2_LO                1.90821492927058770002e-10
+#define DD_LN2_HI                6.93147180559945286227e-01 /* double-double expansion of log(2) */
+#define DD_LN2_LO                2.31904681384629955842e-17
+#define DD_LN2_XTRA              5.70770843841621206578e-34
+#define DD_E_HI                  2.718281828459045091e+00   /* double-double expansion of e. */
+#define DD_E_LO                  1.445646891729250158e-16
 
 #define DD_CAT_(a,b)             a##b
 #define DD_CAT(a,b)              DD_CAT_(a,b)
+
+#define DD_GT_d(x, y)            ( (x.hi > y) || (x.hi == y && x.lo > 0.0) )
+#define DD_LT_d(x, y)            ( (x.hi < y) || (x.hi == y && x.lo < 0.0) )
+
+/*
+ * Short floating-point expansions used for compensated accumulation.
+ *
+ * A three-component expansion represents the unevaluated sum
+ *
+ *   x = a + b + c,
+ *
+ * and a four-component expansion represents
+ *
+ *   x = a + b + c + d.
+ *
+ * New binary64 terms are accumulated with cascaded TwoSum operations,
+ * propagating each rounding residual into the next component.  This
+ * retains information that would be lost by rounding each intermediate
+ * sum directly to double-double.
+ *
+ * These types are temporary accumulation formats, not general
+ * triple-double or quad-double arithmetic types.  They are compressed
+ * to a normalized double-double result after accumulation is complete.
+ */
+
+typedef struct
+{
+  double a;
+  double b;
+  double c;
+} dd_ex3;
+
+typedef struct
+{
+  double a;
+  double b;
+  double c;
+  double d;
+} dd_ex4;
+
+/* internal_common.c */
+static gsl_dd two_sum(const double a, const double b);
+static gsl_dd fast_two_sum(const double a, const double b);
+static gsl_dd dd_add(const gsl_dd a, const gsl_dd b);
+static gsl_dd dd_add_d(const gsl_dd a, const double b);
+static void ex3_add_d(dd_ex3 * x, const double q);
+static void ex3_renorm(dd_ex3 * x);
+static gsl_dd ex3_to_dd(const dd_ex3 x);
+static void ex4_add_d(dd_ex4 * x, const double q);
+static gsl_dd ex4_to_dd(const dd_ex4 x);
 
 #endif /* __INTERNAL_H__ */

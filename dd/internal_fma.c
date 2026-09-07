@@ -209,7 +209,8 @@ dd_div_d_fma(const gsl_dd a, const double b)
 }
 
 #undef DD_SUFFIX
-#undef DD_FUNC
+#undef DD_WRAP
 #define DD_SUFFIX     _fma
-#define DD_FUNC(a)    DD_CAT(a, DD_SUFFIX)
+#define DD_WRAP(a)    DD_CAT(a, DD_SUFFIX)
 #include "internal_exp_source.c"
+#include "internal_log_source.c"

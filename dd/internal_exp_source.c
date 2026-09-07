@@ -1,3 +1,31 @@
+/* dd/internal_exp_source.c
+ * 
+ * Copyright (C) 2026 Patrick Alken
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or (at
+ * your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+#define DD_EXP_TAYLOR_EPS        4.9303806576313237838233035330174139354575e-32 /* threshold used by iterative series, 2^{-104} */
+#define DD_EXP_REDUCTION_FACTOR  1024.0
+#define DD_HALF_ULP_ONE          (0.5 * GSL_DBL_EPSILON)                        /* 2^{-53} */
+#define DD_QUARTER_ULP_ONE       (0.25 * GSL_DBL_EPSILON)                       /* 2^{-54} */
+#define DD_EXP_ARG_MIN_GUARD     (-746.0)
+#define DD_EXP_ARG_MAX_GUARD     (710.0)
+#define DD_EXP_MIN_SCALE         (-1075)
+#define DD_EXP_MAX_SCALE         (1024)
+
 /*
  * Reduce a double-double argument by an integral multiple of log(2).
  *
@@ -16,31 +44,28 @@
  * all subsequent exp() arithmetic is ordinary double-double.
  */
 static gsl_dd
-DD_FUNC(reduce_extred)(const gsl_dd a, const double m)
+DD_WRAP(reduce_extred)(const gsl_dd a, const double m)
 {
-  const double log2_hi = 6.931471805599452862e-01;
-  const double log2_lo = 2.319046813846299558e-17;
-  const double log2_xtra = 5.7077084384162121e-34;
   gsl_dd p0, p1, p2;
-  dd_exp3 x;
+  dd_ex3 x;
 
-  p0 = DD_FUNC(two_prod)(log2_hi, m);
-  p1 = DD_FUNC(two_prod)(log2_lo, m);
-  p2 = DD_FUNC(two_prod)(log2_xtra, m);
+  p0 = DD_WRAP(two_prod)(DD_LN2_HI, m);
+  p1 = DD_WRAP(two_prod)(DD_LN2_LO, m);
+  p2 = DD_WRAP(two_prod)(DD_LN2_XTRA, m);
 
   x.a = a.hi;
   x.b = a.lo;
   x.c = 0.0;
 
-  exp3_add_double(&x, -p0.hi);
-  exp3_add_double(&x, -p0.lo);
-  exp3_add_double(&x, -p1.hi);
-  exp3_add_double(&x, -p1.lo);
-  exp3_add_double(&x, -p2.hi);
-  exp3_add_double(&x, -p2.lo);
-  exp3_renorm(&x);
+  ex3_add_d(&x, -p0.hi);
+  ex3_add_d(&x, -p0.lo);
+  ex3_add_d(&x, -p1.hi);
+  ex3_add_d(&x, -p1.lo);
+  ex3_add_d(&x, -p2.hi);
+  ex3_add_d(&x, -p2.lo);
+  ex3_renorm(&x);
 
-  return exp3_to_dd(x);
+  return ex3_to_dd(x);
 }
 
 /*
@@ -75,10 +100,10 @@ DD_FUNC(reduce_extred)(const gsl_dd a, const double m)
  * Relative to the original QD algorithm, this implementation uses a
  * reduction factor of 1024 rather than 512 and a three-limb log(2)
  * range reduction.  The Taylor evaluation and reconstruction use the
- * backend-specific double-double multiplication selected by DD_FUNC().
+ * backend-specific double-double multiplication selected by DD_WRAP().
  */
 static gsl_dd
-DD_FUNC(dd_exp)(const gsl_dd a)
+DD_WRAP(dd_exp)(const gsl_dd a)
 {
   static const double inv_fact[15][2] = {
     { 1.66666666666666657e-01,  9.25185853854297066e-18 },
@@ -98,17 +123,16 @@ DD_FUNC(dd_exp)(const gsl_dd a)
     { 2.81145725434552060e-15,  1.65088427308614326e-31 }
   };
 
-  const double k = 1024.0;
+  const double k = DD_EXP_REDUCTION_FACTOR;
   const double inv_k = 1.0 / k;
-  const double log2_hi = 6.931471805599452862e-01;
-  const double qd_eps = 4.93038065763132e-32;
-  const double e_hi = 2.718281828459045091e+00;
-  const double e_lo = 1.445646891729250158e-16;
   double m;
   gsl_dd r, s, t, p, one;
   int i;
 
-  if (a.hi <= -709.0)
+  /* Protect the integer range reduction for arguments far outside the
+     representable exponential range.  The actual lower/upper boundaries
+     are determined below from the reduced exponent m. */
+  if (a.hi < DD_EXP_ARG_MIN_GUARD)
     {
       gsl_dd z;
       z.hi = 0.0;
@@ -116,11 +140,11 @@ DD_FUNC(dd_exp)(const gsl_dd a)
       return z;
     }
 
-  if (a.hi >= 709.0)
+  if (a.hi > DD_EXP_ARG_MAX_GUARD)
     {
       gsl_dd z;
-      z.hi = HUGE_VAL;
-      z.lo = HUGE_VAL;
+      z.hi = GSL_POSINF;
+      z.lo = GSL_POSINF;
       return z;
     }
 
@@ -135,54 +159,118 @@ DD_FUNC(dd_exp)(const gsl_dd a)
   if (a.hi == 1.0 && a.lo == 0.0)
     {
       gsl_dd z;
-      z.hi = e_hi;
-      z.lo = e_lo;
+      z.hi = DD_E_HI;
+      z.lo = DD_E_LO;
       return z;
     }
 
-  m = floor(a.hi / log2_hi + 0.5);
+  m = floor(a.hi / DD_LN2_HI + 0.5);
 
   /* QD reduction, with the product/subtraction residual retained. */
-  r = DD_FUNC(reduce_extred)(a, m);
+  r = DD_WRAP(reduce_extred)(a, m);
   r = mul_pwr2_extred(r, inv_k);
 
-  p = DD_FUNC(dd_mul)(r, r);
+  p = DD_WRAP(dd_mul)(r, r);
   s = dd_add(r, mul_pwr2_extred(p, 0.5));
 
-  p = DD_FUNC(dd_mul)(p, r);
+  p = DD_WRAP(dd_mul)(p, r);
   t.hi = inv_fact[0][0];
   t.lo = inv_fact[0][1];
-  t = DD_FUNC(dd_mul)(p, t);
+  t = DD_WRAP(dd_mul)(p, t);
 
   i = 0;
   do
     {
       s = dd_add(s, t);
-      p = DD_FUNC(dd_mul)(p, r);
+      p = DD_WRAP(dd_mul)(p, r);
       ++i;
       t.hi = inv_fact[i][0];
       t.lo = inv_fact[i][1];
-      t = DD_FUNC(dd_mul)(p, t);
+      t = DD_WRAP(dd_mul)(p, t);
     }
-  while (fabs(t.hi) > inv_k * qd_eps && i < 5);
+  while (fabs(t.hi) > inv_k * DD_EXP_TAYLOR_EPS && i < 5);
 
   s = dd_add(s, t);
 
   /* Ten reconstruction steps: s <- 2*s + s*s. */
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_FUNC(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
 
   one.hi = 1.0;
   one.lo = 0.0;
   s = dd_add(s, one);
+
+  /* The reduced exponent identifies the representable DD output range. */
+  if (m > DD_EXP_MAX_SCALE)
+    {
+      gsl_dd z;
+      z.hi = GSL_POSINF;
+      z.lo = GSL_POSINF;
+      return z;
+    }
+
+  if (m < DD_EXP_MIN_SCALE)
+    {
+      gsl_dd z;
+      z.hi = 0.0;
+      z.lo = 0.0;
+      return z;
+    }
+
+  if (m == DD_EXP_MIN_SCALE)
+    {
+      gsl_dd z;
+
+      /* The only nonzero normalized DD value in this range is the
+         smallest positive binary64 number.  Since
+         exp(a) = s * 2^-1075, round to 0 or 2^-1074 according to
+         whether the reduced significand is below or above one. */
+      if (s.hi > 1.0 || (s.hi == 1.0 && s.lo > 0.0))
+        z.hi = ldexp(1.0, -1074); /* smallest positive binary64 subnormal, 2^{-1074} */
+      else
+        z.hi = 0.0;
+      z.lo = 0.0;
+      return z;
+    }
+
+  if (m == DD_EXP_MAX_SCALE)
+    {
+      /* A finite result with exponent 1024 is possible only in the
+         narrow interval immediately above GSL_DBL_MAX.  Form it with
+         GSL_DBL_MAX as the leading word so that no intermediate binary64
+         addition overflows. */
+      if (s.hi < 1.0)
+        return ldexp_extred(s, 1024);
+      else if (s.hi == 1.0 && s.lo <= -DD_QUARTER_ULP_ONE)
+        {
+          gsl_dd z;
+          double d;
+
+          /*
+           * z.hi + z.lo = 2^1024 (s.hi + s.lo)
+           *             = GSL_DBL_MAX + 2^1024 (2^-53 + s.lo).
+           */
+          z.hi = GSL_DBL_MAX;
+          d = (s.hi - 1.0) + DD_HALF_ULP_ONE + s.lo;
+          z.lo = ldexp(d, 1024);
+          return z;
+        }
+      else
+        {
+          gsl_dd z;
+          z.hi = GSL_POSINF;
+          z.lo = GSL_POSINF;
+          return z;
+        }
+    }
 
   return ldexp_extred(s, (int) m);
 }

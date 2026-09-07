@@ -226,76 +226,6 @@ dd_div_d_p(const gsl_dd a, const double b)
 
 #if 0
 /*
- * Compute log(y) for a positive double-double argument.
- *
- * After binary range reduction, evaluate
- *
- *   log(m) = 2 [r + r^3/3 + r^5/5 + ...],
- *   r = (m-1)/(m+1),
- *
- * in double-double arithmetic, then restore the exponent contribution
- * k*log(2).
- */
-static gsl_dd
-dd_log_p(gsl_dd y)
-{
-  gsl_dd one, u, den, r, r2, term, sum, lg, ks;
-  int e, k, n;
-  double ya = y.hi + y.lo;
-
-  (void)frexp(ya, &e);
-  k = e;
-  y.hi = ldexp(y.hi, -k);
-  y.lo = ldexp(y.lo, -k);
-
-  if (y.hi + y.lo < 0.7071067811865475244)
-    {
-      y.hi *= 2;
-      y.lo *= 2;
-      --k;
-    }
-
-  one.hi = -1;
-  one.lo = 0;
-  u = dd_add(y, one);
-
-  den = two_sum(2.0, u.hi);
-  den.lo += u.lo;
-
-  {
-    double q0 = u.hi / den.hi;
-    gsl_dd qp = dd_mul_d_p(den, q0), neg, rem;
-    double q1;
-
-    neg.hi = -qp.hi;
-    neg.lo = -qp.lo;
-    rem = dd_add(u, neg);
-    q1 = (rem.hi + rem.lo) / den.hi;
-    r = two_sum(q0, q1);
-  }
-
-  r2 = dd_mul_p(r, r);
-  term = r;
-  sum = r;
-
-  for (n = 3; n < 401; n += 2)
-    {
-      gsl_dd add;
-      term = dd_mul_p(term, r2);
-      add = dd_div_d_p(term, (double)n);
-      sum = dd_add(sum, add);
-      if (fabs(add.hi) < 1e-32 * fabs(sum.hi))
-        break;
-    }
-
-  lg = dd_mul_d_p(sum, 2.0);
-  ks.hi = (double)k * DD_LN2_HI;
-  ks.lo = (double)k * DD_LN2_LO;
-
-  return dd_add(lg, ks);
-}
-
-/*
  * Compute the square root of a nonnegative double-double number using
  * a double-precision initial approximation followed by a compensated
  * residual correction.
@@ -365,7 +295,8 @@ dd_expm1_p(const gsl_dd z)
 #endif
 
 #undef DD_SUFFIX
-#undef DD_FUNC
+#undef DD_WRAP
 #define DD_SUFFIX     _p
-#define DD_FUNC(a)    DD_CAT(a, DD_SUFFIX)
+#define DD_WRAP(a)    DD_CAT(a, DD_SUFFIX)
 #include "internal_exp_source.c"
+#include "internal_log_source.c"
