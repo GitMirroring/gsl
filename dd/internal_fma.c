@@ -214,3 +214,4 @@ dd_div_d_fma(const gsl_dd a, const double b)
 #define DD_WRAP(a)    DD_CAT(a, DD_SUFFIX)
 #include "internal_exp_source.c"
 #include "internal_log_source.c"
+#include "internal_sqrt_source.c"

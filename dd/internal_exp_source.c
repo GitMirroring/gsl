@@ -248,7 +248,7 @@ DD_WRAP(dd_exp)(const gsl_dd a)
          GSL_DBL_MAX as the leading word so that no intermediate binary64
          addition overflows. */
       if (s.hi < 1.0)
-        return ldexp_extred(s, 1024);
+        return dd_ldexp(s, 1024);
       else if (s.hi == 1.0 && s.lo <= -DD_QUARTER_ULP_ONE)
         {
           gsl_dd z;
@@ -272,5 +272,5 @@ DD_WRAP(dd_exp)(const gsl_dd a)
         }
     }
 
-  return ldexp_extred(s, (int) m);
+  return dd_ldexp(s, (int) m);
 }

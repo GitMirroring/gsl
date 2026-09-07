@@ -40,6 +40,7 @@ gsl_dd gsl_dd_div_d(const gsl_dd a, const double b)    { return dd_div_d_fma(a, 
 gsl_dd gsl_dd_exp(const gsl_dd x)                      { return dd_exp_fma(x); }
 gsl_dd gsl_dd_log(const gsl_dd x)                      { return dd_log_fma(x); }
 gsl_dd gsl_dd_log1p(const gsl_dd x)                    { return dd_log1p_fma(x); }
+gsl_dd gsl_dd_sqrt(const gsl_dd x)                     { return dd_sqrt_fma(x); }
 
 #else
 
@@ -52,8 +53,8 @@ gsl_dd gsl_dd_div_d(const gsl_dd a, const double b)    { return dd_div_d_p(a, b)
 gsl_dd gsl_dd_exp(const gsl_dd x)                      { return dd_exp_p(x); }
 gsl_dd gsl_dd_log(const gsl_dd x)                      { return dd_log_p(x); }
 gsl_dd gsl_dd_log1p(const gsl_dd x)                    { return dd_log1p_p(x); }
+gsl_dd gsl_dd_sqrt(const gsl_dd x)                     { return dd_sqrt_p(x); }
 
-gsl_dd gsl_dd_sqrt(const gsl_dd a)                     { return dd_sqrt_p(a); }
 gsl_dd gsl_dd_expm1(const gsl_dd z)                    { return dd_expm1_p(z); }
 
 #endif

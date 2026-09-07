@@ -123,6 +123,24 @@ dd_sub_d(const gsl_dd a, const double b)
 }
 
 /*
+ * Scale a double-double number by an integral power of two.
+ *
+ * Apply ldexp() independently to the high and low components.  This
+ * preserves the represented value exactly provided the component
+ * scalings do not overflow or underflow.
+ */
+static gsl_dd
+dd_ldexp(const gsl_dd a, const int e)
+{
+  gsl_dd r;
+
+  r.hi = ldexp(a.hi, e);
+  r.lo = ldexp(a.lo, e);
+
+  return r;
+}
+
+/*
  * Accumulate a binary64 value into a three-term expansion.
  *
  * Add q to the leading component with TwoSum, then propagate the
@@ -228,3 +246,4 @@ ex4_to_dd(const dd_ex4 x)
 }
 
 #include "internal_exp.c"
+#include "internal_sqrt.c"

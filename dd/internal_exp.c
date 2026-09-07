@@ -27,7 +27,6 @@
 #include "internal.h"
 
 static gsl_dd mul_pwr2_extred(const gsl_dd a, const double c);
-static gsl_dd ldexp_extred(const gsl_dd a, const int e);
 
 /*
  * Multiply a double-double number by a power of two.
@@ -42,21 +41,5 @@ mul_pwr2_extred(const gsl_dd a, const double c)
   gsl_dd r;
   r.hi = a.hi * c;
   r.lo = a.lo * c;
-  return r;
-}
-
-/*
- * Scale a double-double number by an integral power of two.
- *
- * Apply ldexp() independently to the high and low components.  This
- * preserves the represented value exactly provided the component
- * scalings do not overflow or underflow.
- */
-static gsl_dd
-ldexp_extred(const gsl_dd a, const int e)
-{
-  gsl_dd r;
-  r.hi = ldexp(a.hi, e);
-  r.lo = ldexp(a.lo, e);
   return r;
 }

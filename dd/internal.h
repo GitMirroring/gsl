@@ -74,6 +74,7 @@ static gsl_dd two_sum(const double a, const double b);
 static gsl_dd fast_two_sum(const double a, const double b);
 static gsl_dd dd_add(const gsl_dd a, const gsl_dd b);
 static gsl_dd dd_add_d(const gsl_dd a, const double b);
+static gsl_dd dd_ldexp(const gsl_dd a, const int e);
 static void ex3_add_d(dd_ex3 * x, const double q);
 static void ex3_renorm(dd_ex3 * x);
 static gsl_dd ex3_to_dd(const dd_ex3 x);

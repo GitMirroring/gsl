@@ -49,8 +49,8 @@ gsl_dd gsl_dd_div_d(const gsl_dd a, const double b);
 gsl_dd gsl_dd_exp(const gsl_dd x);
 gsl_dd gsl_dd_log(const gsl_dd x);
 gsl_dd gsl_dd_log1p(const gsl_dd x);
+gsl_dd gsl_dd_sqrt(const gsl_dd x);
 
-gsl_dd gsl_dd_sqrt(const gsl_dd a);
 gsl_dd gsl_dd_expm1(const gsl_dd z);
 
 __END_DECLS

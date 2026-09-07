@@ -35,7 +35,6 @@ static gsl_dd dd_div_p(const gsl_dd a, const gsl_dd b);          /* * */
 static gsl_dd dd_div_d_p(const gsl_dd a, const double b);        /* * */
 
 #if 0
-static gsl_dd dd_log_p(gsl_dd y);
 static gsl_dd dd_sqrt_p(const gsl_dd a);
 static gsl_dd dd_expm1_p(const gsl_dd z);
 #endif
@@ -300,3 +299,4 @@ dd_expm1_p(const gsl_dd z)
 #define DD_WRAP(a)    DD_CAT(a, DD_SUFFIX)
 #include "internal_exp_source.c"
 #include "internal_log_source.c"
+#include "internal_sqrt_source.c"
