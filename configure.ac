@@ -224,12 +224,13 @@ fi
 AC_SEARCH_LIBS([lgamma], [m], [AC_DEFINE([HAVE_LGAMMA], [1], [Define to 1 if you have the lgamma function.])])
 AC_SEARCH_LIBS([lgamma_r], [m], [AC_DEFINE([HAVE_LGAMMA_R], [1], [Define to 1 if you have the lgamma_r function.])])
 
+AC_CHECK_FUNCS([fma])
+
 dnl Remember to put a definition in acconfig.h for each of these
 AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
 AC_CHECK_DECLS(fesettrapenable,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
-AC_CHECK_DECLS(fma,,,[#include <math.h>]) 
 AC_CHECK_DECLS(hypot,,,[#include <math.h>]) 
 AC_CHECK_DECLS(expm1,,,[#include <math.h>])
 AC_CHECK_DECLS(acosh,,,[#include <math.h>])

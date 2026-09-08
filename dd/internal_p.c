@@ -34,11 +34,6 @@ static gsl_dd dd_mul_d_p(const gsl_dd a, const double b);        /* * */
 static gsl_dd dd_div_p(const gsl_dd a, const gsl_dd b);          /* * */
 static gsl_dd dd_div_d_p(const gsl_dd a, const double b);        /* * */
 
-#if 0
-static gsl_dd dd_sqrt_p(const gsl_dd a);
-static gsl_dd dd_expm1_p(const gsl_dd z);
-#endif
-
 /*
  * Split a double into high and low parts for Dekker multiplication.
  *
@@ -222,76 +217,6 @@ dd_div_d_p(const gsl_dd a, const double b)
 
   return fast_two_sum(q1, q2);
 }
-
-#if 0
-/*
- * Compute the square root of a nonnegative double-double number using
- * a double-precision initial approximation followed by a compensated
- * residual correction.
- */
-static gsl_dd
-dd_sqrt_p(const gsl_dd a)
-{
-  gsl_dd yy, neg, rem, r;
-  double av = a.hi + a.lo;
-  double y;
-
-  if (av <= 0.0)
-    {
-      gsl_dd r;
-      r.hi = 0.0;
-      r.lo = 0.0;
-      return r;
-    }
-
-  y = sqrt(av);
-  yy = two_prod_p(y, y);
-  neg.hi = -yy.hi;
-  neg.lo = -yy.lo;
-  rem = dd_add(a, neg);
-  r.hi = y;
-  r.lo = (rem.hi + rem.lo) / (2.0*y);
-
-  return r;
-}
-
-/*
- * Compute exp(z)-1 for a double-double argument z.
- *
- * For |z| < 1/2, evaluate the expm1 Taylor series directly in
- * double-double arithmetic to avoid cancellation.  For larger
- * arguments, evaluate exp(z) in double-double arithmetic and subtract
- * one.
- */
-static gsl_dd
-dd_expm1_p(const gsl_dd z)
-{
-  const double av = fabs(z.hi + z.lo);
-  gsl_dd term;
-
-  if (av < 0.5)
-    {
-      gsl_dd sum = z;
-      int k;
-
-      term = z;
-      for (k = 2; k < 200; k++)
-        {
-          term = dd_mul_p(term, z);
-          term = dd_div_d_p(term, (double)k);
-          sum = dd_add(sum, term);
-
-          if (fabs(term.hi) < 1.0e-32 * fabs(sum.hi))
-            break;
-        }
-
-      return sum;
-    }
-
-  term.hi = -1.0; term.lo = 0.0;
-  return dd_add(dd_exp_p(z), term);
-}
-#endif
 
 #undef DD_SUFFIX
 #undef DD_WRAP

@@ -17,31 +17,144 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define DD_EXP_TAYLOR_EPS        4.9303806576313237838233035330174139354575e-32 /* threshold used by iterative series, 2^{-104} */
-#define DD_EXP_REDUCTION_FACTOR  1024.0
-#define DD_HALF_ULP_ONE          (0.5 * GSL_DBL_EPSILON)                        /* 2^{-53} */
-#define DD_QUARTER_ULP_ONE       (0.25 * GSL_DBL_EPSILON)                       /* 2^{-54} */
-#define DD_EXP_ARG_MIN_GUARD     (-746.0)
-#define DD_EXP_ARG_MAX_GUARD     (710.0)
-#define DD_EXP_MIN_SCALE         (-1075)
-#define DD_EXP_MAX_SCALE         (1024)
+#define DD_EXP_REDUCTION_FACTOR      (128.0)
+#define DD_EXP_ARG_MIN_GUARD         (-746.0)
+#define DD_EXP_ARG_MAX_GUARD         (710.0)
+#define DD_EXP_MIN_SCALE             (-1075)
+#define DD_EXP_MAX_SCALE             (1024)
+#define DD_HALF_ULP_ONE              (0.5 * GSL_DBL_EPSILON)
+#define DD_QUARTER_ULP_ONE           (0.25 * GSL_DBL_EPSILON)
+
+#define DD_EXPM1_TAYLOR_D10          0
+#define DD_EXPM1_TAYLOR_D32          1
+
+/*
+ * Evaluate expm1(x) by Taylor expansion with compensated accumulation.
+ *
+ * The expansion
+ *
+ *   exp(x) - 1 = x + x^2/2! + x^3/3! + ...
+ *
+ * is evaluated by forming the powers in double-double arithmetic and
+ * accumulating each complete double-double term into a three-component
+ * floating-point expansion.  The expansion is compressed to double-double
+ * only once, after all terms have been accumulated.
+ *
+ * Two evaluation modes are provided because this kernel is shared by exp()
+ * and expm1():
+ *
+ *   flag == DD_EXPM1_TAYLOR_D10:
+ *     Evaluate through degree 10.  This mode is used by dd_exp() after
+ *     128-fold argument reduction.  The x^2/2 term is formed by exact
+ *     power-of-two scaling
+ *
+ *   flag == DD_EXPM1_TAYLOR_D32:
+ *     Evaluate through degree 32.  This mode is used directly by dd_expm1()
+ *     on its central interval, avoiding both cancellation in exp(x)-1 and
+ *     the rounding errors associated with repeated expm1 reconstruction.
+ *
+ * The coefficients 1/n!, n = 2,...,32, are stored as double-double
+ * constants.
+ */
+static gsl_dd
+DD_WRAP(kernel_expm1_taylor)(const gsl_dd x, const int flag)
+{
+  /* 1/n! table, n = 2,...,32. */
+  static const gsl_dd inv_fact_table[31] = {
+    { 5.00000000000000000000e-01,  0.00000000000000000000e+00 },
+    { 1.66666666666666657415e-01,  9.25185853854297065662e-18 },
+    { 4.16666666666666643537e-02,  2.31296463463574266415e-18 },
+    { 8.33333333333333321769e-03,  1.15648231731787138000e-19 },
+    { 1.38888888888888894189e-03, -5.30054395437357705906e-20 },
+    { 1.98412698412698412526e-04,  1.72095582934207052868e-22 },
+    { 2.48015873015873015658e-05,  2.15119478667758816085e-23 },
+    { 2.75573192239858925110e-06, -1.85839327404647208104e-22 },
+    { 2.75573192239858882758e-07,  2.37677146222502973185e-23 },
+    { 2.50521083854417202239e-08, -1.44881407093591196603e-24 },
+    { 2.08767569878681001866e-09, -1.20734505911325997169e-25 },
+    { 1.60590438368216133409e-10,  1.25852945887520980521e-26 },
+    { 1.14707455977297245073e-11,  2.06555127528307454245e-28 },
+    { 7.64716373181981640551e-13,  7.03872877733453001061e-30 },
+    { 4.77947733238738525345e-14,  4.39920548583408125663e-31 },
+    { 2.81145725434552059811e-15,  1.65088427308614325994e-31 },
+    { 1.56192069685862252711e-16,  1.19106796602737540024e-32 },
+    { 8.22063524662432949554e-18,  2.21418941196042653637e-34 },
+    { 4.11031762331216484407e-19,  1.44129733786595271498e-36 },
+    { 1.95729410633912625952e-20, -1.36435038300879084872e-36 },
+    { 8.89679139245057407789e-22, -7.91140261487237621703e-38 },
+    { 3.86817017063068412615e-23, -8.84317765548234384789e-40 },
+    { 1.61173757109611838590e-24, -3.68465735645097660329e-41 },
+    { 6.44695028438447358950e-26, -1.93304042337034648242e-42 },
+    { 2.47959626322479758961e-27, -1.29537309647652287758e-43 },
+    { 9.18368986379554600539e-29,  1.43031503967873220242e-45 },
+    { 3.27988923706983775898e-30,  1.51175427440298786897e-46 },
+    { 1.13099628864477158818e-31,  1.04980154129595060239e-47 },
+    { 3.76998762881590538515e-33,  2.58703478327503238348e-49 },
+    { 1.21612504155351789377e-34,  5.58629056788880576964e-51 },
+    { 3.80039075485474341802e-36,  1.74571580246525180301e-52 } };
+  gsl_dd p, t;
+  dd_ex3 s;
+  int i;
+
+  s.a = 0.0;
+  s.b = 0.0;
+  s.c = 0.0;
+
+  ex3_add_d(&s, x.hi);
+  ex3_add_d(&s, x.lo);
+
+  p = DD_WRAP(dd_mul)(x, x);
+
+  if (flag == DD_EXPM1_TAYLOR_D10)
+    {
+      t = mul_pwr2_extred(p, 0.5);
+      ex3_add_d(&s, t.hi);
+      ex3_add_d(&s, t.lo);
+
+      for (i = 0; i < 8; ++i)
+        {
+          p = DD_WRAP(dd_mul)(p, x);
+          t = DD_WRAP(dd_mul)(p, inv_fact_table[i + 1]);
+          ex3_add_d(&s, t.hi);
+          ex3_add_d(&s, t.lo);
+        }
+    }
+  else
+    {
+      for (i = 0; i < 31; ++i)
+        {
+          t = DD_WRAP(dd_mul)(p, inv_fact_table[i]);
+          ex3_add_d(&s, t.hi);
+          ex3_add_d(&s, t.lo);
+
+          if (i != 30)
+            p = DD_WRAP(dd_mul)(p, x);
+        }
+    }
+
+  return ex3_to_dd(s);
+}
 
 /*
  * Reduce a double-double argument by an integral multiple of log(2).
  *
  * Compute
  *
- *   a - m*log(2)
+ *   r = a - m*log(2)
  *
- * using a three-limb expansion of log(2).  Each product m*log2_i is
- * formed with the backend-specific error-free TwoProd operation, and
- * both the rounded product and its residual are accumulated in a
- * temporary three-term expansion before compression to double-double.
+ * using the three-component expansion
  *
- * The three log(2) limbs provide substantially more range-reduction
- * accuracy than the original two-limb QD constant when |m| is large.
- * The temporary three-term expansion is used only for range reduction;
- * all subsequent exp() arithmetic is ordinary double-double.
+ *   log(2) = DD_LN2_HI + DD_LN2_LO + DD_LN2_XTRA.
+ *
+ * Each product m*DD_LN2_* is formed with an error-free TwoProd operation.
+ * Both components of all three products are then accumulated together with
+ * the two components of a in an EX3 expansion.  The expansion is
+ * renormalized and compressed only after the complete subtraction has been
+ * accumulated.
+ *
+ * This delayed compression reduces the range-reduction error that would
+ * result from performing the three subtractions successively in
+ * double-double arithmetic.
  */
 static gsl_dd
 DD_WRAP(reduce_extred)(const gsl_dd a, const double m)
@@ -71,67 +184,48 @@ DD_WRAP(reduce_extred)(const gsl_dd a, const double m)
 /*
  * Compute exp(a) in double-double arithmetic.
  *
- * This routine is based on the dd_real exponential algorithm from the
- * QD library, with enhanced range reduction for improved double-double
- * accuracy.
+ * The argument is first reduced as
  *
- * First choose an integer m approximately equal to a/log(2), and form
+ *   a = m*log(2) + r,
  *
- *   r = (a - m*log(2)) / 1024.
+ * where m is an integer chosen so that |r| <= log(2)/2.  The remainder is
+ * then scaled by 1/128:
  *
- * The subtraction a - m*log(2) is evaluated by
- * reduce_extred(), which uses three binary64 limbs of log(2)
- * and retains the TwoProd residuals during the reduction.
+ *   y = r/128.
  *
- * For the small reduced argument r, evaluate exp(r)-1 using
+ * On this small interval, expm1(y) is evaluated with the degree-10 mode of
+ * kernel_expm1_taylor().  Seven applications of
  *
- *   r + r^2/2! + r^3/3! + ...
+ *   s <- 2*s + s*s
  *
- * in double-double arithmetic with the QD double-double inverse
- * factorial constants.
+ * use the identity
  *
- * Recover exp(a - m*log(2)) by applying ten times
+ *   expm1(2x) = 2*expm1(x) + expm1(x)^2
  *
- *   s <- 2*s + s^2,
+ * to undo the factor-of-128 reduction.  Thus, after reconstruction,
  *
- * since 1 + (2*s + s^2) = (1+s)^2.  The factor 1024 = 2^10 is
- * thereby restored.  Finally add one and scale by 2^m.
+ *   s = expm1(r).
  *
- * Relative to the original QD algorithm, this implementation uses a
- * reduction factor of 1024 rather than 512 and a three-limb log(2)
- * range reduction.  The Taylor evaluation and reconstruction use the
- * backend-specific double-double multiplication selected by DD_WRAP().
+ * The reduced exponential is then formed as 1+s and the original binary
+ * scale is restored exactly by multiplication by 2^m.
+ *
+ * Special handling near the binary64 underflow and overflow boundaries
+ * avoids premature overflow/underflow during the final scaling and returns
+ * the appropriate double-double representation at the ends of the
+ * representable range.
+ *
+ * The logarithmic range reduction uses the three-limb log(2) expansion and
+ * EX3 accumulation in reduce_extred().
  */
 static gsl_dd
 DD_WRAP(dd_exp)(const gsl_dd a)
 {
-  static const double inv_fact[15][2] = {
-    { 1.66666666666666657e-01,  9.25185853854297066e-18 },
-    { 4.16666666666666644e-02,  2.31296463463574266e-18 },
-    { 8.33333333333333322e-03,  1.15648231731787138e-19 },
-    { 1.38888888888888894e-03, -5.30054395437357706e-20 },
-    { 1.98412698412698413e-04,  1.72095582934207053e-22 },
-    { 2.48015873015873016e-05,  2.15119478667758816e-23 },
-    { 2.75573192239858925e-06, -1.85839327404647208e-22 },
-    { 2.75573192239858883e-07,  2.37677146222502973e-23 },
-    { 2.50521083854417202e-08, -1.44881407093591197e-24 },
-    { 2.08767569878681002e-09, -1.20734505911325997e-25 },
-    { 1.60590438368216133e-10,  1.25852945887520981e-26 },
-    { 1.14707455977297245e-11,  2.06555127528307454e-28 },
-    { 7.64716373181981641e-13,  7.03872877733453001e-30 },
-    { 4.77947733238738525e-14,  4.39920548583408126e-31 },
-    { 2.81145725434552060e-15,  1.65088427308614326e-31 }
-  };
-
   const double k = DD_EXP_REDUCTION_FACTOR;
   const double inv_k = 1.0 / k;
   double m;
-  gsl_dd r, s, t, p, one;
+  gsl_dd r, s, one;
   int i;
 
-  /* Protect the integer range reduction for arguments far outside the
-     representable exponential range.  The actual lower/upper boundaries
-     are determined below from the reduced exponent m. */
   if (a.hi < DD_EXP_ARG_MIN_GUARD)
     {
       gsl_dd z;
@@ -166,49 +260,17 @@ DD_WRAP(dd_exp)(const gsl_dd a)
 
   m = floor(a.hi / DD_LN2_HI + 0.5);
 
-  /* QD reduction, with the product/subtraction residual retained. */
   r = DD_WRAP(reduce_extred)(a, m);
   r = mul_pwr2_extred(r, inv_k);
+  s = DD_WRAP(kernel_expm1_taylor)(r, DD_EXPM1_TAYLOR_D10);
 
-  p = DD_WRAP(dd_mul)(r, r);
-  s = dd_add(r, mul_pwr2_extred(p, 0.5));
-
-  p = DD_WRAP(dd_mul)(p, r);
-  t.hi = inv_fact[0][0];
-  t.lo = inv_fact[0][1];
-  t = DD_WRAP(dd_mul)(p, t);
-
-  i = 0;
-  do
-    {
-      s = dd_add(s, t);
-      p = DD_WRAP(dd_mul)(p, r);
-      ++i;
-      t.hi = inv_fact[i][0];
-      t.lo = inv_fact[i][1];
-      t = DD_WRAP(dd_mul)(p, t);
-    }
-  while (fabs(t.hi) > inv_k * DD_EXP_TAYLOR_EPS && i < 5);
-
-  s = dd_add(s, t);
-
-  /* Ten reconstruction steps: s <- 2*s + s*s. */
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-  s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
+  for (i = 0; i < 7; ++i)
+    s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
 
   one.hi = 1.0;
   one.lo = 0.0;
   s = dd_add(s, one);
 
-  /* The reduced exponent identifies the representable DD output range. */
   if (m > DD_EXP_MAX_SCALE)
     {
       gsl_dd z;
@@ -228,13 +290,8 @@ DD_WRAP(dd_exp)(const gsl_dd a)
   if (m == DD_EXP_MIN_SCALE)
     {
       gsl_dd z;
-
-      /* The only nonzero normalized DD value in this range is the
-         smallest positive binary64 number.  Since
-         exp(a) = s * 2^-1075, round to 0 or 2^-1074 according to
-         whether the reduced significand is below or above one. */
       if (s.hi > 1.0 || (s.hi == 1.0 && s.lo > 0.0))
-        z.hi = ldexp(1.0, -1074); /* smallest positive binary64 subnormal, 2^{-1074} */
+        z.hi = ldexp(1.0, -1074);
       else
         z.hi = 0.0;
       z.lo = 0.0;
@@ -243,21 +300,12 @@ DD_WRAP(dd_exp)(const gsl_dd a)
 
   if (m == DD_EXP_MAX_SCALE)
     {
-      /* A finite result with exponent 1024 is possible only in the
-         narrow interval immediately above GSL_DBL_MAX.  Form it with
-         GSL_DBL_MAX as the leading word so that no intermediate binary64
-         addition overflows. */
       if (s.hi < 1.0)
         return dd_ldexp(s, 1024);
       else if (s.hi == 1.0 && s.lo <= -DD_QUARTER_ULP_ONE)
         {
           gsl_dd z;
           double d;
-
-          /*
-           * z.hi + z.lo = 2^1024 (s.hi + s.lo)
-           *             = GSL_DBL_MAX + 2^1024 (2^-53 + s.lo).
-           */
           z.hi = GSL_DBL_MAX;
           d = (s.hi - 1.0) + DD_HALF_ULP_ONE + s.lo;
           z.lo = ldexp(d, 1024);
@@ -273,4 +321,68 @@ DD_WRAP(dd_exp)(const gsl_dd a)
     }
 
   return dd_ldexp(s, (int) m);
+}
+
+#define DD_EXPM1_XMIN (-5.75000000000000000e-01)
+#define DD_EXPM1_XMAX ( 1.13600000000000000e+00)
+
+/*
+ * Compute expm1(x) = exp(x) - 1 in double-double arithmetic.
+ *
+ * Direct subtraction of one from dd_exp(x) is poorly conditioned near zero,
+ * so a dedicated direct Taylor evaluation is used on the asymmetric central
+ * interval
+ *
+ *   -0.575 <= x <= 1.136.
+ *
+ * There,
+ *
+ *   expm1(x) = x + x^2/2! + ... + x^32/32!
+ *
+ * is evaluated by the degree-32 mode of kernel_expm1_taylor().  Complete
+ * double-double terms are accumulated in EX3 and compressed only once.
+ * This avoids both exp(x)-1 cancellation and the repeated reconstruction
+ * roundings of the logarithmically reduced exp algorithm.
+ *
+ * Outside the central interval, subtraction is sufficiently well
+ * conditioned and the result is formed as
+ *
+ *   dd_exp(x) - 1.
+ *
+ * The central interval is intentionally asymmetric because cancellation in
+ * exp(x)-1 persists to larger positive arguments than negative arguments.
+ *
+ * Comparisons at the two transition points use both components of the
+ * normalized double-double input.  Thus a nonzero low component at an exact
+ * high-word threshold selects the branch according to the actual represented
+ * double-double value rather than x.hi alone.
+ */
+static gsl_dd
+DD_WRAP(dd_expm1)(const gsl_dd x)
+{
+  gsl_dd one;
+  int central;
+
+  if (x.hi == 0.0 && x.lo == 0.0)
+    return x;
+
+  central = 1;
+
+  if (x.hi < DD_EXPM1_XMIN)
+    central = 0;
+  else if (x.hi == DD_EXPM1_XMIN && x.lo < 0.0)
+    central = 0;
+
+  if (x.hi > DD_EXPM1_XMAX)
+    central = 0;
+  else if (x.hi == DD_EXPM1_XMAX && x.lo > 0.0)
+    central = 0;
+
+  if (central)
+    return DD_WRAP(kernel_expm1_taylor)(x, DD_EXPM1_TAYLOR_D32);
+
+  one.hi = 1.0;
+  one.lo = 0.0;
+
+  return dd_sub(DD_WRAP(dd_exp)(x), one);
 }

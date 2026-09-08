@@ -1,5 +1,7 @@
 * What is new in gsl-2.9:
 
+** new double-double arithmetic module (gsl_dd)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new or overhauled special functions:
