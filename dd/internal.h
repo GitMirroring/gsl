@@ -80,5 +80,6 @@ static void ex3_renorm(dd_ex3 * x);
 static gsl_dd ex3_to_dd(const dd_ex3 x);
 static void ex4_add_d(dd_ex4 * x, const double q);
 static gsl_dd ex4_to_dd(const dd_ex4 x);
+static int ex4_zero(dd_ex4 * x);
 
 #endif /* __INTERNAL_H__ */

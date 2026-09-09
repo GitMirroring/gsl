@@ -245,5 +245,17 @@ ex4_to_dd(const dd_ex4 x)
   return fast_two_sum(u.hi, u.lo);
 }
 
+/* initialize a four-component expansion to zero */
+static int
+ex4_zero(dd_ex4 * x)
+{
+  x->a = 0.0;
+  x->b = 0.0;
+  x->c = 0.0;
+  x->d = 0.0;
+  return GSL_SUCCESS;
+}
+
 #include "internal_exp.c"
+#include "internal_log.c"
 #include "internal_sqrt.c"

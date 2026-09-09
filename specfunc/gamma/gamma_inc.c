@@ -989,6 +989,14 @@ gamma_inc_log_ratio_m_ratio_p1(const double a, const double x)
 }
 
 /* q = log(1+s)-s, s=(x-a)/a, using the compensated near-one form. */
+#if 1
+static gsl_dd
+gamma_inc_log_ratio_near1(const double a, const double x)
+{
+  const gsl_dd s = dd_div_diff(a, x);
+  return dd_log1pmx_series(s);
+}
+#else
 static gsl_dd
 gamma_inc_log_ratio_near1(const double a, const double x)
 {
@@ -1006,6 +1014,7 @@ gamma_inc_log_ratio_near1(const double a, const double x)
 
   return gsl_dd_add(lg, ns);
 }
+#endif
 
 /* Stirling correction log Gamma(a) - [(a-1/2)log(a)-a+log(sqrt(2pi))].
  * Faithful to the DRCOMP/Julia approximation for a > 20. */

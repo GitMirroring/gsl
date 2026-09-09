@@ -358,6 +358,46 @@ DD_WRAP(kernel_taylor36_small_y)(const gsl_dd y)
   return ex3_to_dd(sum);
 }
 
+/*
+ * Reconstruct a logarithm from its range-reduced components.
+ *
+ * Given the binary exponent e, reduction-center index i, and
+ *
+ *   kr = log(1+r),
+ *
+ * form
+ *
+ *   e*log(2) + log(c_i) + kr
+ *
+ * in a four-component floating-point expansion.
+ */
+static void
+DD_WRAP(log_reconstruct)(dd_ex4 * sum, const int e, const int i,
+                         const gsl_dd kr)
+{
+  gsl_dd p;
+
+  ex4_zero(sum);
+
+  p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+
+  p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+
+  p = DD_WRAP(two_prod)((double) e, DD_LN2_XTRA);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+
+  ex4_add_d(sum, DD_WRAP(log_centers)[i].hi);
+  ex4_add_d(sum, DD_WRAP(log_centers)[i].lo);
+  ex4_add_d(sum, DD_WRAP(log_center_extra)[i]);
+  ex4_add_d(sum, kr.hi);
+  ex4_add_d(sum, kr.lo);
+}
+
 /**********************************************
  * dd_log routines                            *
  **********************************************/
@@ -365,72 +405,46 @@ DD_WRAP(kernel_taylor36_small_y)(const gsl_dd y)
 /*
  * Compute log(x) for a positive double-double argument x.
  *
- * For x near one, form y = x - 1 accurately in double-double and
- * evaluate log(1+y) directly with the Taylor-36 kernel.
+ * For x near one, form
  *
- * Otherwise decompose
+ *   y = x - 1
  *
- *   x = 2^e m,        1 <= m <= 2,
+ * accurately in double-double and evaluate log(1+y) directly with the
+ * Taylor-36 kernel.
  *
- * and select one of 128 exact dyadic centers c_i.  Form
+ * Otherwise normalize
  *
- *   r = (m - c_i) / c_i
+ *   x = 2^e m,    1 <= m <= 2,
  *
- * and evaluate
+ * select one of 128 exact dyadic reduction centers c_i, and form
  *
- *   log(x) = e*log(2) + log(c_i) + log(1+r).
+ *   r = (m - c_i) / c_i.
  *
- * Three binary64 limbs of log(2), three limbs of each tabulated
- * log(c_i), and the double-double Taylor result are accumulated in a
- * four-component floating-point expansion before final compression
- * to double-double.
+ * Then evaluate
+ *
+ *   log(x) = e*log(2) + log(c_i) + log(1+r),
+ *
+ * accumulating the reconstruction in a four-component expansion before
+ * the final compression to double-double.
  */
 static gsl_dd
 DD_WRAP(dd_log)(const gsl_dd x)
 {
   gsl_dd one, y, m, center, delta, r, kr;
-  gsl_dd p;
   dd_ex4 sum;
   int e, i;
-  double q;
 
   one.hi = 1.0;
   one.lo = 0.0;
 
-  /* Accurate direct path around one. */
   if (DD_GT_d(x, 0.875) && DD_LT_d(x, 1.125))
     {
       y = dd_sub(x, one);
       return DD_WRAP(kernel_taylor36_small_y)(y);
     }
 
-  /* Exact binary scaling of both DD limbs. */
-  (void)frexp(x.hi, &e);
-  m.hi = ldexp(x.hi, 1 - e);
-  m.lo = ldexp(x.lo, 1 - e);
-  --e;
-
-  /* Correct the exponent if the DD value lies just below a power of two. */
-  if (DD_LT_d(m, 1.0))
-    {
-      m.hi *= 2.0;
-      m.lo *= 2.0;
-      --e;
-    }
-  else if (DD_GT_d(m, 2.0))
-    {
-      m.hi *= 0.5;
-      m.lo *= 0.5;
-      ++e;
-    }
-
-  /* Select the unique center interval [1+i/128, 1+(i+1)/128). */
-  q = (m.hi - 1.0) * 128.0;
-  i = (int) floor(q);
-  if (i == 128)
-    i = 127;
-  if (i > 0 && m.hi == 1.0 + (double) i / 128.0 && m.lo < 0.0)
-    --i;
+  m = log_normalize(x, &e);
+  i = log_center_index(m);
 
   center.hi = ldexp((double) (257 + 2 * i), -8);
   center.lo = 0.0;
@@ -439,28 +453,7 @@ DD_WRAP(dd_log)(const gsl_dd x)
   r = DD_WRAP(dd_div_d)(delta, center.hi);
   kr = DD_WRAP(kernel_taylor36_small_y)(r);
 
-  sum.a = 0.0;
-  sum.b = 0.0;
-  sum.c = 0.0;
-  sum.d = 0.0;
-
-  /* Accumulate e*log(2), retaining all three source limbs. */
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_XTRA);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].hi);
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].lo);
-  ex4_add_d(&sum, DD_WRAP(log_center_extra)[i]);
-  ex4_add_d(&sum, kr.hi);
-  ex4_add_d(&sum, kr.lo);
-
+  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
   return ex4_to_dd(sum);
 }
 
@@ -469,163 +462,39 @@ DD_WRAP(dd_log)(const gsl_dd x)
  **********************************************/
 
 /*
- * Compute log1p(x) for large positive double-double x.
+ * Form the intermediate-range reconstruction of log(1+x).
  *
- * For x >= 8, use
+ * First form u = 1+x in double-double and use u to determine the binary
+ * exponent e and the appropriate one of 128 exact dyadic centers c_i.
+ * With
  *
- *   log(1+x) = log(x) + log(1 + 1/x).
+ *   p = 2^e c_i,
  *
- * The log(x) term is evaluated using the same 128-center range
- * reduction as dd_log().  The small correction log(1+1/x) is
- * evaluated with the Taylor-36 kernel.
+ * form the reduced argument directly from the original x as
  *
- * Both contributions are accumulated together with the three-limb
- * log(2) and log(center) terms in a four-component floating-point
- * expansion.  This avoids rounding log(x) to double-double before
- * adding the small reciprocal correction.
+ *   r = (x - (p - 1)) / p.
+ *
+ * Constructing r from x rather than by subtracting p from the rounded
+ * value of 1+x preserves information that would otherwise be lost when
+ * x is close to -1.
+ *
+ * Then compute
+ *
+ *   log(1+x) = e*log(2) + log(c_i) + log(1+r)
  */
-static gsl_dd
-DD_WRAP(log1p_large)(const gsl_dd x)
-{
-  gsl_dd one, m, center, delta, r, kr, p;
-  dd_ex4 sum;
-  int e, i;
-  double q;
-
-  one.hi = 1.0;
-  one.lo = 0.0;
-
-  /* x >= 8: log1p(x) = log(x) + K(1/x). */
-  (void) frexp(x.hi, &e);
-  m.hi = ldexp(x.hi, 1 - e);
-  m.lo = ldexp(x.lo, 1 - e);
-  --e;
-
-  if ((m.hi < 1.0) || (m.hi == 1.0 && m.lo < 0.0))
-    {
-      m.hi *= 2.0;
-      m.lo *= 2.0;
-      --e;
-    }
-  else if ((m.hi > 2.0) || (m.hi == 2.0 && m.lo > 0.0))
-    {
-      m.hi *= 0.5;
-      m.lo *= 0.5;
-      ++e;
-    }
-
-  q = (m.hi - 1.0) * 128.0;
-  i = (int) floor(q);
-  if (i == 128)
-    i = 127;
-
-  if (i > 0 &&
-      m.hi == 1.0 + (double) i / 128.0 && m.lo < 0.0)
-    --i;
-
-  center.hi = ldexp((double) (257 + 2 * i), -8);
-  center.lo = 0.0;
-
-  delta = dd_sub(m, center);
-  r = DD_WRAP(dd_div_d)(delta, center.hi);
-  kr = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  /* Compute K(1/x) and retain it in the final expansion. */
-  r = DD_WRAP(dd_div)(one, x);
-  r = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  sum.a = 0.0;
-  sum.b = 0.0;
-  sum.c = 0.0;
-  sum.d = 0.0;
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_XTRA);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].hi);
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].lo);
-  ex4_add_d(&sum, DD_WRAP(log_center_extra)[i]);
-  ex4_add_d(&sum, kr.hi);
-  ex4_add_d(&sum, kr.lo);
-  ex4_add_d(&sum, r.hi);
-  ex4_add_d(&sum, r.lo);
-
-  return ex4_to_dd(sum);
-}
-
-/*
- * Compute log1p(x) in the intermediate argument range.
- *
- * First form u = 1+x in double-double and use u only to determine the
- * binary exponent e and the appropriate one of 128 dyadic centers c_i.
- * Let
- *
- *   p = 2^e c_i.
- *
- * The reduced argument is then formed directly from the original
- * double-double x as
- *
- *   r = (x - (p - 1)) / p,
- *
- * rather than by subtracting p from the rounded value of 1+x.  This
- * preserves information in x that could otherwise be lost when x is
- * close to -1.
- *
- * Finally evaluate
- *
- *   log(1+x) = e*log(2) + log(c_i) + log(1+r),
- *
- * accumulating all reconstruction terms in a four-component
- * floating-point expansion before compression to double-double.
- */
-static gsl_dd
+static dd_ex4
 DD_WRAP(log1p_core)(const gsl_dd x)
 {
   gsl_dd one, u, m, center, delta, r, kr, p;
   dd_ex4 sum;
   int e, i;
-  double q;
 
   one.hi = 1.0;
   one.lo = 0.0;
 
   u = dd_add_d(x, 1.0);
-  (void) frexp(u.hi, &e);
-
-  m.hi = ldexp(u.hi, 1 - e);
-  m.lo = ldexp(u.lo, 1 - e);
-  --e;
-
-  if ((m.hi < 1.0) || (m.hi == 1.0 && m.lo < 0.0))
-    {
-      m.hi *= 2.0;
-      m.lo *= 2.0;
-      --e;
-    }
-  else if ((m.hi > 2.0) || (m.hi == 2.0 && m.lo > 0.0))
-    {
-      m.hi *= 0.5;
-      m.lo *= 0.5;
-      ++e;
-    }
-
-  q = (m.hi - 1.0) * 128.0;
-  i = (int) floor(q);
-  if (i == 128)
-    i = 127;
-
-  if (i > 0 &&
-      m.hi == 1.0 + (double) i / 128.0 && m.lo < 0.0)
-    --i;
+  m = log_normalize(u, &e);
+  i = log_center_index(m);
 
   center.hi = ldexp((double) (257 + 2 * i), -8);
   center.lo = 0.0;
@@ -638,51 +507,309 @@ DD_WRAP(log1p_core)(const gsl_dd x)
   r = DD_WRAP(dd_div)(delta, p);
   kr = DD_WRAP(kernel_taylor36_small_y)(r);
 
-  sum.a = 0.0;
-  sum.b = 0.0;
-  sum.c = 0.0;
-  sum.d = 0.0;
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_XTRA);
-  ex4_add_d(&sum, p.hi);
-  ex4_add_d(&sum, p.lo);
-
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].hi);
-  ex4_add_d(&sum, DD_WRAP(log_centers)[i].lo);
-  ex4_add_d(&sum, DD_WRAP(log_center_extra)[i]);
-  ex4_add_d(&sum, kr.hi);
-  ex4_add_d(&sum, kr.lo);
-
-  return ex4_to_dd(sum);
+  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
+  return sum;
 }
 
 /*
- * Compute log1p(x) for a double-double argument x.
+ * Form the large-positive reconstruction of log(1+x).
+ *
+ * For x >= 8, use
+ *
+ *   log(1+x) = log(x) + log(1 + 1/x).
+ *
+ * Evaluate log(x) with the standard 128-center logarithm range
+ * reduction, and evaluate the small reciprocal correction log(1+1/x)
+ * with the Taylor-36 kernel.
+ *
+ * Both contributions are accumulated in the same four-component
+ * expansion.  The expansion is returned uncompressed so that callers
+ * may add further corrections before the final double-double rounding.
+ */
+static dd_ex4
+DD_WRAP(log1p_large)(const gsl_dd x)
+{
+  gsl_dd m, center, delta, r, kr;
+  dd_ex4 sum;
+  int e, i;
+
+  m = log_normalize(x, &e);
+  i = log_center_index(m);
+
+  center.hi = ldexp((double) (257 + 2 * i), -8);
+  center.lo = 0.0;
+
+  delta = dd_sub(m, center);
+  r = DD_WRAP(dd_div_d)(delta, center.hi);
+  kr = DD_WRAP(kernel_taylor36_small_y)(r);
+
+  /* log(1+x) = log(x) + log(1 + 1/x). */
+  {
+    gsl_dd one;
+    one.hi = 1.0;
+    one.lo = 0.0;
+    r = DD_WRAP(dd_div)(one, x);
+  }
+  r = DD_WRAP(kernel_taylor36_small_y)(r);
+
+  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
+  ex4_add_d(&sum, r.hi);
+  ex4_add_d(&sum, r.lo);
+
+  return sum;
+}
+
+/*
+ * Compute log(1+x) for a double-double argument x, x > -1.
  *
  * Three argument ranges are used:
  *
- *   |x| <= 1/8 : evaluate the Taylor-36 kernel directly;
- *   x >= 8     : use log(x) + log(1+1/x), with joint reconstruction;
- *   otherwise  : use the cancellation-resistant log1p range reduction.
+ *   |x| <= 1/8 : evaluate log(1+x) directly with the Taylor-36 kernel;
+ *
+ *   x >= 8     : use log(x) + log(1+1/x), with both terms accumulated
+ *                in a common four-component reconstruction;
+ *
+ *   otherwise  : use the cancellation-resistant log1p range reduction
+ *                implemented by log1p_core().
+ *
+ * Intermediate and large-argument reconstructions are compressed to
+ * double-double only after all terms have been accumulated.
  */
 static gsl_dd
 DD_WRAP(dd_log1p)(const gsl_dd x)
 {
-  double xv = x.hi + x.lo;
+  double xv;
+  dd_ex4 sum;
+
+  xv = x.hi + x.lo;
 
   if (fabs(xv) <= 0.125)
     return DD_WRAP(kernel_taylor36_small_y)(x);
 
   if (xv >= 8.0)
-    return DD_WRAP(log1p_large)(x);
+    {
+      sum = DD_WRAP(log1p_large)(x);
+      return ex4_to_dd(sum);
+    }
 
-  return DD_WRAP(log1p_core)(x);
+  sum = DD_WRAP(log1p_core)(x);
+  return ex4_to_dd(sum);
+}
+
+/**********************************************
+ * dd_log1pmx routines                        *
+ **********************************************/
+
+/*
+ * Multiply a four-component expansion by a double-double number without
+ * first compressing the expansion to double-double. Every binary64 product
+ * is transformed by TwoProd and accumulated in the output expansion.
+ */
+static void
+DD_WRAP(ex4_mul_dd)(dd_ex4 * result, const dd_ex4 * a, const gsl_dd x)
+{
+  double av[4];
+  gsl_dd p;
+  int i;
+
+  av[0] = a->a;
+  av[1] = a->b;
+  av[2] = a->c;
+  av[3] = a->d;
+
+  ex4_zero(result);
+
+  for (i = 0; i < 4; ++i)
+    {
+      p = DD_WRAP(two_prod)(av[i], x.hi);
+      ex4_add_d(result, p.hi);
+      ex4_add_d(result, p.lo);
+
+      p = DD_WRAP(two_prod)(av[i], x.lo);
+      ex4_add_d(result, p.hi);
+      ex4_add_d(result, p.lo);
+    }
+}
+
+/*
+ * Evaluate the degree-60 approximation used by the central log1pmx
+ * kernel.
+ *
+ * On -0.5 <= x <= 0.5, define the regularized function
+ *
+ *   g(x) = (log(1+x) - x) / x^2,
+ *
+ * with g(0) = -1/2.  Approximate g(x) by the degree-60 polynomial
+ * whose double-double coefficients are stored below in descending
+ * degree order.
+ *
+ * The resulting expansion represents P60(x) and is returned
+ * uncompressed.
+ */
+static dd_ex4
+DD_WRAP(log1pmx_p60_horner)(const gsl_dd x)
+{
+  static const gsl_dd DD_WRAP(log1pmx_p60_coef)[61] = {
+    { -9.65775656332123699777e-01, -2.24532096791980908566e-17 },
+    { 9.79610741009621421860e-01, -9.65937976936286504304e-18 },
+    { 2.68816991954149386856e+00, -2.18496136546857313266e-16 },
+    { -2.72625517274506590226e+00, 1.71650521768200823950e-16 },
+    { -3.90822132900220520213e+00, 1.23633839419962654003e-16 },
+    { 3.96349236198875543025e+00, 3.81291757467303190463e-17 },
+    { 3.63134117691947810869e+00, -6.18027520149773140539e-17 },
+    { -3.68242812913500650041e+00, 1.49348505845065394910e-16 },
+    { -2.49461058870914254015e+00, 2.19214692758218465816e-16 },
+    { 2.52977412018468861277e+00, -1.15743863031112810118e-16 },
+    { 1.26636154506293774347e+00, -5.06529276593280096355e-17 },
+    { -1.28403191101155766951e+00, 3.11066096108128364933e-17 },
+    { -5.48628134402717404505e-01, 3.99400222089679165718e-17 },
+    { 5.56448068068740031578e-01, 3.75975787014999395754e-17 },
+    { 1.55271082198524562612e-01, -8.29826986110985721481e-18 },
+    { -1.57294422356333618573e-01, -1.08795500697964577041e-17 },
+    { -7.00146736910476907845e-02, 8.33131199578298247653e-19 },
+    { 7.11733611848373998177e-02, -5.93314297482026194525e-18 },
+    { -1.17189652844435238804e-02, 8.41645625694020780109e-19 },
+    { 1.20935606563563873700e-02, -6.93908593050473730784e-21 },
+    { -2.59131633344192764679e-02, -4.06628971589620125189e-19 },
+    { 2.65232837260557484382e-02, 1.52450535173351723991e-18 },
+    { -2.46614899070697959904e-02, 1.69546443471558435635e-18 },
+    { 2.52977870666535355204e-02, -1.15501526651527980184e-18 },
+    { -2.63617831813584765910e-02, 1.11534926204096580165e-18 },
+    { 2.70736629022990879512e-02, 1.32676683331222699150e-19 },
+    { -2.77724964652743301630e-02, -6.57241413472885670178e-19 },
+    { 2.85660735505092154563e-02, 4.69386752799506825913e-19 },
+    { -2.94122768300363497673e-02, 6.77454454386064426504e-19 },
+    { 3.03035495721020210758e-02, 9.01491868830507117676e-19 },
+    { -3.12499581610545217047e-02, -4.24014625650924120044e-19 },
+    { 3.22580220936471498416e-02, -1.71280350920586181189e-18 },
+    { -3.33333362017147263878e-02, -1.19647032622321044742e-18 },
+    { 3.44827615290660277614e-02, -1.36440542132039675536e-18 },
+    { -3.57142855502005918122e-02, 3.44752596837664474346e-18 },
+    { 3.70370368706645566870e-02, 1.31223321036334098292e-18 },
+    { -3.84615384693109269021e-02, 3.05957187709209179978e-18 },
+    { 4.00000000078807871340e-02, 6.43768054221850513894e-19 },
+    { -4.16666666663648085911e-02, -3.16474507108915668603e-18 },
+    { 4.34782608692591554522e-02, 8.33184669375939275148e-19 },
+    { -4.54545454545549482139e-02, 3.37772030915312351296e-18 },
+    { 4.76190476190572406501e-02, 9.09173077186999526367e-19 },
+    { -4.99999999999997599143e-02, -2.41494325940720426034e-18 },
+    { 5.26315789473681822086e-02, -2.13756840335985646374e-18 },
+    { -5.55555555555555594105e-02, -7.88798805280934710683e-19 },
+    { 5.88235294117647120049e-02, -1.41413297313964547894e-18 },
+    { -6.25000000000000000000e-02, 6.88987229078932141862e-20 },
+    { 6.66666666666666657415e-02, 8.55327570292044959184e-19 },
+    { -7.14285714285714246063e-02, -3.96583100859162548416e-18 },
+    { 7.69230769230769273470e-02, -4.26932935104722101923e-18 },
+    { -8.33333333333333287074e-02, -4.62592359770636524197e-18 },
+    { 9.09090909090909116141e-02, -2.52323989741666877350e-18 },
+    { -1.00000000000000005551e-01, 5.55111509526822402609e-18 },
+    { 1.11111111111111104943e-01, 6.16790572060743326830e-18 },
+    { -1.25000000000000000000e-01, 7.92559349375334590475e-29 },
+    { 1.42857142857142849213e-01, 7.93016446152790152107e-18 },
+    { -1.66666666666666657415e-01, -9.25185853854307850869e-18 },
+    { 2.00000000000000011102e-01, -1.11022302462514566277e-17 },
+    { -2.50000000000000000000e-01, 4.31034122525845476361e-35 },
+    { 3.33333333333333314830e-01, 1.85037170770859413132e-17 },
+    { -5.00000000000000000000e-01, 7.42020338257589757108e-229 } };
+  dd_ex4 y, t;
+  int i;
+
+  ex4_zero(&y);
+  ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[0].hi);
+  ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[0].lo);
+
+  for (i = 1; i < 61; ++i)
+    {
+      DD_WRAP(ex4_mul_dd)(&t, &y, x);
+      y = t;
+      ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[i].hi);
+      ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[i].lo);
+    }
+
+  return y;
+}
+
+/*
+ * Compute log(1+x)-x on the central interval -0.5 <= x <= 0.5.
+ *
+ * Remove the cancellation at x = 0 by writing
+ *
+ *   log(1+x) - x = x^2 g(x)
+ *
+ * and approximating the regular function g(x) with the degree-60
+ * polynomial evaluated by log1pmx_p60_horner().
+ *
+ * Keep the Horner result and both final multiplications by x in
+ * four-component expansions.  Compress to double-double only once,
+ * after the complete expression
+ *
+ *   x*x*P60(x)
+ *
+ * has been evaluated.
+ */
+static gsl_dd
+DD_WRAP(kernel_log1pmx_p60)(const gsl_dd x)
+{
+  dd_ex4 y, t;
+
+  y = DD_WRAP(log1pmx_p60_horner)(x);
+
+  DD_WRAP(ex4_mul_dd)(&t, &y, x);
+  y = t;
+  DD_WRAP(ex4_mul_dd)(&t, &y, x);
+
+  return ex4_to_dd(t);
+}
+
+
+/*
+ * Compute log(1+x)-x outside the central interval.
+ *
+ * Reuse the uncompressed log1p reconstruction: log1p_core() for the
+ * intermediate range and log1p_large() for large positive x.  Instead
+ * of first rounding log(1+x) to double-double and then subtracting x,
+ * accumulate -x.hi and -x.lo directly into the four-component
+ * logarithm expansion.
+ *
+ * Thus
+ *
+ *   log(1+x) - x
+ *
+ * is rounded to double-double only once, after the complete expression
+ * has been assembled.
+ */
+static gsl_dd
+DD_WRAP(log1pmx_outer)(const gsl_dd x)
+{
+  dd_ex4 sum;
+
+  if (x.hi + x.lo >= 8.0)
+    sum = DD_WRAP(log1p_large)(x);
+  else
+    sum = DD_WRAP(log1p_core)(x);
+
+  ex4_add_d(&sum, -x.hi);
+  ex4_add_d(&sum, -x.lo);
+
+  return ex4_to_dd(sum);
+}
+
+/*
+ * Compute log(1+x)-x for a double-double argument x, x > -1.
+ *
+ * On the central interval
+ *
+ *   -0.5 <= x <= 0.5,
+ *
+ * use the cancellation-free degree-60 regularized polynomial kernel.
+ * Outside this interval, reuse the log1p range reductions and accumulate
+ * -x directly into their uncompressed four-component reconstruction.
+ */
+static gsl_dd
+DD_WRAP(dd_log1pmx)(const gsl_dd x)
+{
+  if (!DD_LT_d(x, -0.5) && !DD_GT_d(x, 0.5))
+    return DD_WRAP(kernel_log1pmx_p60)(x);
+
+  return DD_WRAP(log1pmx_outer)(x);
 }
