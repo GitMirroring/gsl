@@ -58,7 +58,7 @@ gamma_inc_D(const double a, const double x, gsl_sf_result * result)
       ln_term.err = (fabs(ln_u) + fabs(u) + 1.0) * GSL_DBL_EPSILON;
     } else {
       double mu = (x-a)/a;
-      gsl_sf_log_1plusx_mx_e(mu, &ln_term);  /* log(1+mu) - mu */
+      gsl_sf_log1pmx_e(mu, &ln_term);  /* log(1+mu) - mu */
       /* Propagate cancellation error from x-a, since the absolute
          error of mu=x-a is DBL_EPSILON */
       ln_term.err += GSL_DBL_EPSILON * fabs(mu);
@@ -195,7 +195,7 @@ gamma_inc_Q_asymp_unif(const double a, const double x, gsl_sf_result * result)
   const double eps = (x-a)/a;
 
   gsl_sf_result ln_term;
-  const int stat_ln = gsl_sf_log_1plusx_mx_e(eps, &ln_term);  /* log(1+eps) - eps */
+  const int stat_ln = gsl_sf_log1pmx_e(eps, &ln_term);  /* log(1+eps) - eps */
   const double eta  = GSL_SIGN(eps) * sqrt(-2.0*ln_term.val);
 
   gsl_sf_result erfc;

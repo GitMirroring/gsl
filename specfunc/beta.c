@@ -80,7 +80,7 @@ gsl_sf_lnbeta_sgn_e(const double x, const double y, gsl_sf_result * result, doub
       gsl_sf_gammastar_e(x, &gsx);
       gsl_sf_gammastar_e(y, &gsy);
       gsl_sf_gammastar_e(x+y, &gsxy);
-      gsl_sf_log_1plusx_e(rat, &lnopr);
+      gsl_sf_log1p_e(rat, &lnopr);
       lnpre_val = log(gsx.val*gsy.val/gsxy.val * M_SQRT2*M_SQRTPI);
       lnpre_err = gsx.err/gsx.val + gsy.err/gsy.val + gsxy.err/gsxy.val;
       t1 = min*log(rat);

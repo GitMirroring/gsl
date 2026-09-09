@@ -442,7 +442,7 @@ int gsl_sf_lncosh_e(const double x, gsl_sf_result * result)
   if(fabs(x) < 1.0) {
     double eps;
     cosh_m1_series(x, &eps);
-    return gsl_sf_log_1plusx_e(eps, result);
+    return gsl_sf_log1p_e(eps, result);
   }
   else if(fabs(x) < -0.5*GSL_LOG_DBL_EPSILON) {
     result->val = fabs(x) + log(0.5*(1.0 + exp(-2.0*fabs(x))));

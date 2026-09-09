@@ -255,7 +255,7 @@ lnpoch_pos(const double a, const double x, gsl_sf_result * result)
     double term1 = x * log(a/M_E);
     double term2;
     gsl_sf_result ln_1peps;
-    gsl_sf_log_1plusx_e(eps, &ln_1peps);  /* log(1 + x/a) */
+    gsl_sf_log1p_e(eps, &ln_1peps);  /* log(1 + x/a) */
     term2 = (x + a - 0.5) * ln_1peps.val;
 
     result->val  = term1 + term2 + ser;
@@ -269,7 +269,7 @@ lnpoch_pos(const double a, const double x, gsl_sf_result * result)
     gsl_sf_result poch_rel;
     int stat_p = pochrel_smallx(a, x, &poch_rel);
     double eps = x*poch_rel.val;
-    int stat_e = gsl_sf_log_1plusx_e(eps, result);
+    int stat_e = gsl_sf_log1p_e(eps, result);
     result->err  = 2.0 * fabs(x * poch_rel.err / (1.0 + eps));
     result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
     return GSL_ERROR_SELECT_2(stat_e, stat_p);
