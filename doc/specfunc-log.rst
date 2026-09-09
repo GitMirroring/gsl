@@ -26,18 +26,14 @@ are declared in the header file :file:`gsl_sf_log.h`.
    the range :math:`[-\pi,\pi]`.
 .. Exceptional Return Values: GSL_EDOM
 
-.. function:: double gsl_sf_log_1plusx (double x)
-              int gsl_sf_log_1plusx_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_log1p (const double x)
+              int gsl_sf_log1p_e (const double x, gsl_sf_result * result)
 
    These routines compute :math:`\log(1 + x)` for :math:`x > -1` using an
    algorithm that is accurate for small :data:`x`.
-.. Domain: x > -1.0
-.. Exceptional Return Values: GSL_EDOM
 
-.. function:: double gsl_sf_log_1plusx_mx (double x)
-              int gsl_sf_log_1plusx_mx_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_log1pmx (const double x)
+              int gsl_sf_log1pmx_e (const double x, gsl_sf_result * result)
 
    These routines compute :math:`\log(1 + x) - x` for :math:`x > -1` using an
    algorithm that is accurate for small :data:`x`.
-.. Domain: x > -1.0 
-.. Exceptional Return Values: GSL_EDOM

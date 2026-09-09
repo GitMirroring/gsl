@@ -77,6 +77,14 @@ double gsl_sf_log_1plusx(const double x);
 int gsl_sf_log_1plusx_mx_e(const double x, gsl_sf_result * result);
 double gsl_sf_log_1plusx_mx(const double x);
 
+/* log/log1p.c */
+int gsl_sf_log1p_e(const double x, gsl_sf_result * result);
+double gsl_sf_log1p(const double x);
+
+/* log/log1pmx.c */
+int gsl_sf_log1pmx_e(const double x, gsl_sf_result * result);
+double gsl_sf_log1pmx(const double x);
+
 __END_DECLS
 
 #endif /* __GSL_SF_LOG_H__ */

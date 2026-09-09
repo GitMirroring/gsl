@@ -225,6 +225,7 @@ AC_SEARCH_LIBS([lgamma], [m], [AC_DEFINE([HAVE_LGAMMA], [1], [Define to 1 if you
 AC_SEARCH_LIBS([lgamma_r], [m], [AC_DEFINE([HAVE_LGAMMA_R], [1], [Define to 1 if you have the lgamma_r function.])])
 
 AC_CHECK_FUNCS([fma])
+AC_CHECK_FUNCS([log1p])
 
 dnl Remember to put a definition in acconfig.h for each of these
 AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1

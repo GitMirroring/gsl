@@ -2055,6 +2055,7 @@ int test_log(void)
              3.1415926535897932385, TEST_TOL0,
              GSL_SUCCESS);
 
+#ifndef GSL_DISABLE_DEPRECATED
 
   TEST_SF(s,  gsl_sf_log_1plusx_e, (1.0e-10, &r), 9.999999999500000000e-11, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_log_1plusx_e, (1.0e-8, &r), 9.999999950000000333e-09, TEST_TOL0, GSL_SUCCESS);
@@ -2075,6 +2076,8 @@ int test_log(void)
   TEST_SF(s,  gsl_sf_log_1plusx_mx_e, (-0.49, &r), -0.18334455326376559639, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_log_1plusx_mx_e, (1.0, &r), M_LN2-1.0, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_log_1plusx_mx_e, (-0.99, &r), -3.615170185988091368, TEST_TOL0, GSL_SUCCESS);
+
+#endif /* !GSL_DISABLE_DEPRECATED */
 
   return s;
 }

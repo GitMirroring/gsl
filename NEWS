@@ -8,6 +8,8 @@
    - gsl_sf_lngamma
    - gsl_sf_lngamma_1p
    - gsl_sf_sinc
+   - gsl_sf_log1p
+   - gsl_sf_log1pmx
 
 ** add functions:
    - gsl_matrix_axpby

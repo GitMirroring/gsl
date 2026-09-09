@@ -20,6 +20,7 @@
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_dd.h>
 #include <gsl/gsl_sf_gamma.h>
 
 #include "error.h"
@@ -31,7 +32,6 @@
 #define GAMMA_INC_LOG_SQRT_2PI    9.1893853320467274178032973640561764e-01
 #define GAMMA_INC_SPLIT           134217729.0
 
-typedef struct { double hi, lo; } gamma_inc_dd;
 typedef enum { TARGET_P = 0, TARGET_Q = 1 } gamma_inc_target_t;
 
 /* Taylor kernel functions */
@@ -48,30 +48,19 @@ static int gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result
 static int gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result);
 
 /* Temme kernel functions */
-static double gamma_inc_half_erfc_dd(const gamma_inc_dd z);
+static double gamma_inc_half_erfc_dd(const gsl_dd z);
 static int gamma_inc_use_temme(const double a, const double x);
 static int gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_result * result);
 
 /* rgammax primitive functions */
-static gamma_inc_dd gamma_inc_log_ratio_m_ratio_p1(const double a, const double x);
-static gamma_inc_dd gamma_inc_log_ratio_near1(const double a, const double x);
+static gsl_dd gamma_inc_log_ratio_m_ratio_p1(const double a, const double x);
+static gsl_dd gamma_inc_log_ratio_near1(const double a, const double x);
 static double gamma_inc_rgammax_large(const double a, const double x);
 static double gamma_inc_rgammax(const double a, const double x);
 
 /* double-double routines */
-static gamma_inc_dd two_sum(const double a, const double b);
-static gamma_inc_dd two_prod(const double a, const double b);
-static gamma_inc_dd dd_add(const gamma_inc_dd a, const gamma_inc_dd b);
-static gamma_inc_dd dd_mul(const gamma_inc_dd a, const gamma_inc_dd b);
-static gamma_inc_dd dd_mul_d(const gamma_inc_dd a, const double b);
-static gamma_inc_dd dd_div_d(const gamma_inc_dd a, const double b);
-static gamma_inc_dd dd_div_dd(const gamma_inc_dd a, const gamma_inc_dd b);
-static gamma_inc_dd dd_log(gamma_inc_dd y);
-static gamma_inc_dd dd_log1pmx_series(const gamma_inc_dd s);
-static gamma_inc_dd dd_div_diff(const double a, const double x);
-static gamma_inc_dd dd_sqrt(const gamma_inc_dd a);
-static gamma_inc_dd dd_exp_pair(const gamma_inc_dd z);
-static gamma_inc_dd dd_expm1_pair(const gamma_inc_dd z);
+static gsl_dd dd_log1pmx_series(const gsl_dd s);
+static gsl_dd dd_div_diff(const double a, const double x);
 
 /*
  * Compute the regularized lower incomplete gamma function
@@ -528,33 +517,33 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 
   if (x < 1.1)
     {
-      gamma_inc_dd an, c, sum, t, j, z, logx;
-      gamma_inc_dd q1, q2, q3, oneg, hd, jd, ld, pd, omj, gdd;
+      gsl_dd an, c, sum, t, j, z, logx;
+      gsl_dd q1, q2, q3, oneg, hd, jd, ld, pd, omj, gdd;
 
       an.hi = 3.0;
       an.lo = 0.0;
       c.hi = x;
       c.lo = 0.0;
-      sum = dd_div_d(c, a + 3.0);
+      sum = gsl_dd_div_d(c, a + 3.0);
 
       do
         {
           an.hi += 1.0;
-          c = dd_mul_d(c, -x);
-          c = dd_div_d(c, an.hi);
-          t = dd_div_d(c, a + an.hi);
-          sum = dd_add(sum, t);
+          c = gsl_dd_mul_d(c, -x);
+          c = gsl_dd_div_d(c, an.hi);
+          t = gsl_dd_div_d(c, a + an.hi);
+          sum = gsl_dd_add(sum, t);
           if (an.hi > GAMMA_INC_MAXITER2)
             return GSL_EMAXITER;
         }
       while (fabs(t.hi + t.lo) > tol);
 
-      q1 = dd_mul_d(sum, 1.0/6.0);
-      q2 = dd_add(q1, dd_div_d((gamma_inc_dd){-0.5, 0.0}, a + 2.0));
-      q3 = dd_mul_d(q2, x);
-      q3 = dd_add(q3, dd_div_d((gamma_inc_dd){1.0, 0.0}, a + 1.0));
-      j = dd_mul_d(q3, a);
-      j = dd_mul_d(j, x);
+      q1 = gsl_dd_mul_d(sum, 1.0/6.0);
+      q2 = gsl_dd_add(q1, gsl_dd_div_d((gsl_dd){-0.5, 0.0}, a + 2.0));
+      q3 = gsl_dd_mul_d(q2, x);
+      q3 = gsl_dd_add(q3, gsl_dd_div_d((gsl_dd){1.0, 0.0}, a + 1.0));
+      j = gsl_dd_mul_d(q3, a);
+      j = gsl_dd_mul_d(j, x);
 
       if (x == 1.0)
         {
@@ -562,30 +551,30 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
           logx.lo = 0.0;
         }
       else
-        logx = dd_log((gamma_inc_dd){x, 0.0});
+        logx = gsl_dd_log((gsl_dd){x, 0.0});
 
-      z = dd_mul_d(logx, a);
+      z = gsl_dd_mul_d(logx, a);
 
       hd.hi = h;
       hd.lo = 0.0;
 
-      gdd = dd_add((gamma_inc_dd){1.0, 0.0}, hd);
+      gdd = gsl_dd_add((gsl_dd){1.0, 0.0}, hd);
       oneg = gdd;
       jd = j;
 
       if (x < 0.25 && z.hi + z.lo <= -0.13394)
         {
-          gamma_inc_dd ez;
+          gsl_dd ez;
 
-          ez = dd_exp_pair(z);
+          ez = gsl_dd_exp(z);
           omj.hi = 1.0 - jd.hi;
           omj.lo = -jd.lo;
-          pd = dd_mul(ez, omj);
-          pd = dd_mul(pd, oneg);
+          pd = gsl_dd_mul(ez, omj);
+          pd = gsl_dd_mul(pd, oneg);
 
           {
-            gamma_inc_dd one_minus_p;
-            one_minus_p = dd_add((gamma_inc_dd){1.0, 0.0}, (gamma_inc_dd){-pd.hi, -pd.lo});
+            gsl_dd one_minus_p;
+            one_minus_p = gsl_dd_add((gsl_dd){1.0, 0.0}, (gsl_dd){-pd.hi, -pd.lo});
             result->val = one_minus_p.hi + one_minus_p.lo;
           }
 
@@ -594,17 +583,17 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
         }
       else
         {
-          ld = dd_expm1_pair(z);
+          ld = gsl_dd_expm1(z);
 
           {
-            gamma_inc_dd one_plus_l, term1, term2;
-            one_plus_l = dd_add((gamma_inc_dd){1.0, 0.0}, ld);
-            term1 = dd_mul(one_plus_l, jd);
-            term2 = dd_mul_d(ld, -1.0);
-            term1 = dd_add(term1, term2);
-            term1 = dd_mul(term1, oneg);
+            gsl_dd one_plus_l, term1, term2;
+            one_plus_l = gsl_dd_add((gsl_dd){1.0, 0.0}, ld);
+            term1 = gsl_dd_mul(one_plus_l, jd);
+            term2 = gsl_dd_mul_d(ld, -1.0);
+            term1 = gsl_dd_add(term1, term2);
+            term1 = gsl_dd_mul(term1, oneg);
             hd.hi = -hd.hi; hd.lo = -hd.lo;
-            term1 = dd_add(term1, hd);
+            term1 = gsl_dd_add(term1, hd);
 
             result->val = term1.hi + term1.lo;
             result->err = 64.0 * GSL_DBL_EPSILON * fabs(result->val) +
@@ -618,7 +607,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 
   /* GRAT1 continued fraction, entirely in double-double arithmetic. */
   {
-    gamma_inc_dd A2nm1, A2n, B2nm1, B2n, am0, an0, tmp, logx, logcore, rrdd;
+    gsl_dd A2nm1, A2n, B2nm1, B2n, am0, an0, tmp, logx, logcore, rrdd;
     double c = 1.0;
 
     A2nm1.hi = 1.0; A2nm1.lo = 0.0;
@@ -626,25 +615,25 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
     B2nm1.hi = x; B2nm1.lo = 0.0;
     B2n.hi = x + 1.0 - a; B2n.lo = 0.0;
 
-    logx = dd_log((gamma_inc_dd){x, 0.0});
-    logcore = dd_mul_d(logx,a);
-    logcore = dd_add(logcore, (gamma_inc_dd){-x, 0.0});
-    logcore = dd_add(logcore, (gamma_inc_dd){-L, 0.0});
+    logx = gsl_dd_log((gsl_dd){x, 0.0});
+    logcore = gsl_dd_mul_d(logx,a);
+    logcore = gsl_dd_add(logcore, (gsl_dd){-x, 0.0});
+    logcore = gsl_dd_add(logcore, (gsl_dd){-L, 0.0});
     rrdd.hi = a; rrdd.lo = 0.0;
-    tmp = dd_exp_pair(logcore);
-    rrdd = dd_mul(rrdd, tmp);
+    tmp = gsl_dd_exp(logcore);
+    rrdd = gsl_dd_mul(rrdd, tmp);
 
     for (n = 0; n < GAMMA_INC_MAXITER2; n++)
       {
-        A2nm1 = dd_add(dd_mul_d(A2n, x), dd_mul_d(A2nm1, c));
-        B2nm1 = dd_add(dd_mul_d(B2n, x), dd_mul_d(B2nm1, c));
-        am0 = dd_div_dd(A2nm1, B2nm1);
+        A2nm1 = gsl_dd_add(gsl_dd_mul_d(A2n, x), gsl_dd_mul_d(A2nm1, c));
+        B2nm1 = gsl_dd_add(gsl_dd_mul_d(B2n, x), gsl_dd_mul_d(B2nm1, c));
+        am0 = gsl_dd_div(A2nm1, B2nm1);
         c += 1.0;
-        tmp = dd_mul_d(A2n, c - a);
-        A2n = dd_add(A2nm1, tmp);
-        tmp = dd_mul_d(B2n, c - a);
-        B2n = dd_add(B2nm1, tmp);
-        an0 = dd_div_dd(A2n, B2n);
+        tmp = gsl_dd_mul_d(A2n, c - a);
+        A2n = gsl_dd_add(A2nm1, tmp);
+        tmp = gsl_dd_mul_d(B2n, c - a);
+        B2n = gsl_dd_add(B2nm1, tmp);
+        an0 = gsl_dd_div(A2n, B2n);
 
         if (fabs((an0.hi - am0.hi) + (an0.lo - am0.lo)) < tol * fabs(an0.hi + an0.lo))
           break;
@@ -653,7 +642,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
     if (n == GAMMA_INC_MAXITER2)
       return GSL_EMAXITER;
 
-    rrdd = dd_mul(rrdd, an0);
+    rrdd = gsl_dd_mul(rrdd, an0);
     result->val = rrdd.hi + rrdd.lo;
     result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_DBL_EPSILON * fabs(rrdd.hi) +
                   GAMMA_INC_TRUE_MIN;
@@ -688,27 +677,27 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 static int
 gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
 {
-  gamma_inc_dd a2nm1 = {1.0, 0.0}, a2n = {1.0, 0.0};
-  gamma_inc_dd b2nm1 = {x, 0.0}, b2n = {x + 1.0 - a, 0.0};
-  gamma_inc_dd prev = {0.0, 0.0};
+  gsl_dd a2nm1 = {1.0, 0.0}, a2n = {1.0, 0.0};
+  gsl_dd b2nm1 = {x, 0.0}, b2n = {x + 1.0 - a, 0.0};
+  gsl_dd prev = {0.0, 0.0};
   double c = 1.0;
   int n;
 
   for (n = 0; n < GAMMA_INC_MAXITER; n++)
     {
-      gamma_inc_dd curr, diff;
+      gsl_dd curr, diff;
 
-      a2nm1 = dd_add(dd_mul_d(a2n, x), dd_mul_d(a2nm1, c));
-      b2nm1 = dd_add(dd_mul_d(b2n, x), dd_mul_d(b2nm1, c));
+      a2nm1 = gsl_dd_add(gsl_dd_mul_d(a2n, x), gsl_dd_mul_d(a2nm1, c));
+      b2nm1 = gsl_dd_add(gsl_dd_mul_d(b2n, x), gsl_dd_mul_d(b2nm1, c));
 
       c += 1.0;
 
-      a2n = dd_add(a2nm1, dd_mul_d(a2n, c - a));
-      b2n = dd_add(b2nm1, dd_mul_d(b2n, c - a));
+      a2n = gsl_dd_add(a2nm1, gsl_dd_mul_d(a2n, c - a));
+      b2n = gsl_dd_add(b2nm1, gsl_dd_mul_d(b2n, c - a));
 
-      a2nm1 = dd_div_dd(a2nm1, b2n);
-      b2nm1 = dd_div_dd(b2nm1, b2n);
-      a2n = dd_div_dd(a2n, b2n);
+      a2nm1 = gsl_dd_div(a2nm1, b2n);
+      b2nm1 = gsl_dd_div(b2nm1, b2n);
+      a2n = gsl_dd_div(a2n, b2n);
 
       b2n.hi = 1.0; b2n.lo = 0.0;
       curr = a2n;
@@ -716,9 +705,7 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
       ++n;
       if (n > 1)
         {
-          diff = two_sum(curr.hi, -prev.hi);
-          diff.lo += curr.lo - prev.lo;
-
+          diff = gsl_dd_sub(curr, prev);
           if (fabs(diff.hi + diff.lo) <= 2.0 * GSL_DBL_EPSILON * fabs(curr.hi + curr.lo))
             break;
         }
@@ -784,14 +771,14 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
       /* The moderate-a rgammax branch forms exp(-x) directly.  In the
        * far tail that can enter the subnormal range before Q does.
        * Reconstruct log(R) in binary64/DD arithmetic instead. */
-      gamma_inc_dd lx, lr, ta, negx, er;
-      lx = dd_log((gamma_inc_dd){x, 0.0});
-      ta = dd_mul_d(lx, a);
+      gsl_dd lx, lr, ta, negx, er;
+      lx = gsl_dd_log((gsl_dd){x, 0.0});
+      ta = gsl_dd_mul_d(lx, a);
       negx.hi = -x; negx.lo = 0.0;
-      lr = dd_add(ta, negx);
+      lr = gsl_dd_add(ta, negx);
       if(lr.hi > log_true_min)
         {
-          er = dd_exp_pair(lr);
+          er = gsl_dd_exp(lr);
           r = (er.hi + er.lo) / tgamma(a);
         }
       else
@@ -836,7 +823,7 @@ static const double gamma_inc_temme_d[26] = { 1.0,                    -0.3333333
  * the final ULP error.
  */
 static double
-gamma_inc_half_erfc_dd(const gamma_inc_dd z)
+gamma_inc_half_erfc_dd(const gsl_dd z)
 {
   return 0.5 * erfc(z.hi) - exp(-z.hi * z.hi) / M_SQRTPI * z.lo;
 }
@@ -863,8 +850,8 @@ gamma_inc_half_erfc_dd(const gamma_inc_dd z)
 static int
 gamma_inc_use_temme(const double a, const double x)
 {
-  gamma_inc_dd s;
-  gamma_inc_dd q;
+  gsl_dd s;
+  gsl_dd q;
   double eta;
 
   if (a < 12.0 || x <= 0.0)
@@ -907,7 +894,7 @@ static int
 gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_result * result)
 {
   const int N = 24;
-  gamma_inc_dd s, q, phi, aphi, zdd;
+  gsl_dd s, q, phi, aphi, zdd;
   double beta[27], sum, scale, R, value, last;
   int n;
 
@@ -922,7 +909,7 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
       phi.lo = 0;
     }
 
-  zdd = dd_sqrt(dd_mul_d(phi, 2.0));
+  zdd = gsl_dd_sqrt(gsl_dd_mul_d(phi, 2.0));
 
   if (x < a)
     {
@@ -941,7 +928,7 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
     sum = sum * zdd.hi + beta[n];
 
   sum *= a / (a + beta[1]);
-  aphi = dd_mul_d(phi, a);
+  aphi = gsl_dd_mul_d(phi, a);
   scale = exp(-aphi.hi) * exp(-aphi.lo) / sqrt(2*M_PI*a);
   R = scale * sum;
 
@@ -952,7 +939,7 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
     }
   else
     {
-      zdd = dd_sqrt(aphi);
+      zdd = gsl_dd_sqrt(aphi);
     }
 
   if (x < a)
@@ -984,40 +971,40 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
  *****************************************/
 
 /* q = log(x/a)-x/a+1 using a compensated quotient directly. */
-static gamma_inc_dd
+static gsl_dd
 gamma_inc_log_ratio_m_ratio_p1(const double a, const double x)
 {
-  gamma_inc_dd t, lg, nt, one;
+  gsl_dd t, lg, nt, one;
 
   t.hi = x;
   t.lo = 0.0;
-  t = dd_div_d(t, a);
-  lg = dd_log(t);
+  t = gsl_dd_div_d(t, a);
+  lg = gsl_dd_log(t);
   nt.hi = -t.hi;
   nt.lo = -t.lo;
   one.hi = 1.0;
   one.lo = 0.0;
 
-  return dd_add(dd_add(lg, nt), one);
+  return gsl_dd_add(gsl_dd_add(lg, nt), one);
 }
 
 /* q = log(1+s)-s, s=(x-a)/a, using the compensated near-one form. */
-static gamma_inc_dd
+static gsl_dd
 gamma_inc_log_ratio_near1(const double a, const double x)
 {
-  gamma_inc_dd s, one, y, lg, ns;
+  gsl_dd s, one, y, lg, ns;
 
   s = dd_div_diff(a, x);
 
   one.hi = 1.0;
   one.lo = 0.0;
-  y = dd_add(one, s);
+  y = gsl_dd_add(one, s);
 
-  lg = dd_log(y);
+  lg = gsl_dd_log(y);
   ns.hi = -s.hi;
   ns.lo = -s.lo;
 
-  return dd_add(lg, ns);
+  return gsl_dd_add(lg, ns);
 }
 
 /* Stirling correction log Gamma(a) - [(a-1/2)log(a)-a+log(sqrt(2pi))].
@@ -1068,7 +1055,7 @@ static double
 gamma_inc_rgammax_large(const double a, const double x)
 {
   const double E = gamma_inc_stirling_error(a);
-  gamma_inc_dd q, aq, w;
+  gsl_dd q, aq, w;
 
   /* Near x=a use the exact-difference representation.  Away from it,
    * form the quotient x/a directly as a compensated pair. */
@@ -1077,9 +1064,8 @@ gamma_inc_rgammax_large(const double a, const double x)
   else
     q = gamma_inc_log_ratio_m_ratio_p1(a, x);
 
-  aq = dd_mul_d(q, a);
-  w = two_sum(aq.hi, -E);
-  w.lo += aq.lo;
+  aq = gsl_dd_mul_d(q, a);
+  w = gsl_dd_sub_d(aq, E);
 
   /* Keep exp(w) normal whenever possible.  If it would approach
    * underflow, absorb sqrt(a/(2*pi)) into the exponent first. */
@@ -1091,8 +1077,7 @@ gamma_inc_rgammax_large(const double a, const double x)
   else
     {
       const double base = 0.5 * log(a) - GAMMA_INC_LOG_SQRT_2PI;
-      gamma_inc_dd z = two_sum(w.hi, base);
-      z.lo += w.lo;
+      gsl_dd z = gsl_dd_add_d(w, base);
       return exp(z.hi) * exp(z.lo);
     }
 }
@@ -1131,166 +1116,6 @@ gamma_inc_rgammax(const double a, const double x)
  **********************************************/
 
 /*
- * Error-free transformation of a+b into a leading double and its
- * rounding residual.
- */
-static gamma_inc_dd
-two_sum(const double a, const double b)
-{
-  gamma_inc_dd r;
-  double s = a + b, bb = s - a;
-  r.hi = s;
-  r.lo = (a - (s - bb)) + (b - bb);
-  return r;
-}
-
-/*
- * Error-free transformation of a*b into a leading double and its
- * rounding residual, using Dekker splitting.
- */
-static gamma_inc_dd
-two_prod(const double a, const double b)
-{
-  gamma_inc_dd r;
-  double ca = GAMMA_INC_SPLIT * a, cb = GAMMA_INC_SPLIT * b;
-  double ah = ca - (ca - a), al = a - ah, bh = cb - (cb - b), bl = b - bh;
-  r.hi = a * b;
-  r.lo = ((ah * bh - r.hi) + ah*bl + al*bh) + al*bl;
-  return r;
-}
-
-/* Add two double-double numbers and renormalize the result. */
-static gamma_inc_dd
-dd_add(const gamma_inc_dd a, const gamma_inc_dd b)
-{
-  gamma_inc_dd s = two_sum(a.hi, b.hi);
-  double e = a.lo + b.lo + s.lo;
-  return two_sum(s.hi, e);
-}
-
-/* Multiply two double-double numbers and renormalize the result. */
-static gamma_inc_dd
-dd_mul(const gamma_inc_dd a, const gamma_inc_dd b)
-{
-  gamma_inc_dd p = two_prod(a.hi, b.hi);
-  double e = p.lo + a.hi * b.lo + a.lo * b.hi + a.lo * b.lo;
-  return two_sum(p.hi, e);
-}
-
-/* Multiply a double-double number by a double. */
-static gamma_inc_dd
-dd_mul_d(const gamma_inc_dd a, const double b)
-{
-  gamma_inc_dd p = two_prod(a.hi, b);
-  return two_sum(p.hi, p.lo + a.lo * b);
-}
-
-/*
- * Divide a double-double number by a double using a compensated
- * quotient correction.
- */
-static gamma_inc_dd
-dd_div_d(const gamma_inc_dd a, const double b)
-{
-  double q0 = a.hi / b;
-  gamma_inc_dd p = two_prod(q0, b);
-  gamma_inc_dd neg, rem;
-  double q1;
-  neg.hi = -p.hi;
-  neg.lo = -p.lo;
-  rem = dd_add(a, neg);
-  q1 = (rem.hi + rem.lo) / b;
-  return two_sum(q0, q1);
-}
-
-/*
- * Divide two double-double numbers using a leading quotient followed
- * by one compensated residual correction.
- */
-static gamma_inc_dd
-dd_div_dd(const gamma_inc_dd a, const gamma_inc_dd b)
-{
-  double q0 = a.hi / b.hi;
-  gamma_inc_dd qb = dd_mul_d(b, q0);
-  gamma_inc_dd neg, rem;
-  double q1;
-  neg.hi = -qb.hi; neg.lo = -qb.lo;
-  rem = dd_add(a, neg);
-  q1 = (rem.hi + rem.lo) / b.hi;
-  return two_sum(q0, q1);
-}
-
-/*
- * Compute log(y) for a positive double-double argument.
- *
- * After binary range reduction, evaluate
- *
- *   log(m) = 2 [r + r^3/3 + r^5/5 + ...],
- *   r = (m-1)/(m+1),
- *
- * in double-double arithmetic, then restore the exponent contribution
- * k*log(2).
- */
-static gamma_inc_dd
-dd_log(gamma_inc_dd y)
-{
-  gamma_inc_dd one, u, den, r, r2, term, sum, lg, ks;
-  int e, k, n;
-  double ya = y.hi + y.lo;
-
-  (void)frexp(ya, &e);
-  k = e;
-  y.hi = ldexp(y.hi, -k);
-  y.lo = ldexp(y.lo, -k);
-
-  if (y.hi + y.lo < 0.7071067811865475244)
-    {
-      y.hi *= 2;
-      y.lo *= 2;
-      --k;
-    }
-
-  one.hi = -1;
-  one.lo = 0;
-  u = dd_add(y, one);
-
-  den = two_sum(2.0, u.hi);
-  den.lo += u.lo;
-
-  {
-    double q0 = u.hi / den.hi;
-    gamma_inc_dd qp = dd_mul_d(den, q0), neg, rem;
-    double q1;
-
-    neg.hi = -qp.hi;
-    neg.lo = -qp.lo;
-    rem = dd_add(u, neg);
-    q1 = (rem.hi + rem.lo) / den.hi;
-    r = two_sum(q0, q1);
-  }
-
-  r2 = dd_mul(r, r);
-  term = r;
-  sum = r;
-
-  for (n = 3; n < 401; n += 2)
-    {
-      gamma_inc_dd add;
-      term = dd_mul(term, r2);
-      add = dd_div_d(term, (double)n);
-      sum = dd_add(sum, add);
-      if (fabs(add.hi) < 1e-32 * fabs(sum.hi))
-        break;
-    }
-
-  lg = dd_mul_d(sum, 2.0);
-  ks.hi = (double)k * GAMMA_INC_LN2_HI;
-  ks.lo = (double)k * GAMMA_INC_LN2_LO;
-
-  return dd_add(lg, ks);
-}
-
-/*
  * Compute
  *
  *   log(1+s) - s
@@ -1302,35 +1127,35 @@ dd_log(gamma_inc_dd y)
  * larger |s|, evaluate log(1+s) in double-double arithmetic and
  * subtract s.
  */
-static gamma_inc_dd
-dd_log1pmx_series(const gamma_inc_dd s)
+static gsl_dd
+dd_log1pmx_series(const gsl_dd s)
 {
-  gamma_inc_dd ss, term, sum;
+  gsl_dd ss, term, sum;
   double av = fabs(s.hi + s.lo);
   int n;
 
   if (av > 0.5)
     {
-      gamma_inc_dd one, y, lg, ns;
+      gsl_dd one, y, lg, ns;
       one.hi = 1;
       one.lo = 0;
-      y = dd_add(one, s);
-      lg = dd_log(y);
+      y = gsl_dd_add(one, s);
+      lg = gsl_dd_log(y);
       ns.hi = -s.hi;
       ns.lo = -s.lo;
-      return dd_add(lg, ns);
+      return gsl_dd_add(lg, ns);
     }
 
-  ss = dd_mul(s, s);
-  term = dd_mul_d(ss, -0.5);
+  ss = gsl_dd_mul(s, s);
+  term = gsl_dd_mul_d(ss, -0.5);
   sum = term;
 
   for (n = 3; n < 1000; ++n)
     {
-      term = dd_mul(term,s);
-      term = dd_mul_d(term, -(double)(n - 1));
-      term = dd_div_d(term, (double)n);
-      sum = dd_add(sum,term);
+      term = gsl_dd_mul(term,s);
+      term = gsl_dd_mul_d(term, -(double)(n - 1));
+      term = gsl_dd_div_d(term, (double)n);
+      sum = gsl_dd_add(sum,term);
       if (fabs(term.hi) < 1e-32 * fabs(sum.hi))
         break;
     }
@@ -1347,132 +1172,11 @@ dd_log1pmx_series(const gamma_inc_dd s)
  * by Sterbenz's lemma, and the low component retains the residual from
  * the subsequent division by a.
  */
-static gamma_inc_dd
+static gsl_dd
 dd_div_diff(const double a, const double x)
 {
-  gamma_inc_dd d;
+  gsl_dd d;
   d.hi = x - a;
   d.lo = 0;
-  return dd_div_d(d, a);
-}
-
-/*
- * Compute the square root of a nonnegative double-double number using
- * a double-precision initial approximation followed by a compensated
- * residual correction.
- */
-static gamma_inc_dd
-dd_sqrt(const gamma_inc_dd a)
-{
-  gamma_inc_dd yy, neg, rem, r;
-  double av = a.hi + a.lo;
-  double y;
-
-  if (av <= 0.0)
-    {
-      gamma_inc_dd r;
-      r.hi = 0.0;
-      r.lo = 0.0;
-      return r;
-    }
-
-  y = sqrt(av);
-  yy = two_prod(y, y);
-  neg.hi = -yy.hi;
-  neg.lo = -yy.lo;
-  rem = dd_add(a, neg);
-  r.hi = y;
-  r.lo = (rem.hi + rem.lo) / (2.0*y);
-
-  return r;
-}
-
-/*
- * Compute exp(z) for a double-double argument z.
- *
- * Reduce z by an integer multiple of log(2), evaluate the exponential
- * of the reduced argument by its Taylor series in double-double
- * arithmetic, and restore the binary exponent with ldexp().
- */
-static gamma_inc_dd
-dd_exp_pair(const gamma_inc_dd z)
-{
-  const double INV_LN2 = 1.442695040888963407359924681001892137;
-  double zz = z.hi + z.lo;
-  double nd;
-  long n;
-  gamma_inc_dd r, term, sum;
-  int k;
-
-  if (zz < -745.0)
-    {
-      r.hi = 0.0;
-      r.lo = 0.0;
-      return r;
-    }
-
-  if (zz > 709.0)
-    {
-      r.hi = HUGE_VAL;
-      r.lo = 0.0;
-      return r;
-    }
-
-  nd = floor(zz * INV_LN2 + (zz >= 0.0 ? 0.5 : -0.5));
-  n = (long)nd;
-
-  r = z;
-  r = dd_add(r, (gamma_inc_dd){-(double)n * GAMMA_INC_LN2_HI, 0.0});
-  r = dd_add(r, (gamma_inc_dd){-(double)n * GAMMA_INC_LN2_LO, 0.0});
-
-  term.hi = 1.0; term.lo = 0.0;
-  sum = term;
-
-  for (k = 1; k < 200; k++)
-    {
-      term = dd_mul(term, r);
-      term = dd_div_d(term, (double)k);
-      sum = dd_add(sum, term);
-      if (fabs(term.hi) < 1.0e-32 * fabs(sum.hi))
-        break;
-    }
-
-  sum.hi = ldexp(sum.hi, (int)n);
-  sum.lo = ldexp(sum.lo, (int)n);
-
-  return sum;
-}
-
-/*
- * Compute exp(z)-1 for a double-double argument z.
- *
- * For |z| < 1/2, evaluate the expm1 Taylor series directly in
- * double-double arithmetic to avoid cancellation.  For larger
- * arguments, evaluate exp(z) in double-double arithmetic and subtract
- * one.
- */
-static gamma_inc_dd
-dd_expm1_pair(const gamma_inc_dd z)
-{
-  double av = fabs(z.hi + z.lo);
-
-  if (av < 0.5)
-    {
-      gamma_inc_dd term = z, sum = z;
-      int k;
-
-      for (k = 2; k < 200; k++)
-        {
-          term = dd_mul(term, z);
-          term = dd_div_d(term, (double)k);
-          sum = dd_add(sum, term);
-
-          if (fabs(term.hi) < 1.0e-32 * fabs(sum.hi))
-            break;
-        }
-
-      return sum;
-    }
-
-  return dd_add(dd_exp_pair(z), (gamma_inc_dd){-1.0, 0.0});
+  return gsl_dd_div_d(d, a);
 }
