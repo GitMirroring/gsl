@@ -22,6 +22,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <gsl/gsl_sf_log.h>
 
 /* The exponential distribution has the form
 
@@ -34,7 +35,7 @@ gsl_ran_exponential (const gsl_rng * r, const double mu)
 {
   double u = gsl_rng_uniform (r);
 
-  return -mu * log1p (-u);
+  return -mu * gsl_sf_log1p (-u);
 }
 
 double

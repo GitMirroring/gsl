@@ -23,6 +23,7 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 /* The beta distribution has the form
 
@@ -96,7 +97,7 @@ gsl_ran_beta_pdf (const double x, const double a, const double b)
         }
       else
         {
-          p = exp (gab - ga - gb + log(x) * (a - 1)  + log1p(-x) * (b - 1));
+          p = exp (gab - ga - gb + log(x) * (a - 1)  + gsl_sf_log1p(-x) * (b - 1));
         }
 
       return p;

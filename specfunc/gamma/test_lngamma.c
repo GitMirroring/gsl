@@ -7,6 +7,10 @@
 
 #include "../test_sf_new.h"
 
+#include "lngamma1p_fallback.c"
+#include "lngamma_fallback.c"
+#include "lngamma_sgn_fallback.c"
+
 static double
 lngamma_expected_sign(const double x)
 {
@@ -383,7 +387,7 @@ test_lngamma(void)
   int s = 0;
 
   s += test_lngamma_f(gsl_sf_lngamma_e, gsl_sf_lngamma_sgn_e);
-  s += test_lngamma_f(gsl_sf_lngamma_local_e, gsl_sf_lngamma_sgn_local_e);
+  s += test_lngamma_f(lngamma_fallback_e, lngamma_sgn_fallback_e);
 
   return s;
 }

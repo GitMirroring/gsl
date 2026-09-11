@@ -31,6 +31,7 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_erf.h>
+#include <gsl/gsl_sf_log.h>
 
 #include "check.h"
 
@@ -328,16 +329,6 @@ int gsl_sf_log_erfc_e(double x, gsl_sf_result * result)
     result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
     return GSL_SUCCESS;
   }
-  /*
-  don't like use of log1p(); added above series stuff for small x instead, should be ok [GJ]
-  else if (fabs(x) < 1.0) {
-    gsl_sf_result result_erf;
-    gsl_sf_erf_e(x, &result_erf);
-    result->val  = log1p(-result_erf.val);
-    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_SUCCESS;
-  }
-  */
   else if(x > 8.0) {
     result->val = log_erfc8(x);
     result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);

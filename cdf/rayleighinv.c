@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 double
@@ -36,7 +37,7 @@ gsl_cdf_rayleigh_Pinv (const double P, const double sigma)
       return 0.0;
     }
 
-  x = sigma * M_SQRT2 * sqrt (-log1p (-P));
+  x = sigma * M_SQRT2 * sqrt (-gsl_sf_log1p (-P));
 
   return x;
 }

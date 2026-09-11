@@ -15,7 +15,7 @@ test_gamma_all(void)
   status += test_gamma_inc_P();
   status += test_gamma_inc_Q();
   status += test_lngamma();
-  status += test_lngamma_1p();
+  status += test_lngamma1p();
 
   return status;
 }

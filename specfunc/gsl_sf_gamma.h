@@ -39,12 +39,10 @@ __BEGIN_DECLS
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
-int gsl_sf_lngamma_local_e(const double x, gsl_sf_result * result);
-int gsl_sf_lngamma_sgn_local_e(const double x, gsl_sf_result * result, double * sgn);
-int gsl_sf_lngamma_1p_e(const double x, gsl_sf_result * result);
+int gsl_sf_lngamma1p_e(const double x, gsl_sf_result * result);
 
 double gsl_sf_lngamma(const double x);
-double gsl_sf_lngamma_1p(const double x);
+double gsl_sf_lngamma1p(const double x);
 
 /* Gamma(x), x not a negative integer
  * Uses real Lanczos method.

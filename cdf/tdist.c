@@ -39,6 +39,7 @@
 #include <config.h>
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 
@@ -109,7 +110,7 @@ cornish_fisher (double t, double n)
   double a = n - 0.5;
   double b = 48.0 * a * a;
 
-  double z2 = a * log1p (t * t / n);
+  double z2 = a * gsl_sf_log1p (t * t / n);
   double z = sqrt (z2);
 
   double p5 = z * poly_eval (coeffs6, 9, z2);

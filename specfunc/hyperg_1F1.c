@@ -28,6 +28,7 @@
 #include <gsl/gsl_sf_bessel.h>
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_laguerre.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_sf_hyperg.h>
 
 #include "error.h"
@@ -148,7 +149,7 @@ int
 hyperg_1F1_largebx(const double a, const double b, const double x, gsl_sf_result * result)
 {
   double y = x/b;
-  double f = exp(-a*log1p(-y));
+  double f = exp(-a*gsl_sf_log1p(-y));
   double t1 = -((a*(a+1.0))/(2*b))*pow((y/(1.0-y)),2.0);
   double t2 = (1/(24*b*b))*((a*(a+1)*y*y)/pow(1-y,4))*(12+8*(2*a+1)*y+(3*a*a-a-2)*y*y);
   double t3 = (-1/(48*b*b*b*pow(1-y,6)))*a*((a + 1)*((y*((a + 1)*(a*(y*(y*((y*(a - 2) + 16)*(a - 1)) + 72)) + 96)) + 24)*pow(y, 2)));

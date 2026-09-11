@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 double
@@ -55,7 +56,7 @@ gsl_cdf_gumbel2_Qinv (const double Q, const double a, const double b)
       return 0.0;
     }
 
-  x = pow(b / (-log1p(-Q)), 1/a);
+  x = pow(b / (-gsl_sf_log1p(-Q)), 1/a);
 
   return x;
 }

@@ -21,6 +21,7 @@
 /* Modified for cdfs by Brian Gough, June 2003 */
 
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 static double
 beta_cont_frac (const double a, const double b, const double x,
@@ -126,12 +127,12 @@ beta_inc_AXPY (const double A, const double Y,
     {
       /* Handle asymptotic regime, small a, large b, x < peak [AS 26.5.17] */
       double N = b + (a - 1.0) / 2.0;
-      return A * gsl_sf_gamma_inc_P (a, -N * log1p (-x)) + Y;
+      return A * gsl_sf_gamma_inc_P (a, -N * gsl_sf_log1p (-x)) + Y;
     }
   else
     {
       double ln_beta = gsl_sf_lnbeta (a, b);
-      double ln_pre = -ln_beta + a * log (x) + b * log1p (-x);
+      double ln_pre = -ln_beta + a * log (x) + b * gsl_sf_log1p (-x);
 
       double prefactor = exp (ln_pre);
 

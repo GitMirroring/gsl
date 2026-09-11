@@ -32,7 +32,10 @@
 
 __BEGIN_DECLS
 
-double gsl_log1p (const double x);
+/* Sep 10 2026: the old gsl_log1p function had poor performance near x=0;
+ * replace with the new gsl_sf_log1p */
+#define gsl_log1p gsl_sf_log1p
+
 double gsl_expm1 (const double x);
 double gsl_hypot (const double x, const double y);
 double gsl_hypot3 (const double x, const double y, const double z);

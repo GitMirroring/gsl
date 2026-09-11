@@ -59,24 +59,7 @@ static double gamma_inc_rgammax_large(const double a, const double x);
 static double gamma_inc_rgammax(const double a, const double x);
 
 /* double-double routines */
-static gsl_dd dd_log1pmx_series(const gsl_dd s);
 static gsl_dd dd_div_diff(const double a, const double x);
-
-/*
- * Compute the regularized lower incomplete gamma function
- *
- *   P(a,x) = gamma(a,x) / Gamma(a),
- *
- * for a > 0 and x >= 0.
- *
- * The parameter plane is divided among numerical methods chosen
- * according to a and x.  For 0 < a < 1 and 0 < x < 1.1, use the
- * Taylor expansion in x implemented by gamma_inc_P_taylor_x().
- *
- * The limiting value at x = 0 is P(a,0) = 0.  Arguments with
- * a <= 0 or x < 0 are outside the real-valued domain of this
- * interface and produce a domain error.
- */
 
 /*
  * Compute the regularized lower incomplete gamma function
@@ -328,9 +311,9 @@ gamma_inc_P_taylor_x_sum(const double a, const double x,
  *
  * where J(a,x) is evaluated by gamma_inc_P_taylor_x_sum().
  *
- * The reciprocal Gamma factor is formed from gsl_sf_lngamma_1p_e(),
+ * The reciprocal Gamma factor is formed from gsl_sf_lngamma1p_e(),
  *
- *   1 / Gamma(a+1) = exp(-lngamma_1p(a)),
+ *   1 / Gamma(a+1) = exp(-lngamma1p(a)),
  *
  * and x^a is evaluated with pow() in the direct-P branch.  When P
  * is close to unity, an algebraically equivalent formulation using
@@ -354,7 +337,7 @@ gamma_inc_P_taylor_x(const double a, const double x, gsl_sf_result * result)
     return status;
 
   z = a * log(x);
-  status = gsl_sf_lngamma_1p_e(a, &lg1p);
+  status = gsl_sf_lngamma1p_e(a, &lg1p);
   if (status)
     return status;
 
@@ -508,7 +491,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
   gsl_sf_result lg1p;
   int n;
 
-  status = gsl_sf_lngamma_1p_e(a, &lg1p);
+  status = gsl_sf_lngamma1p_e(a, &lg1p);
   if (status)
     return status;
 
@@ -796,19 +779,6 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
  *****************************************/
 
 /*
- * Universal coefficients for the order-24 Temme asymptotic correction.
- * These coefficients enter the backward recurrence used by
- * gamma_inc_temme_eval().
- */
-static const double gamma_inc_temme_d[26] = { 1.0,                    -0.33333333333333331,     0.083333333333333329,   -0.014814814814814815,
-                                              0.0011574074074074073,   0.00035273368606701942, -0.0001787551440329218,   3.9192631785224377e-05,
-                                             -2.185448510679992e-06,  -1.85406221071516e-06,    8.2967113409530865e-07, -1.7665952736826078e-07,
-                                              6.7078535434014984e-09,  1.0261809784240309e-08, -4.3820360184533529e-09,  9.1476995822367902e-10,
-                                             -2.5514193994946248e-11, -5.8307721325504256e-11,  2.4361948020667415e-11, -5.0276692801141755e-12,
-                                              1.1004392031956135e-13,  3.3717632624009851e-13, -1.3923887224181621e-13,  2.8534893807047445e-14,
-                                             -5.1391118342425723e-16, -1.9752288294349442e-15 };
-
-/*
  * Evaluate one half of erfc(z) for a double-double argument
  *
  *   z = z.hi + z.lo.
@@ -858,7 +828,7 @@ gamma_inc_use_temme(const double a, const double x)
     return 0;
 
   s = dd_div_diff(a, x);
-  q = dd_log1pmx_series(s);
+  q = gsl_dd_log1pmx(s);
 
   eta = sqrt(GSL_MAX(-2.0 * (q.hi + q.lo), 0.0));
 
@@ -893,13 +863,26 @@ gamma_inc_use_temme(const double a, const double x)
 static int
 gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_result * result)
 {
+  /*
+   * Universal coefficients for the order-24 Temme asymptotic correction.
+   * These coefficients enter the backward recurrence used by
+   * gamma_inc_temme_eval().
+   */
+  static const double gamma_inc_temme_d[26] = { 1.0,                    -0.33333333333333331,     0.083333333333333329,   -0.014814814814814815,
+                                                0.0011574074074074073,   0.00035273368606701942, -0.0001787551440329218,   3.9192631785224377e-05,
+                                               -2.185448510679992e-06,  -1.85406221071516e-06,    8.2967113409530865e-07, -1.7665952736826078e-07,
+                                                6.7078535434014984e-09,  1.0261809784240309e-08, -4.3820360184533529e-09,  9.1476995822367902e-10,
+                                               -2.5514193994946248e-11, -5.8307721325504256e-11,  2.4361948020667415e-11, -5.0276692801141755e-12,
+                                                1.1004392031956135e-13,  3.3717632624009851e-13, -1.3923887224181621e-13,  2.8534893807047445e-14,
+                                               -5.1391118342425723e-16, -1.9752288294349442e-15 };
+
   const int N = 24;
   gsl_dd s, q, phi, aphi, zdd;
   double beta[27], sum, scale, R, value, last;
   int n;
 
   s = dd_div_diff(a, x);
-  q = dd_log1pmx_series(s);
+  q = gsl_dd_log1pmx(s);
   phi.hi = -q.hi;
   phi.lo = -q.lo;
 
@@ -970,6 +953,8 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
  * INTERNAL ROUTINES (rgammax primitive) *
  *****************************************/
 
+#define GAMMA_INC_STIRLING_DENOM  0.30865217988013567769
+
 /* q = log(x/a)-x/a+1 using a compensated quotient directly. */
 static gsl_dd
 gamma_inc_log_ratio_m_ratio_p1(const double a, const double x)
@@ -989,52 +974,58 @@ gamma_inc_log_ratio_m_ratio_p1(const double a, const double x)
 }
 
 /* q = log(1+s)-s, s=(x-a)/a, using the compensated near-one form. */
-#if 1
 static gsl_dd
 gamma_inc_log_ratio_near1(const double a, const double x)
 {
   const gsl_dd s = dd_div_diff(a, x);
-  return dd_log1pmx_series(s);
+  return gsl_dd_log1pmx(s);
 }
-#else
-static gsl_dd
-gamma_inc_log_ratio_near1(const double a, const double x)
-{
-  gsl_dd s, one, y, lg, ns;
 
-  s = dd_div_diff(a, x);
-
-  one.hi = 1.0;
-  one.lo = 0.0;
-  y = gsl_dd_add(one, s);
-
-  lg = gsl_dd_log(y);
-  ns.hi = -s.hi;
-  ns.lo = -s.lo;
-
-  return gsl_dd_add(lg, ns);
-}
-#endif
-
-/* Stirling correction log Gamma(a) - [(a-1/2)log(a)-a+log(sqrt(2pi))].
- * Faithful to the DRCOMP/Julia approximation for a > 20. */
+/*
+ * Compute the Stirling correction to log Gamma(a),
+ *
+ *   E(a) = log Gamma(a) - [(a - 1/2) log(a) - a + log(sqrt(2*pi))].
+ *
+ * For a < 1000, use the rational approximation
+ *
+ *   E(a) = p(z) / [(c + z) a],
+ *
+ * where z = 1/a^2 and p(z) is evaluated by Horner's method.
+ *
+ * For a >= 1000, use the asymptotic expansion
+ *
+ *   E(a) = [1/12 - z/360 + z^2/1260 - z^3/1680] / a.
+ */
 static double
 gamma_inc_stirling_error(const double a)
 {
+  static const double c[6] = {
+    0.25721014990011306473e-1,
+    0.82475966166999631057e-1,
+   -0.25328157302663562668e-2,
+    0.60992926669463371e-3,
+   -0.33543297638406e-3,
+    0.250505279903e-3
+  };
+
   const double z = 1.0 / (a * a);
+
   if (a < 1000.0)
     {
-      double p;
-      p = 0.250505279903e-3;
-      p = -0.33543297638406e-3 + z * p;
-      p = 0.60992926669463371e-3 + z * p;
-      p = -0.25328157302663562668e-2 + z * p;
-      p = 0.82475966166999631057e-1 + z * p;
-      p = 0.25721014990011306473e-1 + z * p;
-      return p / ((0.30865217988013567769 + z) * a);
+      double p = c[0] + z * (c[1] + z * (c[2] + z * (c[3] + z * (c[4] + z * c[5]))));
+      return p / ((GAMMA_INC_STIRLING_DENOM + z) * a);
     }
-  return (((-z / 1680.0 + 1.0 / 1260.0) * z
-           - 1.0 / 360.0) * z + 1.0 / 12.0) / a;
+  else
+    {
+      double p;
+
+      p = -1.0 / 1680.0;
+      p =  1.0 / 1260.0 + z * p;
+      p = -1.0 / 360.0  + z * p;
+      p =  1.0 / 12.0   + z * p;
+
+      return p / a;
+    }
 }
 
 /*
@@ -1106,71 +1097,21 @@ gamma_inc_rgammax_large(const double a, const double x)
 static double
 gamma_inc_rgammax(const double a, const double x)
 {
-  if (!(a > 0.0) || x < 0.0)
+  if (a < 1.0 || x < 0.0)
     return GSL_NAN;
+
   if (x == 0.0)
     return 0.0;
 
   if (a > 20.0)
     return gamma_inc_rgammax_large(a, x);
 
-  if (a >= 1.0) /* For moderate a the direct forms are safe. */
-    return pow(x, a) * exp(-x) / tgamma(a);
-  else /* 1/Gamma(a) = a/Gamma(1+a). */
-    return a * pow(x, a) * exp(-x) * exp(-lgamma(1.0 + a));
+  return pow(x, a) * exp(-x) / tgamma(a);
 }
 
 /**********************************************
  * INTERNAL ROUTINES (double-double routines) *
  **********************************************/
-
-/*
- * Compute
- *
- *   log(1+s) - s
- *
- * for a double-double argument s.
- *
- * For |s| <= 1/2, use the cancellation-free Taylor expansion beginning
- * at -s^2/2 and retain the result in double-double arithmetic.  For
- * larger |s|, evaluate log(1+s) in double-double arithmetic and
- * subtract s.
- */
-static gsl_dd
-dd_log1pmx_series(const gsl_dd s)
-{
-  gsl_dd ss, term, sum;
-  double av = fabs(s.hi + s.lo);
-  int n;
-
-  if (av > 0.5)
-    {
-      gsl_dd one, y, lg, ns;
-      one.hi = 1;
-      one.lo = 0;
-      y = gsl_dd_add(one, s);
-      lg = gsl_dd_log(y);
-      ns.hi = -s.hi;
-      ns.lo = -s.lo;
-      return gsl_dd_add(lg, ns);
-    }
-
-  ss = gsl_dd_mul(s, s);
-  term = gsl_dd_mul_d(ss, -0.5);
-  sum = term;
-
-  for (n = 3; n < 1000; ++n)
-    {
-      term = gsl_dd_mul(term,s);
-      term = gsl_dd_mul_d(term, -(double)(n - 1));
-      term = gsl_dd_div_d(term, (double)n);
-      sum = gsl_dd_add(sum,term);
-      if (fabs(term.hi) < 1e-32 * fabs(sum.hi))
-        break;
-    }
-
-  return sum;
-}
 
 /*
  * Compute

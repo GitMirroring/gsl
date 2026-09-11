@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 double
@@ -36,7 +37,7 @@ gsl_cdf_weibull_Pinv (const double P, const double a, const double b)
       return 0.0;
     }
 
-  x = a * pow(-log1p(-P), 1/b);
+  x = a * pow(-gsl_sf_log1p(-P), 1/b);
 
   return x;
 }

@@ -62,24 +62,6 @@ main (void)
   y_expected = -0.99995460007023751514846440848444;
   gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(-10.0)");
 
-  /* Test for log1p */
-
-  y = gsl_log1p (0.0);
-  y_expected = 0.0;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_log1p(0.0)");
-
-  y = gsl_log1p (1e-10);
-  y_expected = 9.9999999995000000000333333333308e-11;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_log1p(1e-10)");
-
-  y = gsl_log1p (0.1);
-  y_expected = 0.095310179804324860043952123280765;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_log1p(0.1)");
-
-  y = gsl_log1p (10.0);
-  y_expected = 2.3978952727983705440619435779651;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_log1p(10.0)");
-
   /* Test for gsl_hypot */
 
   y = gsl_hypot (0.0, 0.0);
