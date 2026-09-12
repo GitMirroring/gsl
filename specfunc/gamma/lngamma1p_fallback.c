@@ -24,6 +24,7 @@
 #include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_sf_sincos_pi.h>
 
+#include "constants.h"
 #include "error.h"
 #include "lngamma.h"
 
@@ -79,7 +80,7 @@ lngamma1p_near0(const double x, gsl_sf_result * result)
   const double p = P[0] + x*(P[1] + x*(P[2] + x*(P[3] + x*(P[4] + x*(P[5] + x*(P[6] + x*P[7]))))));
   const double q = Q[0] + x*(Q[1] + x*(Q[2] + x*(Q[3] + x*(Q[4] + x*(Q[5] + x*(Q[6] + x*Q[7]))))));
 
-  result->val = x*(-M_EULER + x*(LNGAMMA_M_PI2_12 + x*(p/q)));
+  result->val = x*(-M_EULER + x*(GSL_SF_PI2_12 + x*(p/q)));
   result->err = 16.0 * GSL_DBL_EPSILON * fabs(result->val);
 
   return GSL_SUCCESS;

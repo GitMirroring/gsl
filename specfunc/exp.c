@@ -323,37 +323,6 @@ int gsl_sf_exp_mult_err_e10_e(const double x, const double dx,
   }
 }
 
-
-int gsl_sf_expm1_e(const double x, gsl_sf_result * result)
-{
-  const double cut = 0.002;
-
-  if(x < GSL_LOG_DBL_MIN) {
-    result->val = -1.0;
-    result->err = GSL_DBL_EPSILON;
-    return GSL_SUCCESS;
-  }
-  else if(x < -cut) {
-    result->val = exp(x) - 1.0;
-    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_SUCCESS;
-  }
-  else if(x < cut) {
-    result->val = x * (1.0 + 0.5*x*(1.0 + x/3.0*(1.0 + 0.25*x*(1.0 + 0.2*x))));
-    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_SUCCESS;
-  } 
-  else if(x < GSL_LOG_DBL_MAX) {
-    result->val = exp(x) - 1.0;
-    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_SUCCESS;
-  }
-  else {
-    OVERFLOW_ERROR(result);
-  }
-}
-
-
 int gsl_sf_exprel_e(const double x, gsl_sf_result * result)
 {
   const double cut = 0.002;
@@ -592,11 +561,6 @@ double gsl_sf_exp(const double x)
 double gsl_sf_exp_mult(const double x, const double y)
 {
   EVAL_RESULT(gsl_sf_exp_mult_e(x, y, &result));
-}
-
-double gsl_sf_expm1(const double x)
-{
-  EVAL_RESULT(gsl_sf_expm1_e(x, &result));
 }
 
 double gsl_sf_exprel(const double x)

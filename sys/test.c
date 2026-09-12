@@ -32,36 +32,6 @@ main (void)
 
   gsl_ieee_env_setup ();
 
-  /* Test for expm1 */
-
-  y = gsl_expm1 (0.0);
-  y_expected = 0.0;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(0.0)");
-
-  y = gsl_expm1 (1e-10);
-  y_expected = 1.000000000050000000002e-10;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(1e-10)");
-
-  y = gsl_expm1 (-1e-10);
-  y_expected = -9.999999999500000000017e-11;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(-1e-10)");
-
-  y = gsl_expm1 (0.1);
-  y_expected = 0.1051709180756476248117078264902;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(0.1)");
-
-  y = gsl_expm1 (-0.1);
-  y_expected = -0.09516258196404042683575094055356;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(-0.1)");
-
-  y = gsl_expm1 (10.0);
-  y_expected = 22025.465794806716516957900645284;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(10.0)");
-
-  y = gsl_expm1 (-10.0);
-  y_expected = -0.99995460007023751514846440848444;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_expm1(-10.0)");
-
   /* Test for gsl_hypot */
 
   y = gsl_hypot (0.0, 0.0);

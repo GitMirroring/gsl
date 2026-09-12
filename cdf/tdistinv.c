@@ -23,6 +23,7 @@
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_randist.h>
+#include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_gamma.h>
 
 #include <stdio.h>
@@ -38,7 +39,7 @@ inv_cornish_fisher (double z, double nu)
 
   double y = z - cf1 / b + cf2 / (10 * b * b);
 
-  double t = GSL_SIGN (z) * sqrt (nu * expm1 (a * y * y));
+  double t = GSL_SIGN (z) * sqrt (nu * gsl_sf_expm1 (a * y * y));
 
   return t;
 }

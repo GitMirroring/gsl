@@ -21,16 +21,14 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_dd.h>
+#include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_gamma.h>
 
+#include "constants.h"
 #include "error.h"
 #include "eval.h"
 
 #define GAMMA_INC_MAXITER         10000
-#define GAMMA_INC_MAXITER2        100000
-#define GAMMA_INC_TRUE_MIN        (GSL_DBL_MIN * GSL_DBL_EPSILON)
-#define GAMMA_INC_LOG_SQRT_2PI    9.1893853320467274178032973640561764e-01
-#define GAMMA_INC_SPLIT           134217729.0
 
 typedef enum { TARGET_P = 0, TARGET_Q = 1 } gamma_inc_target_t;
 
@@ -130,7 +128,7 @@ gsl_new_sf_gamma_inc_P_e(const double a, const double x,
       result->val = GSL_MAX(result->val, 0.0);
       result->val = GSL_MIN(result->val, 1.0);
 
-      result->err = q.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+      result->err = q.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
       return GSL_SUCCESS;
     }
@@ -192,7 +190,7 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
       result->val = GSL_MAX(result->val, 0.0);
       result->val = GSL_MIN(result->val, 1.0);
 
-      result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+      result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
       return GSL_SUCCESS;
     }
@@ -214,7 +212,7 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
               result->val = GSL_MAX(result->val, 0.0);
               result->val = GSL_MIN(result->val, 1.0);
 
-              result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+              result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
               return GSL_SUCCESS;
             }
@@ -349,7 +347,7 @@ gamma_inc_P_taylor_x(const double a, const double x, gsl_sf_result * result)
    */
   if ((x < 0.25 && z > -0.13394) || a < x / 2.59)
     {
-      const double em1 = expm1(z);
+      const double em1 = gsl_sf_expm1(z);
       const double w = 1.0 + em1;
       const double q = GSL_MAX((w * temp - em1) * g - (g - 1.0), 0.0);
       p = 1.0 - q;
@@ -363,7 +361,7 @@ gamma_inc_P_taylor_x(const double a, const double x, gsl_sf_result * result)
   result->val = p;
   result->err = fabs(p) * (fabs(z) * 2.0 * GSL_DBL_EPSILON +
                 fabs(temp_err) + 16.0 * GSL_DBL_EPSILON) +
-                fabs(p) * lg1p.err + GAMMA_INC_TRUE_MIN;
+                fabs(p) * lg1p.err + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -389,7 +387,7 @@ gamma_inc_P_taylor_x(const double a, const double x, gsl_sf_result * result)
  * summation.  The number of accumulated terms is returned in nterms.
  *
  * Returns GSL_EMAXITER if the convergence criterion is not satisfied
- * within GAMMA_INC_MAXITER2 iterations.
+ * within GAMMA_INC_MAXITER iterations.
  */
 
 static int
@@ -400,7 +398,7 @@ gamma_inc_p_series_sum(const double a, const double x, double * sum, int * nterm
   double c = 0.0;
   int n;
 
-  for (n = 1; n < GAMMA_INC_MAXITER2; ++n)
+  for (n = 1; n < GAMMA_INC_MAXITER; ++n)
     {
       double y, t;
 
@@ -449,7 +447,7 @@ gamma_inc_P_series(const double a, const double x, gsl_sf_result * result)
     return status;
 
   result->val = (gamma_inc_rgammax(a,x) / a) * s;
-  result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+  result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -457,9 +455,6 @@ gamma_inc_P_series(const double a, const double x, gsl_sf_result * result)
 /*****************************************
  * INTERNAL ROUTINES (Q kernels)         *
  *****************************************/
-
-#define GAMMA_INC_LN2_HI 6.93147180369123816490e-01
-#define GAMMA_INC_LN2_LO 1.90821492927058770002e-10
 
 /*
  * Compute Q(a,x) directly for
@@ -496,7 +491,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
     return status;
 
   L = lg1p.val;
-  h = expm1(-L);
+  h = gsl_sf_expm1(-L);
 
   if (x < 1.1)
     {
@@ -516,7 +511,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
           c = gsl_dd_div_d(c, an.hi);
           t = gsl_dd_div_d(c, a + an.hi);
           sum = gsl_dd_add(sum, t);
-          if (an.hi > GAMMA_INC_MAXITER2)
+          if (an.hi >= GAMMA_INC_MAXITER)
             return GSL_EMAXITER;
         }
       while (fabs(t.hi + t.lo) > tol);
@@ -562,7 +557,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
           }
 
           result->err = fabs(pd.hi + pd.lo) * (fabs(z.hi + z.lo) + 16.0) * GSL_DBL_EPSILON +
-                        fabs(result->val) * 4.0 * GSL_DBL_EPSILON + GAMMA_INC_TRUE_MIN;
+                        fabs(result->val) * 4.0 * GSL_DBL_EPSILON + GSL_SF_TRUE_MIN;
         }
       else
         {
@@ -581,7 +576,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
             result->val = term1.hi + term1.lo;
             result->err = 64.0 * GSL_DBL_EPSILON * fabs(result->val) +
                           fabs(ld.hi) * GSL_DBL_EPSILON + fabs(jd.hi) * GSL_DBL_EPSILON + fabs(L) * GSL_DBL_EPSILON +
-                          GAMMA_INC_TRUE_MIN;
+                          GSL_SF_TRUE_MIN;
           }
         }
 
@@ -606,7 +601,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
     tmp = gsl_dd_exp(logcore);
     rrdd = gsl_dd_mul(rrdd, tmp);
 
-    for (n = 0; n < GAMMA_INC_MAXITER2; n++)
+    for (n = 0; n < GAMMA_INC_MAXITER; n++)
       {
         A2nm1 = gsl_dd_add(gsl_dd_mul_d(A2n, x), gsl_dd_mul_d(A2nm1, c));
         B2nm1 = gsl_dd_add(gsl_dd_mul_d(B2n, x), gsl_dd_mul_d(B2nm1, c));
@@ -622,13 +617,13 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
           break;
       }
 
-    if (n == GAMMA_INC_MAXITER2)
+    if (n == GAMMA_INC_MAXITER)
       return GSL_EMAXITER;
 
     rrdd = gsl_dd_mul(rrdd, an0);
     result->val = rrdd.hi + rrdd.lo;
     result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_DBL_EPSILON * fabs(rrdd.hi) +
-                  GAMMA_INC_TRUE_MIN;
+                  GSL_SF_TRUE_MIN;
   }
 
   return GSL_SUCCESS;
@@ -700,7 +695,7 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
     return GSL_EMAXITER;
 
   result->val = gamma_inc_rgammax(a, x) * (a2n.hi + a2n.lo);
-  result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+  result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -731,7 +726,6 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
 static int
 gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
 {
-  const double log_true_min = log(GAMMA_INC_TRUE_MIN);
   double term = 1.0, sum = 1.0, prev = 1.0;
   int n;
   double r;
@@ -748,6 +742,9 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
         break;
     }
 
+  if (n >= GAMMA_INC_MAXITER)
+    return GSL_EMAXITER;
+
   r = gamma_inc_rgammax(a, x);
   if(a <= 20.0 && x > 700.0)
     {
@@ -759,7 +756,7 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
       ta = gsl_dd_mul_d(lx, a);
       negx.hi = -x; negx.lo = 0.0;
       lr = gsl_dd_add(ta, negx);
-      if(lr.hi > log_true_min)
+      if(lr.hi > GSL_SF_LOG_TRUE_MIN)
         {
           er = gsl_dd_exp(lr);
           r = (er.hi + er.lo) / tgamma(a);
@@ -769,7 +766,7 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
     }
 
   result->val = (r / x) * sum;
-  result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GAMMA_INC_TRUE_MIN;
+  result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -944,7 +941,7 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
 
   result->val = value;
   result->err = 4.0 * GSL_DBL_EPSILON * fabs(value) + fabs(scale) * last +
-                64.0 * GSL_DBL_EPSILON * fabs(R) + GAMMA_INC_TRUE_MIN;
+                64.0 * GSL_DBL_EPSILON * fabs(R) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -952,8 +949,6 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
 /*****************************************
  * INTERNAL ROUTINES (rgammax primitive) *
  *****************************************/
-
-#define GAMMA_INC_STIRLING_DENOM  0.30865217988013567769
 
 /* q = log(x/a)-x/a+1 using a compensated quotient directly. */
 static gsl_dd
@@ -999,6 +994,7 @@ gamma_inc_log_ratio_near1(const double a, const double x)
 static double
 gamma_inc_stirling_error(const double a)
 {
+  const double denom = 0.30865217988013567769;
   static const double c[6] = {
     0.25721014990011306473e-1,
     0.82475966166999631057e-1,
@@ -1013,7 +1009,7 @@ gamma_inc_stirling_error(const double a)
   if (a < 1000.0)
     {
       double p = c[0] + z * (c[1] + z * (c[2] + z * (c[3] + z * (c[4] + z * c[5]))));
-      return p / ((GAMMA_INC_STIRLING_DENOM + z) * a);
+      return p / ((denom + z) * a);
     }
   else
     {
@@ -1076,7 +1072,7 @@ gamma_inc_rgammax_large(const double a, const double x)
     }
   else
     {
-      const double base = 0.5 * log(a) - GAMMA_INC_LOG_SQRT_2PI;
+      const double base = 0.5 * log(a) - GSL_SF_LOG_SQRT_2PI;
       gsl_dd z = gsl_dd_add_d(w, base);
       return exp(z.hi) * exp(z.lo);
     }

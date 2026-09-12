@@ -21,12 +21,13 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_cdf.h>
+#include <gsl/gsl_sf_exp.h>
 
 double
 gsl_cdf_rayleigh_P (const double x, const double sigma)
 {
   double u = x / sigma;
-  double P = -expm1 (-u*u/2);
+  double P = -gsl_sf_expm1 (-u*u/2);
   return P;
 }
 

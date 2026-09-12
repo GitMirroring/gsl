@@ -21,8 +21,9 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_sf_log.h>
 
-#define LOG1P_SMALL1  5.55111512312578270212e-17  /* 2^-54 */
-#define LOG1P_SMALL2  1.86264514923095703125e-9   /* 2^-29 */
+#include "constants.h"
+
+#define LOG1P_SMALL  1.86264514923095703125e-9   /* 2^-29 */
 
 /* C89 fallback for log(1+x). The caller must ensure x > -1 */
 static int
@@ -35,12 +36,12 @@ log1p_fallback(const double x, gsl_sf_result * result)
    * x - x^2/2 avoids loss from forming 1+x and is sufficiently
    * accurate for binary64.
    */
-  if (ax < LOG1P_SMALL1)
+  if (ax < GSL_SF_DBL_EPSILON_4)
     {
       result->val = x;
       result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
     }
-  else if (ax < LOG1P_SMALL2)
+  else if (ax < LOG1P_SMALL)
     {
       result->val = x - 0.5 * x * x;
       result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);

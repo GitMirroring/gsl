@@ -40,8 +40,12 @@ Exponential Function
 Relative Exponential Functions
 ------------------------------
 
-.. function:: double gsl_sf_expm1 (double x)
-              int gsl_sf_expm1_e (double x, gsl_sf_result * result)
+.. index::
+   single: expm1
+   single: exponential, difference from 1 computed accurately
+
+.. function:: double gsl_sf_expm1 (const double x)
+              int gsl_sf_expm1_e (const double x, gsl_sf_result * result)
 
    These routines compute the quantity :math:`\exp(x)-1` using an algorithm
    that is accurate for small :math:`x`.

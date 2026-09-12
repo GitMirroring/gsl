@@ -221,10 +221,10 @@ if test "x$LIBS" = "x" ; then
   AC_CHECK_LIB(m, cos)
 fi
 
-AC_SEARCH_LIBS([lgamma], [m], [AC_DEFINE([HAVE_LGAMMA], [1], [Define to 1 if you have the lgamma function.])])
-AC_SEARCH_LIBS([lgamma_r], [m], [AC_DEFINE([HAVE_LGAMMA_R], [1], [Define to 1 if you have the lgamma_r function.])])
-
+AC_CHECK_FUNCS([expm1])
 AC_CHECK_FUNCS([fma])
+AC_CHECK_FUNCS([lgamma])
+AC_CHECK_FUNCS([lgamma_r])
 AC_CHECK_FUNCS([log1p])
 
 dnl Remember to put a definition in acconfig.h for each of these
@@ -233,7 +233,6 @@ AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1
 AC_CHECK_DECLS(fesettrapenable,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
 AC_CHECK_DECLS(hypot,,,[#include <math.h>]) 
-AC_CHECK_DECLS(expm1,,,[#include <math.h>])
 AC_CHECK_DECLS(acosh,,,[#include <math.h>])
 AC_CHECK_DECLS(asinh,,,[#include <math.h>])
 AC_CHECK_DECLS(atanh,,,[#include <math.h>])
@@ -247,16 +246,6 @@ AC_CHECK_DECLS(finite,,,[#include <math.h>
 #include <ieeefp.h>
 #endif])
 AC_CHECK_DECLS(isnan,,,[#include <math.h>])
-
-dnl OpenBSD has a broken implementation of log1p.
-case "$host" in
-    *-*-*openbsd*)
-       AC_MSG_RESULT([avoiding OpenBSD system log1p - using gsl version])
-       ;;
-    *)
-        AC_CHECK_DECLS(log1p,,,[#include <math.h>])
-       ;;
-esac
 
 AC_CACHE_CHECK([for long double stdio], ac_cv_func_printf_longdouble,
 [AC_RUN_IFELSE([AC_LANG_SOURCE([[
@@ -536,14 +525,6 @@ AH_BOTTOM([/* Substitute gsl functions for missing system functions */
 
 #if !HAVE_DECL_HYPOT
 #define hypot gsl_hypot
-#endif
-
-#if !HAVE_DECL_LOG1P
-#define log1p gsl_log1p
-#endif
-
-#if !HAVE_DECL_EXPM1
-#define expm1 gsl_expm1
 #endif
 
 #if !HAVE_DECL_ACOSH

@@ -26,6 +26,10 @@ are declared in the header file :file:`gsl_sf_log.h`.
    the range :math:`[-\pi,\pi]`.
 .. Exceptional Return Values: GSL_EDOM
 
+.. index::
+   single: log1p
+   single: logarithm, computed accurately near 1
+
 .. function:: double gsl_sf_log1p (const double x)
               int gsl_sf_log1p_e (const double x, gsl_sf_result * result)
 

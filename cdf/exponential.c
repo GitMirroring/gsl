@@ -21,6 +21,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_cdf.h>
+#include <gsl/gsl_sf_exp.h>
 
 /* The exponential distribution has the form
 
@@ -37,7 +38,7 @@ gsl_cdf_exponential_P (const double x, const double mu)
     }
   else
     {
-      double P = -expm1 (-x / mu);
+      double P = -gsl_sf_expm1 (-x / mu);
 
       return P;
     }

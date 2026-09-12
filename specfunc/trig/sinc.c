@@ -22,13 +22,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_trig.h>
 
+#include "constants.h"
 #include "eval.h"
-
-/*
- * For IEEE binary64, all finite representable values >= 2^52
- * are integral.
- */
-#define TWO52 (1.0 / GSL_DBL_EPSILON)
 
 static int sinc_small(const double x, gsl_sf_result * result);
 static int h_small(const double r, gsl_sf_result * result);
@@ -74,7 +69,7 @@ gsl_sf_sinc_e(const double x, gsl_sf_result * result)
   if (a <= 0.5)
     return sinc_small(x, result);
 
-  if (a >= TWO52)
+  if (a >= GSL_SF_1_DBL_EPSILON)
     {
       result->val = 0.0;
       result->err = 0.0;
