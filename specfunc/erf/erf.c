@@ -1,0 +1,48 @@
+/* specfunc/erf/erf.c
+ *
+ * Copyright (C) 2026 Patrick Alken
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or (at
+ * your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+#include <config.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_sf_erf.h>
+
+#include "error.h"
+#include "eval.h"
+
+#ifndef HAVE_ERF
+#include "erf_fallback.c"
+#endif
+
+int
+gsl_new_sf_erf_e(const double x, gsl_sf_result * result)
+{
+#ifdef HAVE_ERF
+
+  result->val = erf(x);
+  result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+  return GSL_SUCCESS;
+
+#else
+
+  return erf_fallback(x, result);
+
+#endif
+}
+
+double gsl_new_sf_erf(const double x) { EVAL_RESULT(gsl_new_sf_erf_e(x, &result)); }

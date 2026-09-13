@@ -36,6 +36,9 @@
 
 __BEGIN_DECLS
 
+/* erf/erf.c */
+int gsl_new_sf_erf_e(const double x, gsl_sf_result * result);
+double gsl_new_sf_erf(const double x);
 
 /* Complementary Error Function
  * erfc(x) := 2/Sqrt[Pi] Integrate[Exp[-t^2], {t,x,Infinity}]

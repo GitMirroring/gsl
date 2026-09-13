@@ -221,6 +221,8 @@ if test "x$LIBS" = "x" ; then
   AC_CHECK_LIB(m, cos)
 fi
 
+AC_CHECK_FUNCS([erf])
+AC_CHECK_FUNCS([erfc])
 AC_CHECK_FUNCS([expm1])
 AC_CHECK_FUNCS([fma])
 AC_CHECK_FUNCS([lgamma])

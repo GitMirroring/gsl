@@ -27,7 +27,7 @@
 #include "error.h"
 #include "eval.h"
 
-#include "lngamma1p_fallback.c"
+#include "lngamma1p_kernels.c"
 
 #ifdef HAVE_LGAMMA
 static int lngamma_system_e(const double x, gsl_sf_result * result);

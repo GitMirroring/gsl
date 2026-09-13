@@ -4,21 +4,25 @@ noinst_LTLIBRARIES = libgslspecfunc.la
 
 AM_CPPFLAGS = -I$(top_srcdir)
 
+include erf/sources.mk
 include exp/sources.mk
 include gamma/sources.mk
 include log/sources.mk
 include trig/sources.mk
 
+include erf/headers.mk
 include exp/headers.mk
 include gamma/headers.mk
 include log/headers.mk
 
+include erf/test_sources.mk
 include exp/test_sources.mk
 include gamma/test_sources.mk
 include log/test_sources.mk
 include trig/test_sources.mk
 
 libgslspecfunc_la_SOURCES = \
+  ${ERF_SOURCES}            \
   ${EXP_SOURCES}            \
   ${GAMMA_SOURCES}          \
   ${LOG_SOURCES}            \
@@ -119,6 +123,7 @@ test_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la
 test_new_SOURCES =      \
   test_new.c            \
   test_sf_new.c         \
+  ${ERF_TEST_SOURCES}   \
   ${EXP_TEST_SOURCES}   \
   ${GAMMA_TEST_SOURCES} \
   ${LOG_TEST_SOURCES}   \
@@ -129,6 +134,7 @@ test_new_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinal
 pkginclude_HEADERS = gsl_sf.h gsl_sf_airy.h gsl_sf_alf.h gsl_sf_bessel.h gsl_sf_clausen.h gsl_sf_coulomb.h gsl_sf_coupling.h gsl_sf_dawson.h gsl_sf_debye.h gsl_sf_dilog.h gsl_sf_elementary.h gsl_sf_ellint.h gsl_sf_elljac.h gsl_sf_erf.h gsl_sf_exp.h gsl_sf_expint.h gsl_sf_fermi_dirac.h gsl_sf_gamma.h gsl_sf_gegenbauer.h gsl_sf_hermite.h gsl_sf_hyperg.h gsl_sf_laguerre.h gsl_sf_lambert.h gsl_sf_legendre.h gsl_sf_log.h gsl_sf_mathieu.h gsl_sf_pow_int.h gsl_sf_psi.h gsl_sf_result.h gsl_sf_sincos_pi.h gsl_sf_synchrotron.h gsl_sf_transport.h gsl_sf_trig.h gsl_sf_zeta.h gsl_specfunc.h
 
 noinst_HEADERS =     \
+  ${ERF_HDRS}        \
   ${EXP_HDRS}        \
   ${GAMMA_HDRS}      \
   ${LOG_HDRS}        \
