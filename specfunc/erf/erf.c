@@ -29,6 +29,15 @@
 #include "erf_fallback.c"
 #endif
 
+/*
+ * Compute the error function erf(x).
+ *
+ * If a system erf() implementation is available, use it directly and
+ * provide an estimate of its rounding error.  Otherwise, use the internal
+ * fallback implementation.
+ *
+ * Returns GSL_SUCCESS on successful evaluation.
+ */
 int
 gsl_new_sf_erf_e(const double x, gsl_sf_result * result)
 {

@@ -22,6 +22,7 @@
 
 int test_erf_all(void);
 int test_erf(void);
+int test_erfc(void);
 int test_erfcx(void);
 
 #endif /* TEST_ERF_ALL_H */
