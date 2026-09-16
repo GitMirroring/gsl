@@ -28,6 +28,7 @@ test_erf_all(void)
   status += test_erf();
   status += test_erfc();
   status += test_erfcx();
+  status += test_log_erfc();
 
   return status;
 }
