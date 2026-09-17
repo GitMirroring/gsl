@@ -26,6 +26,7 @@ int test_erf_Z(void);
 int test_erf_Q(void);
 int test_erfc(void);
 int test_erfcx(void);
+int test_hazard(void);
 int test_log_erfc(void);
 
 #endif /* TEST_ERF_ALL_H */

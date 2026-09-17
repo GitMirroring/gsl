@@ -152,9 +152,102 @@ gsl_new_sf_erf_Q_e(const double x, gsl_sf_result * result)
     }
 }
 
+/*
+ * Compute the standard normal hazard function
+ *
+ *   h(x) = Z(x) / Q(x),
+ *
+ * where Z(x) is the standard normal probability density and Q(x) is the
+ * upper-tail probability.
+ *
+ * For x < 0, evaluate Z(x)/Q(x) directly.  This is well conditioned because
+ * Q(x) approaches unity in the negative tail.
+ *
+ * For x > 0, use the equivalent identity
+ *
+ *   h(x) = sqrt(2/pi) / erfcx(x/sqrt(2)),
+ *
+ * which avoids forming exponentially small quantities in the positive tail.
+ * For sufficiently large positive x, the asymptotic behavior
+ *
+ *   h(x) = x + 1/x + O(x^-3)
+ *
+ * implies that h(x) rounds to x in binary64, so x is returned directly.
+ */
+
+int
+gsl_new_sf_hazard_e(const double x, gsl_sf_result * result)
+{
+  int status;
+  gsl_sf_result r, s;
+
+  if (x == 0.0)
+    {
+      result->val = GSL_SF_SQRT2_PI;
+      result->err = 0.0;
+      return GSL_SUCCESS;
+    }
+
+  if (x < 0.0)
+    {
+      status = gsl_new_sf_erf_Z_e(x, &r);
+      if (status)
+        return status;
+
+      status = gsl_new_sf_erf_Q_e(x, &s);
+      if (status)
+        return status;
+
+      result->val = r.val / s.val;
+
+      if (r.val != 0.0)
+        {
+          result->err = fabs(result->val) * (r.err / fabs(r.val) + s.err / fabs(s.val)) +
+                        4.0 * GSL_DBL_EPSILON * fabs(result->val);
+        }
+      else
+        {
+          result->err = r.err / fabs(s.val) + 4.0 * GSL_DBL_EPSILON * fabs(result->val);
+        }
+
+      if (result->err == 0.0 && result->val != 0.0)
+        result->err = GSL_SF_TRUE_MIN;
+
+      return GSL_SUCCESS;
+    }
+  else
+    {
+      /* h(x) = x + 1/x + O(x^-3).  For x >= 2e8 the correction 1/x is
+       * below one-half of a binary64 ulp of x, so the correctly rounded
+       * result is x.  This also avoids overflow in the reciprocal of the
+       * asymptotic erfcx value near DBL_MAX. */
+      if (x >= 2.0e8)
+        {
+          result->val = x;
+          result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+          return GSL_SUCCESS;
+        }
+
+      {
+        const double z = x * M_SQRT1_2;
+
+        status = gsl_sf_erfcx_e(z, &r);
+        if (status)
+          return status;
+
+        result->val = GSL_SF_SQRT2_PI / r.val;
+        result->err = fabs(result->val) * (r.err / fabs(r.val)) +
+                      4.0 * GSL_DBL_EPSILON * fabs(result->val);
+
+        return GSL_SUCCESS;
+      }
+    }
+}
+
 double gsl_new_sf_erf(const double x) { EVAL_RESULT(gsl_new_sf_erf_e(x, &result)); }
 double gsl_new_sf_erf_Z(const double x) { EVAL_RESULT(gsl_new_sf_erf_Z_e(x, &result)); }
 double gsl_new_sf_erf_Q(const double x) { EVAL_RESULT(gsl_new_sf_erf_Q_e(x, &result)); }
+double gsl_new_sf_hazard(const double x) { EVAL_RESULT(gsl_new_sf_hazard_e(x, &result)); }
 
 /*************************************************
  * INTERNAL ROUTINES                             *

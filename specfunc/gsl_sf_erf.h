@@ -40,9 +40,11 @@ __BEGIN_DECLS
 int gsl_new_sf_erf_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_erf_Z_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_erf_Q_e(const double x, gsl_sf_result * result);
+int gsl_new_sf_hazard_e(const double x, gsl_sf_result * result);
 double gsl_new_sf_erf(const double x);
 double gsl_new_sf_erf_Z(const double x);
 double gsl_new_sf_erf_Q(const double x);
+double gsl_new_sf_hazard(const double x);
 
 /* erf/erfc.c */
 int gsl_new_sf_erfc_e(const double x, gsl_sf_result * result);

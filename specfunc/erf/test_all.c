@@ -30,6 +30,7 @@ test_erf_all(void)
   status += test_erf_Q();
   status += test_erfc();
   status += test_erfcx();
+  status += test_hazard();
   status += test_log_erfc();
 
   return status;
