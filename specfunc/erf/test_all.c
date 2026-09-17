@@ -26,6 +26,8 @@ test_erf_all(void)
   int status = 0;
 
   status += test_erf();
+  status += test_erf_Z();
+  status += test_erf_Q();
   status += test_erfc();
   status += test_erfcx();
   status += test_log_erfc();
