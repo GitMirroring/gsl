@@ -259,7 +259,7 @@ test_erf(void)
 {
   int s = 0;
 
-  TEST_ERF_FUNC(gsl_new_sf_erf_e);
+  TEST_ERF_FUNC(gsl_sf_erf_e);
   TEST_ERF_FUNC(erf_fallback);
 
   return s;

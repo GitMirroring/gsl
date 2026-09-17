@@ -72,7 +72,6 @@ libgslspecfunc_la_SOURCES = \
   elementary.c              \
   ellint.c                  \
   elljac.c                  \
-  erfc.c                    \
   exp.c                     \
   expint.c                  \
   expint3.c                 \

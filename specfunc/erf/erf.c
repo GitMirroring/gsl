@@ -45,7 +45,7 @@ static int erf_Q_positive(const double x, gsl_sf_result * result);
  * Returns GSL_SUCCESS on successful evaluation.
  */
 int
-gsl_new_sf_erf_e(const double x, gsl_sf_result * result)
+gsl_sf_erf_e(const double x, gsl_sf_result * result)
 {
 #ifdef HAVE_ERF
 
@@ -72,7 +72,7 @@ gsl_new_sf_erf_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_erf_Z_e(const double x, gsl_sf_result * result)
+gsl_sf_erf_Z_e(const double x, gsl_sf_result * result)
 {
   const double zero_x = 3.8580157609028419e1;
   const int scale_K = 48;
@@ -123,7 +123,7 @@ gsl_new_sf_erf_Z_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_erf_Q_e(const double x, gsl_sf_result * result)
+gsl_sf_erf_Q_e(const double x, gsl_sf_result * result)
 {
   if (x == 0.0)
     {
@@ -176,7 +176,7 @@ gsl_new_sf_erf_Q_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_hazard_e(const double x, gsl_sf_result * result)
+gsl_sf_hazard_e(const double x, gsl_sf_result * result)
 {
   int status;
   gsl_sf_result r, s;
@@ -190,11 +190,11 @@ gsl_new_sf_hazard_e(const double x, gsl_sf_result * result)
 
   if (x < 0.0)
     {
-      status = gsl_new_sf_erf_Z_e(x, &r);
+      status = gsl_sf_erf_Z_e(x, &r);
       if (status)
         return status;
 
-      status = gsl_new_sf_erf_Q_e(x, &s);
+      status = gsl_sf_erf_Q_e(x, &s);
       if (status)
         return status;
 
@@ -244,10 +244,10 @@ gsl_new_sf_hazard_e(const double x, gsl_sf_result * result)
     }
 }
 
-double gsl_new_sf_erf(const double x) { EVAL_RESULT(gsl_new_sf_erf_e(x, &result)); }
-double gsl_new_sf_erf_Z(const double x) { EVAL_RESULT(gsl_new_sf_erf_Z_e(x, &result)); }
-double gsl_new_sf_erf_Q(const double x) { EVAL_RESULT(gsl_new_sf_erf_Q_e(x, &result)); }
-double gsl_new_sf_hazard(const double x) { EVAL_RESULT(gsl_new_sf_hazard_e(x, &result)); }
+double gsl_sf_erf(const double x) { EVAL_RESULT(gsl_sf_erf_e(x, &result)); }
+double gsl_sf_erf_Z(const double x) { EVAL_RESULT(gsl_sf_erf_Z_e(x, &result)); }
+double gsl_sf_erf_Q(const double x) { EVAL_RESULT(gsl_sf_erf_Q_e(x, &result)); }
+double gsl_sf_hazard(const double x) { EVAL_RESULT(gsl_sf_hazard_e(x, &result)); }
 
 /*************************************************
  * INTERNAL ROUTINES                             *
@@ -332,7 +332,7 @@ erf_Q_positive(const double x, gsl_sf_result * result)
 
   if (x < 1.0)
     {
-      status = gsl_new_sf_erfc_e(z, &s);
+      status = gsl_sf_erfc_e(z, &s);
       if (status)
         return status;
 

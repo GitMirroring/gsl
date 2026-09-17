@@ -21,6 +21,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_dd.h>
+#include <gsl/gsl_sf_erf.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_gamma.h>
 
@@ -792,7 +793,7 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
 static double
 gamma_inc_half_erfc_dd(const gsl_dd z)
 {
-  return 0.5 * erfc(z.hi) - exp(-z.hi * z.hi) / M_SQRTPI * z.lo;
+  return 0.5 * gsl_sf_erfc(z.hi) - exp(-z.hi * z.hi) / M_SQRTPI * z.lo;
 }
 
 /*

@@ -254,7 +254,7 @@ test_erfc(void)
 {
   int s = 0;
 
-  TEST_ERFC_FUNC(gsl_new_sf_erfc_e);
+  TEST_ERFC_FUNC(gsl_sf_erfc_e);
   TEST_ERFC_FUNC(erfc_fallback);
 
   return s;

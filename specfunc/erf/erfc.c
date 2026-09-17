@@ -41,7 +41,7 @@
  * Returns GSL_SUCCESS on successful evaluation.
  */
 int
-gsl_new_sf_erfc_e(const double x, gsl_sf_result * result)
+gsl_sf_erfc_e(const double x, gsl_sf_result * result)
 {
 #ifdef HAVE_ERFC
 
@@ -80,7 +80,7 @@ gsl_new_sf_erfc_e(const double x, gsl_sf_result * result)
  * Returns GSL_SUCCESS on successful evaluation.
  */
 int
-gsl_new_sf_log_erfc_e(const double x, gsl_sf_result * result)
+gsl_sf_log_erfc_e(const double x, gsl_sf_result * result)
 {
   int status;
   const double ax = fabs(x);
@@ -97,7 +97,7 @@ gsl_new_sf_log_erfc_e(const double x, gsl_sf_result * result)
   /* erfc(x) is near unity here; do not form log(erfc(x)). */
   if (ax < 0.5)
     {
-      status = gsl_new_sf_erf_e(x, &r);
+      status = gsl_sf_erf_e(x, &r);
       if (status)
         return status;
 
@@ -127,7 +127,7 @@ gsl_new_sf_log_erfc_e(const double x, gsl_sf_result * result)
           return GSL_SUCCESS;
         }
 
-      status = gsl_new_sf_erfc_e(axv, &r);
+      status = gsl_sf_erfc_e(axv, &r);
       if (status)
         return status;
 
@@ -144,7 +144,7 @@ gsl_new_sf_log_erfc_e(const double x, gsl_sf_result * result)
   /* In the ordinary positive range erfc itself is well conditioned. */
   if (x <= 5.0)
     {
-      status = gsl_new_sf_erfc_e(x, &r);
+      status = gsl_sf_erfc_e(x, &r);
       if (status)
         return status;
 
@@ -182,5 +182,5 @@ gsl_new_sf_log_erfc_e(const double x, gsl_sf_result * result)
   return GSL_SUCCESS;
 }
 
-double gsl_new_sf_erfc(const double x) { EVAL_RESULT(gsl_new_sf_erfc_e(x, &result)); }
-double gsl_new_sf_log_erfc(const double x) { EVAL_RESULT(gsl_new_sf_log_erfc_e(x, &result)); }
+double gsl_sf_erfc(const double x) { EVAL_RESULT(gsl_sf_erfc_e(x, &result)); }
+double gsl_sf_log_erfc(const double x) { EVAL_RESULT(gsl_sf_log_erfc_e(x, &result)); }

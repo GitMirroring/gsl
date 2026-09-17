@@ -30,175 +30,175 @@ test_log_erfc(void)
   int s = 0;
 
   /* Exact zero. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0, &r),
           0.0, TEST_TOL0, GSL_SUCCESS);
 
   /* Central branch: |x| < 0.5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (4.9406564584124654e-324, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (4.9406564584124654e-324, &r),
           0.0, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-4.9406564584124654e-324, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-4.9406564584124654e-324, &r),
           0.0, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (9.5367431640625e-07, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (9.5367431640625e-07, &r),
           -0.000001076106809829265850423220254434302797412010314627023621, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-9.5367431640625e-07, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-9.5367431640625e-07, &r),
           0.000001076105651824645826049156432242352045103669649372120777, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.125, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.125, &r),
           -0.151190637346999639057631619574957661207054174959035913, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.125, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.125, &r),
           0.1313055965784761514747110740387684343088386760345354656, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.25, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.25, &r),
           -0.3234148033936194180276667763428214325214450962233862379, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.25, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.25, &r),
           0.2439859438813844312491516019097305136778188214517141903, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.48999999999999999, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.48999999999999999, &r),
           -0.7167603114368804402450321206672767456294164430032065018, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.48999999999999999, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.48999999999999999, &r),
           0.413213849708923287712919508628209357075072427209655905, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.49999999999999994, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.49999999999999994, &r),
           -0.7350111298370843012902793060426141781251075757325863947, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.49999999999999994, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.49999999999999994, &r),
           0.4190391477755595482803481770160419130215706717695970724, TEST_TOL0, GSL_SUCCESS);
 
   /* Transition at x = +0.5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.5, &r),
           -0.7350111298370844030258793225540198922317462317022836198, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.50000000000000011, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.50000000000000011, &r),
           -0.7350111298370846064970793555768454284611213444666154234, TEST_TOL0, GSL_SUCCESS);
 
   /* Transition at x = -0.5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.50000000000000011, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.50000000000000011, &r),
           0.4190391477755596445294173492759984207934278890473069839, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.5, &r),
           0.4190391477755595803633712344360302258981031435107388969, TEST_TOL0, GSL_SUCCESS);
 
   /* Negative branch: -6 < x < -0.5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-0.75, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-0.75, &r),
           0.5371689514124971248910641918384837694944357434514576887, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-1, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-1, &r),
           0.6112323176780704946426819244493282374613482978958762721, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-1.5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-1.5, &r),
           0.6760545027339605639664411197078206925553938814633018187, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-2, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-2, &r),
           0.6908055736465876567632438279326145203570848522503716364, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-3, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-3, &r),
           0.6931361352504468103229731472602417705776933030933484428, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-4, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-4, &r),
           0.6931471728513163295657423972201563094548471996221073702, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-5, &r),
           0.6931471805591765795200178085602549608444849089895863156, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-5.9999999999999991, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-5.9999999999999991, &r),
           0.6931471805599452986573637652086037203675136326656569341, TEST_TOL0, GSL_SUCCESS);
 
   /* Negative saturation transition at x = -6. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-6, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-6, &r),
           0.6931471805599452986573637652087199518914414128573714278, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-6.0000000000000009, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-6.0000000000000009, &r),
           0.6931471805599452986573637652088361834153691918102739466, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-8, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-8, &r),
           0.6931471805599453094172321214525644194890086708202713099, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-20, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-20, &r),
           0.6931471805599453094172321214581765680755001343602552541, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (-100, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (-100, &r),
           0.6931471805599453094172321214581765680755001343602552541, TEST_TOL0, GSL_SUCCESS);
 
   /* Ordinary positive branch: 0.5 <= x <= 5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (0.75, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (0.75, &r),
           -1.241867260678887040159074169076479456697396402882096329, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1, &r),
           -1.849605509933248248576017509498991268898258273089764799, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1.5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1.5, &r),
           -3.384492089551552720322759591874939320989420517576460466, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (2, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (2, &r),
           -5.364941264616637574467648503648559150721972881628616374, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (3, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (3, &r),
           -10.7203630419811125677308924765586381106261092165801402, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (4, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (4, &r),
           -17.98777831210300650300042075082671539860148041447440361, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (4.9999999999999991, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (4.9999999999999991, &r),
           -27.20088954553742536950580880128723414148797935785655861, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (5, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (5, &r),
           -27.20088954553743442244203600749085456616566069726093237, TEST_TOL0, GSL_SUCCESS);
 
   /* Positive-tail transition at x = 5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (5.0000000000000009, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (5.0000000000000009, &r),
           -27.20088954553744347537826321369602441925794433781131409, TEST_TOL0, GSL_SUCCESS);
 
   /* Positive erfcx tail: x > 5. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (6, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (6, &r),
           -38.37756117322338836601690618842403693687070422361521629, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (8, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (8, &r),
           -66.65947197080516148974537269134249657822591970926821542, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (10, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (10, &r),
           -102.8798890248448885748047871396365980054505548905595041, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (20, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (20, &r),
           -403.5693433341042349629687923481554222174832068983904481, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (28, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (28, &r),
           -787.905206194557712283604296590036322552318082248220229, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (50, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (50, &r),
           -2504.484587848451371872953835013140893299078962654637367, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (100, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (100, &r),
           -10005.17758512266433257046678208395300327579496510330615, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1000, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1000, &r),
           -1000007.48012072190621214066734919079679475153155104328, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1000000, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1000000, &r),
           -1000000000014.387875500889474191179661778782714602971923, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1000000000000, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1000000000000, &r),
           -1000000000000000000000028.203386058853248295287611631889, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (1e+100, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (1e+100, &r),
           -1.000000000000000031805782219519836346574107361670094061e+200, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (9.9999999999999998e+149, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (9.9999999999999998e+149, &r),
           -9.999999999999999616711923448747495484206140939576446147e+299, TEST_TOL0, GSL_SUCCESS);
 
   /* Special values. */
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (GSL_POSINF, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (GSL_POSINF, &r),
           GSL_NEGINF, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (GSL_NEGINF, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (GSL_NEGINF, &r),
           0.6931471805599453094172321214581765680755001343602552541, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_log_erfc_e, (GSL_NAN, &r),
+  TEST_SF(s, gsl_sf_log_erfc_e, (GSL_NAN, &r),
           GSL_NAN, TEST_TOL0, GSL_SUCCESS);
 
   return s;
