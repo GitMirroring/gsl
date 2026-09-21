@@ -25,11 +25,14 @@ test_gamma_all(void)
 {
   int status = 0;
 
-  status += test_gamma_inc_P();
-  status += test_gamma_inc_Q();
+  status += test_gamma();
   status += test_gammainv();
+
   status += test_lngamma();
   status += test_lngamma1p();
+
+  status += test_gamma_inc_P();
+  status += test_gamma_inc_Q();
 
   return status;
 }

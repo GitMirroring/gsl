@@ -17,6 +17,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * The large-argument Gamma reconstruction and recurrence-product
+ * strategy are based on the glibc tgamma implementation
+ * (sysdeps/ieee754/dbl-64/e_gamma_r.c).
+ * The implementation here has been adapted to return a scaled
+ * Gamma value, use GSL double-double arithmetic, and propagate
+ * GSL error estimates.
+ */
+
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
@@ -37,7 +46,12 @@ static int gamma_low(const double x, gsl_sf_result * result);
 static void gamma_product(const double x, const double x_eps, const int n, double *prod, double *eps);
 static double gamma_stirling_exp_adj(const double x_adj, const double x_eps);
 static int gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2);
+static int gamma_high_scaled_eps(const double x, const double x_eps_in,
+                                 gsl_sf_result * mant, int * exp2);
 static int gamma_2_inf_scaled(const double x, gsl_sf_result * mant, int * exp2);
+static int gamma_neg_small(const double x, gsl_sf_result * result);
+static int gamma_neg_recurrence(const double x, gsl_sf_result * result);
+static int gamma_neg_reflection(const double x, gsl_sf_result * result);
 
 #define GAMMA_SCALED_X_MAX 2.0000000000000000e+02
 
@@ -282,6 +296,38 @@ gamma_stirling_exp_adj(const double x_adj, const double x_eps)
 static int
 gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
 {
+  return gamma_high_scaled_eps(x, 0.0, mant, exp2);
+}
+
+/*
+ * Evaluate Gamma(x+x_eps_in) in scaled form for x > 10,
+ *
+ *   Gamma(x+x_eps_in) = mant * 2^exp2,
+ *
+ * where x is the principal double-precision argument and x_eps_in is a
+ * small correction to that argument.
+ *
+ * This is the corrected-argument form of gamma_high_scaled().  For
+ * 10 < x < 12, the argument is shifted upward and the correction is
+ * propagated through the recurrence product.  For larger x it enters
+ * directly into the Stirling reconstruction.
+ *
+ * The computation uses double-double arithmetic for the principal
+ * products and divisions.  Error estimates from exp2() and expm1(),
+ * together with the recurrence-product correction and ordinary
+ * floating-point rounding errors, are propagated to the returned
+ * mantissa.
+ *
+ * On success, mant contains the normalized mantissa and its absolute
+ * error estimate, while *exp2 contains the corresponding binary
+ * exponent.
+ */
+
+static int
+gamma_high_scaled_eps(const double x, const double x_eps_in,
+                      gsl_sf_result * mant, int * exp2)
+{
+  int status;
   double x_adj = x;
   double prod = 1.0;
   double eps = 0.0;
@@ -290,7 +336,6 @@ gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
   gsl_sf_result rexp2;
   gsl_sf_result rexpm1;
   gsl_dd a, b, c, d;
-  int status;
   int n = 0;
   int e2;
 
@@ -298,13 +343,12 @@ gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
     {
       n = (int) ceil(12.0 - x);
       x_adj = x + (double) n;
-      x_eps = x - (x_adj - (double) n);
-
+      x_eps = x - (x_adj - (double) n) + x_eps_in;
       gamma_product(x_adj - (double) n, x_eps, n, &prod, &eps);
     }
   else
     {
-      x_eps = 0.0;
+      x_eps = x_eps_in;
     }
 
   xi = floor(x_adj + 0.5);
@@ -317,8 +361,9 @@ gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
       mant0 *= 2.0;
     }
 
-  /* a = mant0^x_adj * 2^(e2*xf) */
-  a.hi = pow(mant0, x_adj); a.lo = 0.0;
+  /* a = mant0^x_adj * 2^(e2*xf). */
+  a.hi = pow(mant0, x_adj);
+  a.lo = 0.0;
 
   status = gsl_sf_exp2_e((double) e2 * xf, &rexp2);
   if (status)
@@ -326,24 +371,20 @@ gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
 
   a = gsl_dd_mul_d(a, rexp2.val);
 
-  /* b = exp(-x_adj) * sqrt(2*pi/x_adj) */
-  b.hi = exp(-x_adj); b.lo = 0.0;
+  /* b = exp(-x_adj) * sqrt(2*pi/x_adj). */
+  b.hi = exp(-x_adj);
+  b.lo = 0.0;
   b = gsl_dd_mul_d(b, sqrt(2.0 * M_PI / x_adj));
 
-  /* c = a*b */
+  /* c = a*b. */
   c = gsl_dd_mul(a, b);
 
-  /*
-   * Divide by the recurrence product.  The low component of d contains
-   * the DD product residual together with the first-order correction
-   * associated with x_eps.
-   */
+  /* Divide by the recurrence product. */
   d.hi = prod;
   d.lo = prod * eps;
-
   c = gsl_dd_div(c, d);
 
-  /* apply Stirling correction */
+  /* Apply Stirling correction, including the x_eps correction. */
   ea = gamma_stirling_exp_adj(x_adj, x_eps);
 
   status = gsl_sf_expm1_e(ea, &rexpm1);
@@ -352,23 +393,13 @@ gamma_high_scaled(const double x, gsl_sf_result * mant, int * exp2)
 
   c.lo += c.hi * rexpm1.val;
 
-  /* Return the normalized mantissa */
+  /* Return normalized mantissa. */
   mant->val = frexp(c.hi + c.lo, exp2);
 
-  /*
-   * Relative error estimate.
-   *
-   * eps                         recurrence-product correction
-   * rexp2.err/rexp2.val         exp2 error
-   * rexpm1.err/(1+expm1)        expm1 error in the multiplicative
-   *                             Stirling correction
-   *
-   * The remaining 3*epsilon allowance covers the ordinary arithmetic
-   * and the scalar operations whose errors are not separately exposed.
-   */
-  relerr = 3.0 * GSL_DBL_EPSILON +
-           rexp2.err / fabs(rexp2.val) +
-           rexpm1.err / fabs(1.0 + rexpm1.val);
+  /* Relative error estimate. */
+  relerr = 3.0 * GSL_DBL_EPSILON
+         + rexp2.err / fabs(rexp2.val)
+         + rexpm1.err / fabs(1.0 + rexpm1.val);
 
   if (n > 0)
     relerr += fabs(eps);
@@ -419,4 +450,199 @@ gamma_2_inf_scaled(const double x, gsl_sf_result * mant, int * exp2)
     }
 
   return gamma_high_scaled(x, mant, exp2);
+}
+
+/*
+ * Evaluate Gamma(x) for -1 < x < 0.
+ *
+ * Write r = x+1 and use
+ *
+ *   Gamma(x) = 1/[x(x+1)] + H(x+1),
+ *
+ * where H is defined by
+ *
+ *   Gamma(1+r) = 1 + r(r-1) H(r).
+ *
+ * This form avoids forming Gamma(x+1) followed by division by x,
+ * which would amplify rounding error near x = 0.  The error estimate
+ * includes the reciprocal-product error, the error in H, and the
+ * final addition.
+ */
+static int
+gamma_neg_small(const double x, gsl_sf_result * result)
+{
+  int status;
+  const double r = x + 1.0;
+  const double p = x * r;
+  gsl_sf_result h;
+  double a, ea, b, eb;
+
+  status = gamma1p_H(r, &h);
+  if (status)
+    return status;
+
+  a = 1.0 / p;
+  ea = 3.0 * GSL_DBL_EPSILON * fabs(a);
+  b = h.val;
+  eb = h.err;
+
+  result->val = a + b;
+  result->err = ea + eb + GSL_DBL_EPSILON * fabs(result->val);
+
+  if (gsl_isinf(result->val))
+    {
+      result->err = GSL_POSINF;
+      return GSL_EOVRFLW;
+    }
+
+  return GSL_SUCCESS;
+}
+
+/*
+ * Evaluate Gamma(x) for -10 <= x < -1 using recurrence.
+ *
+ * Shift the argument by
+ *
+ *   r = x+n,  0 < r < 1,
+ *
+ * and evaluate
+ *
+ *   Gamma(r) = 1/r + (r-1) H(r).
+ *
+ * The recurrence relation
+ *
+ *   Gamma(x) = Gamma(r) / [x (x+1) ... (x+n-1)]
+ *
+ * is then applied.  The denominator product and final division are
+ * performed in double-double arithmetic to reduce accumulated
+ * rounding error.
+ *
+ * The returned error estimate allows for rounding accumulated over
+ * the recurrence.
+ */
+static int
+gamma_neg_recurrence(const double x, gsl_sf_result * result)
+{
+  int status;
+  const int n = (int) ceil(-x);
+  const double r = x + (double) n;
+  const double one_over_r = 1.0 / r;
+  gsl_sf_result h;
+  gsl_dd p = { 1.0, 0.0 };
+  gsl_dd a, q;
+  double term;
+  int k;
+
+  /* Gamma(r) = 1/r + (r-1) H(r), 0 < r < 1. */
+  status = gamma1p_H(r, &h);
+  if (status)
+    return status;
+
+  term = (r - 1.0) * h.val;
+
+  a.hi = one_over_r + term; a.lo = 0.0;
+
+  for (k = 0; k < n; ++k)
+    p = gsl_dd_mul_d(p, x + (double) k);
+
+  q = gsl_dd_div(a, p);
+  result->val = q.hi + q.lo;
+  result->err = 4.0 * (double) n * GSL_DBL_EPSILON * fabs(result->val);
+
+  if (gsl_isinf(result->val))
+    {
+      result->err = GSL_POSINF;
+      return GSL_EOVRFLW;
+    }
+
+  return GSL_SUCCESS;
+}
+
+/*
+ * Evaluate Gamma(x) for x < -10 using scaled reflection.
+ *
+ * The reflection formula
+ *
+ *   Gamma(x) = pi / [sin(pi*x) Gamma(1-x)]
+ *
+ * is evaluated using gsl_sf_sin_pi_e() and the scaled positive-Gamma
+ * kernel gamma_high_scaled_eps().  The correction y_eps preserves the
+ * rounding residual introduced when forming
+ *
+ *   y = 1-x.
+ *
+ * Keeping Gamma(1-x) in scaled form avoids intermediate overflow in
+ * the positive Gamma factor.  The errors in sin(pi*x), the scaled
+ * Gamma value, the division, and the final scaling are propagated to
+ * result->err.
+ *
+ * Negative integer arguments are poles and return GSL_EDOM.  Results
+ * which round to zero return GSL_EUNDRFLW.  Nonzero subnormal results
+ * use a conservative absolute error bound of 2*GSL_SF_TRUE_MIN,
+ * since scaling the propagated error may itself underflow.
+ */
+static int
+gamma_neg_reflection(const double x, gsl_sf_result * result)
+{
+  int status;
+  const double y = 1.0 - x;
+  const double y_eps = -x + (1.0 - y);
+  gsl_sf_result s, gm;
+  double num, epsnum, qmant, eqmant;
+  int ge;
+
+  status = gsl_sf_sin_pi_e(x, &s);
+  if (status)
+    return status;
+
+  if (s.val == 0.0)
+    DOMAIN_ERROR(result);
+
+  if (y > GAMMA_SCALED_X_MAX)
+    {
+      result->val = 0.0;
+      result->err = GSL_SF_TRUE_MIN;
+      return GSL_EUNDRFLW;
+    }
+
+  status = gamma_high_scaled_eps(y, y_eps, &gm, &ge);
+  if (status)
+    return status;
+
+  /* Gamma(x) = pi / (sin(pi*x) Gamma(1-x)). */
+  num = M_PI / s.val;
+  epsnum = M_PI * s.err / (s.val * s.val)
+         + GSL_DBL_EPSILON * fabs(num);
+
+  qmant = num / gm.val;
+  eqmant = epsnum / fabs(gm.val)
+         + fabs(num) * gm.err / (gm.val * gm.val)
+         + 2.0 * GSL_DBL_EPSILON * fabs(qmant);
+
+  result->val = ldexp(qmant, -ge);
+
+  if (gsl_isinf(result->val))
+    {
+      result->err = GSL_POSINF;
+      return GSL_EOVRFLW;
+    }
+  else if (result->val == 0.0)
+    {
+      result->err = GSL_SF_TRUE_MIN;
+      return GSL_EUNDRFLW;
+    }
+  else if (fabs(result->val) < GSL_DBL_MIN)
+    {
+      /*
+       * Scaling the propagated error can itself underflow.  Use a
+       * conservative absolute error bound in the subnormal range.
+       */
+      result->err = 2.0 * GSL_SF_TRUE_MIN;
+      return GSL_SUCCESS;
+    }
+  else
+    {
+      result->err = ldexp(eqmant, -ge);
+      return GSL_SUCCESS;
+    }
 }

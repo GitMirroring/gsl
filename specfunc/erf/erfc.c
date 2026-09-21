@@ -46,7 +46,12 @@ gsl_sf_erfc_e(const double x, gsl_sf_result * result)
 #ifdef HAVE_ERFC
 
   result->val = erfc(x);
-  result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+
+  if (fabs(result->val) < GSL_DBL_MIN)
+    result->err = GSL_SF_TRUE_MIN;
+  else
+    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+
   return GSL_SUCCESS;
 
 #else

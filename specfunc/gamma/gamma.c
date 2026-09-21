@@ -26,10 +26,42 @@
 #include "eval.h"
 
 #include "gamma_kernels.c"
+#include "gamma_fallback.c"
 
 #ifdef HAVE_TGAMMA
 static int gamma_system_e(const double x, gsl_sf_result * result);
 #endif
+
+/*
+ * Gamma function
+ *
+ * Computes
+ *
+ *   Gamma(x)
+ *
+ * over the real line.  Negative integers and zero are poles and return
+ * GSL_EDOM.  Results which overflow or underflow the double-precision
+ * range return GSL_EOVRFLW or GSL_EUNDRFLW, respectively.
+ *
+ * If the system tgamma() function is available, it is used directly.
+ * Otherwise gamma_fallback_e() provides a portable implementation using
+ * the Gamma kernels in gamma_kernels.c.
+ */
+
+int
+gsl_new_sf_gamma_e(const double x, gsl_sf_result * result)
+{
+#ifdef HAVE_TGAMMA
+
+  /* use system tgamma() */
+  return gamma_system_e(x, result);
+
+#else
+
+  return gamma_fallback_e(x, result);
+
+#endif
+}
 
 /*
  * Reciprocal gamma function
@@ -224,6 +256,7 @@ gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
     }
 }
 
+double gsl_new_sf_gamma(const double x) { EVAL_RESULT(gsl_new_sf_gamma_e(x, &result)); }
 double gsl_new_sf_gammainv(const double x) { EVAL_RESULT(gsl_new_sf_gammainv_e(x, &result)); }
 
 /********************************************
@@ -232,11 +265,49 @@ double gsl_new_sf_gammainv(const double x) { EVAL_RESULT(gsl_new_sf_gammainv_e(x
 
 #ifdef HAVE_TGAMMA
 
+/*
+ * Evaluate Gamma(x) using the system tgamma() function.
+ *
+ * The system function supplies only the value, so an absolute error
+ * estimate is constructed here.  For normal finite results the estimate
+ * is
+ *
+ *   12 eps |Gamma(x)|,
+ *
+ * while nonzero subnormal results use 2*GSL_SF_TRUE_MIN.  Exact zero
+ * results are reported as underflow and infinite results as overflow.
+ * Gamma poles at zero and the negative integers are detected before
+ * calling tgamma().
+ */
+
 static int
 gamma_system_e(const double x, gsl_sf_result * result)
 {
+  if (x == 0.0 || (x < 0.0 && x == floor(x)))
+    DOMAIN_ERROR(result);
+
   result->val = tgamma(x);
-  return GSL_SUCCESS;
+
+  if (gsl_isinf(result->val))
+    {
+      result->err = GSL_POSINF;
+      return GSL_EOVRFLW;
+    }
+  else if (result->val == 0.0)
+    {
+      result->err = GSL_SF_TRUE_MIN;
+      return GSL_EUNDRFLW;
+    }
+  else if (fabs(result->val) < GSL_DBL_MIN)
+    {
+      result->err = 2.0 * GSL_SF_TRUE_MIN;
+      return GSL_SUCCESS;
+    }
+  else
+    {
+      result->err = 12.0 * GSL_DBL_EPSILON * fabs(result->val);
+      return GSL_SUCCESS;
+    }
 }
 
 #endif /* HAVE_TGAMMA */
