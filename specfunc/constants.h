@@ -26,11 +26,13 @@
 #define GSL_SF_LN2_LO              1.90821492927058770002e-10     /* low part of log(2) */
 #define GSL_SF_DBL_EPSILON_4       5.55111512312578270212e-17     /* GSL_DBL_EPSILON / 4 = 2^{-54} */
 #define GSL_SF_LOG_SQRT_2PI        9.18938533204672741780e-01     /* log(sqrt(2*pi)) */
-#define GSL_SF_INV_SQRT_2PI        3.989422804014326779399460599343818684e-01 /* 1/sqrt(2*pi) */
-#define GSL_SF_SQRT2_PI            0.797884560802865355879892119869763288 /* sqrt(2/pi) */
+#define GSL_SF_INV_SQRT_2PI        3.98942280401432677940e-01     /* 1/sqrt(2*pi) */
+#define GSL_SF_SQRT2_PI            7.97884560802865355880e-01     /* sqrt(2/pi) */
+#define GSL_SF_1_MINUS_EULER       4.22784335098467139393e-01     /* 1 - M_EULER */
+#define GSL_SF_PI2_12              8.22467033424113218236e-01     /* pi^2 / 12 */
+
 #define GSL_SF_TRUE_MIN            4.94065645841246544177e-324    /* GSL_DBL_MIN * GSL_DBL_EPSILON = 2^{-1074} */
 #define GSL_SF_LOG_TRUE_MIN       -7.44440071921381262314e+02     /* log(GSL_SF_TRUE_MIN) */
 #define GSL_SF_1_DBL_EPSILON       4.50359962737049600000e+15     /* 1 / GSL_DBL_EPSILON = 2^{52} */
-#define GSL_SF_PI2_12              8.22467033424113218236e-01     /* pi^2 / 12 */
 
 #endif /* !__CONSTANTS_H__ */

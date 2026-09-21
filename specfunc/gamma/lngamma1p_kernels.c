@@ -1,4 +1,4 @@
-/* specfunc/gamma/lngamma1p_fallback.c
+/* specfunc/gamma/lngamma1p_kernels.c
  *
  * Copyright (C) 2026 Patrick Alken
  *
@@ -134,7 +134,7 @@ lngamma1p_near1_y(const double y, gsl_sf_result * result)
   const double p = P[0] + y*(P[1] + y*(P[2] + y*(P[3] + y*(P[4] + y*(P[5] + y*P[6])))));
   const double q = Q[0] + y*(Q[1] + y*(Q[2] + y*(Q[3] + y*(Q[4] + y*(Q[5] + y*Q[6])))));
 
-  result->val = y*(LNGAMMA_M_1_MINUS_EULER + y*(LNGAMMA_M_PI2_12_MINUS_HALF + y*(p/q)));
+  result->val = y*(GSL_SF_1_MINUS_EULER + y*(LNGAMMA_M_PI2_12_MINUS_HALF + y*(p/q)));
   result->err = 16.0 * GSL_DBL_EPSILON * fabs(result->val);
 
   return GSL_SUCCESS;

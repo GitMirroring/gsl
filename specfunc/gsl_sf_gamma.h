@@ -36,6 +36,10 @@
 
 __BEGIN_DECLS
 
+/* gamma/gamma.c */
+int gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result);
+double gsl_new_sf_gammainv(const double x);
+
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);

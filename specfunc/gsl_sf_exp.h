@@ -37,6 +37,10 @@
 
 __BEGIN_DECLS
 
+/* exp/exp2.c */
+int gsl_sf_exp2_e(const double x, gsl_sf_result * result);
+double gsl_sf_exp2(const double x);
+
 /* exp/expm1.c */
 int gsl_sf_expm1_e(const double x, gsl_sf_result * result);
 double gsl_sf_expm1(const double x);

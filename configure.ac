@@ -223,11 +223,13 @@ fi
 
 AC_CHECK_FUNCS([erf])
 AC_CHECK_FUNCS([erfc])
+AC_CHECK_FUNCS([exp2])
 AC_CHECK_FUNCS([expm1])
 AC_CHECK_FUNCS([fma])
 AC_CHECK_FUNCS([lgamma])
 AC_CHECK_FUNCS([lgamma_r])
 AC_CHECK_FUNCS([log1p])
+AC_CHECK_FUNCS([tgamma])
 
 dnl Remember to put a definition in acconfig.h for each of these
 AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1

@@ -257,7 +257,7 @@ lngamma_near2(const double x, gsl_sf_result * result)
   const double p = P[0] + z * (P[1] + z * (P[2] + z * (P[3] + z * (P[4] + z * (P[5] + z * P[6])))));
   const double q = Q[0] + z * (Q[1] + z * (Q[2] + z * (Q[3] + z * (Q[4] + z * (Q[5] + z * Q[6])))));
 
-  result->val = z * (LNGAMMA_M_1_MINUS_EULER + z*(LNGAMMA_M_PI2_12_MINUS_HALF + z*(p/q)));
+  result->val = z * (GSL_SF_1_MINUS_EULER + z*(LNGAMMA_M_PI2_12_MINUS_HALF + z*(p/q)));
   result->err = 16.0 * GSL_DBL_EPSILON * fabs(result->val);
 
   return GSL_SUCCESS;

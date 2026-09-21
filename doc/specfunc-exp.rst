@@ -37,6 +37,17 @@ Exponential Function
    range.
 .. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
 
+.. index::
+   single: exp2
+   single: exponential function, base 2
+
+.. function:: double gsl_sf_exp2 (const double x)
+              int gsl_sf_exp2_e (const double x, gsl_sf_result * result)
+
+   These routines compute the base-2 exponential :math:`2^x`.
+   Integer arguments within the representable range produce exact powers
+   of two.
+
 Relative Exponential Functions
 ------------------------------
 

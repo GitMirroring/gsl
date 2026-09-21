@@ -25,6 +25,7 @@ test_exp_all(void)
 {
   int status = 0;
 
+  status += test_exp2();
   status += test_expm1();
 
   return status;
