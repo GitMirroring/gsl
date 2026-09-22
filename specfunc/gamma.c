@@ -1130,7 +1130,7 @@ int gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
       result->err = n * GSL_DBL_EPSILON * product;
       CHECK_UNDERFLOW(result);
       return GSL_SUCCESS;
-    }    
+    }
   }
 }
 

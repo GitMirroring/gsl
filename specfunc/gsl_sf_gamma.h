@@ -40,9 +40,11 @@ __BEGIN_DECLS
 int gsl_new_sf_gamma_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result);
+int gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result);
 double gsl_new_sf_gamma(const double x);
 double gsl_new_sf_gammainv(const double x);
 double gsl_new_sf_gammastar(const double x);
+double gsl_new_sf_taylorcoeff(const int n, const double x);
 
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);

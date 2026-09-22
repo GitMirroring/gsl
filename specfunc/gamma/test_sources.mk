@@ -7,4 +7,5 @@ GAMMA_TEST_SOURCES =        \
   gamma/test_gammainv.c     \
   gamma/test_gammastar.c    \
   gamma/test_lngamma.c      \
-  gamma/test_lngamma1p.c
+  gamma/test_lngamma1p.c    \
+  gamma/test_taylorcoeff.c
