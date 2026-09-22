@@ -7,6 +7,7 @@
 ** new or overhauled special functions:
    - gsl_sf_erf*
    - gsl_sf_expm1
+   - gsl_sf_gamma*
    - gsl_sf_lngamma
    - gsl_sf_lngamma_1p
    - gsl_sf_sinc

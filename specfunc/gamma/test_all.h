@@ -24,6 +24,7 @@ int test_gamma_all(void);
 
 int test_gamma(void);
 int test_gammainv(void);
+int test_gammastar(void);
 
 int test_lngamma(void);
 int test_lngamma1p(void);

@@ -36,8 +36,6 @@
 
 #include "constants.h"
 #include "error.h"
-#include "chebyshev.h"
-#include "cheb_eval.c"
 
 static int gamma1p_H(const double x, gsl_sf_result * result);
 static int gamma1p_central(const double x, gsl_sf_result * result);

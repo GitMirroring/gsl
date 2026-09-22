@@ -24,6 +24,8 @@
 #include <gsl/gsl_test.h>
 
 #include "../test_sf_new.h"
+#include "chebyshev.h"
+#include "cheb_eval.c"
 #include "gamma_kernels.c"
 #include "gamma_fallback.c"
 

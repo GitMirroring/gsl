@@ -27,6 +27,7 @@ test_gamma_all(void)
 
   status += test_gamma();
   status += test_gammainv();
+  status += test_gammastar();
 
   status += test_lngamma();
   status += test_lngamma1p();

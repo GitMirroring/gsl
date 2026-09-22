@@ -760,7 +760,7 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
       if(lr.hi > GSL_SF_LOG_TRUE_MIN)
         {
           er = gsl_dd_exp(lr);
-          r = (er.hi + er.lo) / tgamma(a);
+          r = (er.hi + er.lo) / gsl_new_sf_gamma(a);
         }
       else
         r = 0.0;
@@ -1103,7 +1103,7 @@ gamma_inc_rgammax(const double a, const double x)
   if (a > 20.0)
     return gamma_inc_rgammax_large(a, x);
 
-  return pow(x, a) * exp(-x) / tgamma(a);
+  return pow(x, a) * exp(-x) / gsl_new_sf_gamma(a);
 }
 
 /**********************************************

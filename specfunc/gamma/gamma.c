@@ -25,8 +25,12 @@
 #include "error.h"
 #include "eval.h"
 
+#include "chebyshev.h"
+#include "cheb_eval.c"
+
 #include "gamma_kernels.c"
 #include "gamma_fallback.c"
+#include "gammastar_kernels.c"
 
 #ifdef HAVE_TGAMMA
 static int gamma_system_e(const double x, gsl_sf_result * result);
@@ -256,8 +260,58 @@ gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
     }
 }
 
+/*
+ * Scaled Gamma function
+ *
+ * Computes
+ *
+ *   Gamma*(x) = Gamma(x) / [sqrt(2*pi/x) (x/e)^x]
+ *
+ * for x > 0.  The implementation uses several representations according
+ * to the argument:
+ *
+ *   0 < x < 0.4
+ *     Remove the square-root singularity at the origin and evaluate
+ *
+ *       Gamma*(x) = exp[log(Gamma(1+x)) + x(1-log(x))] / [sqrt(2*pi) sqrt(x)].
+ *
+ *     log(Gamma(1+x)) is evaluated by the small-argument rational kernel,
+ *     and expm1() is used to reconstruct the exponential accurately.
+ *
+ *   0.4 <= x < 2
+ *     Use a Chebyshev approximation to Gamma*(x).
+ *
+ *   2 <= x < 16
+ *     Use a second Chebyshev approximation to Gamma*(x).
+ *
+ *   x >= 16
+ *     Use the direct Stirling asymptotic expansion for Gamma*(x),
+ *     truncated at its least term and evaluated with compensated
+ *     summation.
+ *
+ * Gamma*(x) is defined here only for x > 0; nonpositive arguments
+ * return GSL_EDOM.
+ */
+
+int
+gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result)
+{
+  if (x <= 0.0)
+    DOMAIN_ERROR(result);
+
+  if (x < GAMMASTAR_X_SMALL)
+    return gammastar_small_e(x, result);
+  else if (x < GAMMASTAR_X_MID)
+    return gammastar_mid1_e(x, result);
+  else if (x < GAMMASTAR_X_ASYM)
+    return gammastar_mid2_e(x, result);
+  else
+    return gammastar_asym_e(x, result);
+}
+
 double gsl_new_sf_gamma(const double x) { EVAL_RESULT(gsl_new_sf_gamma_e(x, &result)); }
 double gsl_new_sf_gammainv(const double x) { EVAL_RESULT(gsl_new_sf_gammainv_e(x, &result)); }
+double gsl_new_sf_gammastar(const double x) { EVAL_RESULT(gsl_new_sf_gammastar_e(x, &result)); }
 
 /********************************************
  * INTERNAL ROUTINES FOR GAMMA              *
