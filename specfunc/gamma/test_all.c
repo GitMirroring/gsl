@@ -28,6 +28,10 @@ test_gamma_all(void)
   status += test_gamma();
   status += test_gammainv();
   status += test_gammastar();
+  status += test_fact();
+  status += test_doublefact();
+  status += test_lnfact();
+  status += test_lndoublefact();
   status += test_taylorcoeff();
 
   status += test_lngamma();

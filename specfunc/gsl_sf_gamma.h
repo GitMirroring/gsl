@@ -41,10 +41,18 @@ int gsl_new_sf_gamma_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result);
 int gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result);
+int gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result);
+int gsl_new_sf_doublefact_e(const unsigned int n, gsl_sf_result * result);
+int gsl_new_sf_lnfact_e(const unsigned int n, gsl_sf_result * result);
+int gsl_new_sf_lndoublefact_e(const unsigned int n, gsl_sf_result * result);
 double gsl_new_sf_gamma(const double x);
 double gsl_new_sf_gammainv(const double x);
 double gsl_new_sf_gammastar(const double x);
 double gsl_new_sf_taylorcoeff(const int n, const double x);
+double gsl_new_sf_fact(const unsigned int n);
+double gsl_new_sf_doublefact(const unsigned int n);
+double gsl_new_sf_lnfact(const unsigned int n);
+double gsl_new_sf_lndoublefact(const unsigned int n);
 
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
@@ -287,7 +295,7 @@ double gsl_sf_beta_inc(const double a, const double b, const double x);
 #define GSL_SF_FACT_NMAX 170
 
 /* The maximum n such that gsl_sf_doublefact(n) does not give an overflow. */
-#define GSL_SF_DOUBLEFACT_NMAX 297
+#define GSL_SF_DOUBLEFACT_NMAX 300
 
 __END_DECLS
 

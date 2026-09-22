@@ -25,6 +25,10 @@ int test_gamma_all(void);
 int test_gamma(void);
 int test_gammainv(void);
 int test_gammastar(void);
+int test_fact(void);
+int test_doublefact(void);
+int test_lnfact(void);
+int test_lndoublefact(void);
 int test_taylorcoeff(void);
 
 int test_lngamma(void);
