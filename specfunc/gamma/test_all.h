@@ -37,4 +37,6 @@ int test_lngamma1p(void);
 int test_gamma_inc_P(void);
 int test_gamma_inc_Q(void);
 
+int test_lnbeta(void);
+
 #endif /* TEST_GAMMA_ALL_H */

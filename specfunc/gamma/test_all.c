@@ -40,5 +40,7 @@ test_gamma_all(void)
   status += test_gamma_inc_P();
   status += test_gamma_inc_Q();
 
+  status += test_lnbeta();
+
   return status;
 }
