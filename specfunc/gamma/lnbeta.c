@@ -42,6 +42,9 @@ static gsl_dd lnbeta_corner_11(const gsl_dd p, const gsl_dd q);
 static gsl_dd lnbeta_compact_base(const gsl_dd a, const gsl_dd b);
 static gsl_dd dd_cheb_row(const gsl_dd *c, const int n, const gsl_dd x);
 
+/*
+ * Compute log|B(a,b)| and an absolute error estimate.
+ */
 int
 gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
 {
@@ -54,6 +57,15 @@ gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
   return status;
 }
 
+/*
+ * Compute log|B(a,b)| and the sign of B(a,b).
+ *
+ * Positive arguments are handled by the specialized positive-domain
+ * dispatcher.  Otherwise use the signed log-Gamma representation
+ *
+ *   log|B(a,b)| = log|Gamma(a)| + log|Gamma(b)| - log|Gamma(a+b)|.
+ */
+
 int
 gsl_new_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn)
 {
@@ -61,6 +73,20 @@ gsl_new_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, 
     {
       *sgn = 1.0;
       return lnbeta_pos(a, b, result);
+    }
+  else
+    {
+      gsl_sf_result lga, lgb, lgab;
+      double sga, sgb, sgab, ab = a+b;
+      int stat_ga  = gsl_sf_lngamma_sgn_e(a, &lga, &sga);
+      int stat_gb  = gsl_sf_lngamma_sgn_e(b, &lgb, &sgb);
+      int stat_gab = gsl_sf_lngamma_sgn_e(ab, &lgab, &sgab);
+      *sgn = sga * sgb * sgab;
+      result->val  = lga.val + lgb.val - lgab.val;
+      result->err  = lga.err + lgb.err + lgab.err;
+      result->err += 2.0 * GSL_DBL_EPSILON * (fabs(lga.val) + fabs(lgb.val) + fabs(lgab.val));
+      result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+      return GSL_ERROR_SELECT_3(stat_ga, stat_gb, stat_gab);
     }
 }
 
