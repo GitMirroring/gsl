@@ -75,17 +75,50 @@ leading truncation error terms. For central stencils, symmetry causes alternatin
 powers to vanish, so these terms have powers :math:`p,p+2,p+4,\ldots`, while for forward
 and backward stencils they generally have powers :math:`p,p+1,p+2,\ldots`. The fitted
 intercept at :math:`h=0` provides the Romberg-extrapolated derivative estimate for the
-window. The residual norm of the least-squares fit is used to estimate the standard
-error of the fitted intercept, from which a 95% uncertainty estimate is calculated
-using the appropriate Student-t factor. Thus, each Romberg window produces both a
-candidate derivative estimate and associated error estimate, based on how
-closely the finite difference estimates conform to the expected truncation error behavior.
+window. Since the least-squares solution is linear in the data, this estimate is a
+fixed linear combination :math:`\sum_k g_k D_{h_k}^{(m)} f(x_0)` of the derivative
+estimates in the window, where the extrapolation weights :math:`g_k` depend only on the
+ratio between successive step sizes and on the truncation error powers.
+
+Each Romberg window produces a candidate derivative estimate together with an error
+estimate, which is the largest of the following three quantities:
+
+1. The 95% uncertainty of the fitted intercept. The residual norm of the least-squares
+   fit is used to estimate the standard error of the intercept, which is multiplied by the
+   appropriate Student-t factor. This measures how closely the finite difference
+   estimates conform to the expected truncation error behavior.
+
+2. The roundoff error propagated through the extrapolation,
+
+   .. math:: \sum_k |g_k| E_{\mathrm{round}}(h_k), \qquad E_{\mathrm{round}}(h) = \frac{\epsilon}{h^m} \sum_{j=1}^N \left| w_j f(x_0 + h s_j) \right|
+
+   where :math:`E_{\mathrm{round}}(h)` is an estimate of the roundoff error of a single
+   finite difference. An extrapolated value cannot be more accurate than the roundoff
+   errors of the estimates from which it is computed allow.
+
+3. The smaller of the differences between the candidate and the candidates of the two
+   neighboring windows. Neighboring windows share all but one finite difference estimate,
+   so two candidates on the plateau agree closely, while a candidate computed from
+   roundoff-dominated estimates generally differs from both of its neighbors.
+
+The candidate with the smallest error estimate is selected. The second and third
+quantities are needed because each least-squares fit has only one residual degree of
+freedom (see :data:`romberg_terms` below): its residual, and hence the first quantity,
+can be very small by chance. When the minimum is taken over many windows, a window in
+the roundoff-dominated region whose residual happens to be small would otherwise be
+selected, with an error estimate much smaller than its actual error.
 
 If the sampled range of step sizes encompasses the plateau region, selecting the
 candidate with the smallest estimated error will typically provide an accurate
-estimate of the derivative.  For some functions,
-the user may need to tune the search range of :math:`h` values to attempt to
-locate the plateau.
+estimate of the derivative, with an error estimate that bounds the actual error.
+No error estimate can compensate for a range of step sizes which does not contain the
+plateau, however. The default range is centered on :math:`h_{\mathrm{opt}}`, which assumes
+that the function varies on a length scale of order one. If the function has a
+different characteristic length scale :math:`L` (for example :math:`L = 1/a` for
+:math:`\sin(ax)` or :math:`e^{ax}`), the plateau lies near :math:`L h_{\mathrm{opt}}`,
+and the step sizes should be scaled accordingly with :macro:`GSL_DERIV_STEP_USER_SCALE`.
+For other functions, the user may need to tune the search range of :math:`h` values
+to locate the plateau; the diagnostic output (see below) can be used for this purpose.
 
 Parameters for Differentiation
 ==============================
@@ -160,11 +193,16 @@ specific differentiation problem.
    fits the leading two truncation-error terms in addition to the extrapolated derivative.
    Each fit contains :math:`r+1` fitted parameters and uses :math:`r+2` finite-difference
    estimates, leaving one residual degree of
-   freedom that is used to estimate the uncertainty in :math:`D_0`. Increasing
+   freedom that is used to estimate the uncertainty in :math:`D_0` (this uncertainty is
+   combined with the propagated roundoff error and the consistency with neighboring
+   windows, as described above). Increasing
    :data:`romberg_terms` allows additional truncation-error terms to be modeled and
    extrapolated away, but requires a
    larger window of derivative estimates and may increase sensitivity to roundoff error
-   or to departures from the assumed asymptotic truncation-error expansion.
+   or to departures from the assumed asymptotic truncation-error expansion. For example,
+   :code:`romberg_terms = 3` often gives more accurate results for analytic functions,
+   while the default of 2 is better suited to functions of limited smoothness, such as
+   splines, whose higher derivatives are discontinuous.
 
    The number of step sizes :data:`nstep` must be large enough to form at least
    one Romberg window, and increasing :data:`romberg_terms` reduces the number of

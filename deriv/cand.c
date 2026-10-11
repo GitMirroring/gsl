@@ -66,27 +66,41 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
     {
       const double alpha = 5.0;
       const size_t n = der->size;
-      double work[GSL_DERIV_MAX_STEPS];
-      gsl_vector_view wv = gsl_vector_view_array(work, n);
+      double finite[GSL_DERIV_MAX_STEPS], work[GSL_DERIV_MAX_STEPS];
       double median, MAD, tol;
+      size_t nfinite = 0;
       size_t i;
 
-      /* compute median */
-      gsl_vector_memcpy(&wv.vector, der);
-      median = gsl_stats_median(work, 1, n);
-
-      /* compute MAD */
-      MAD = gsl_stats_mad(der->data, der->stride, n, work);
-
-      tol = GSL_MAX(alpha * MAD, GSL_DBL_EPSILON * fabs(median));
-
-      cand->nkeep = 0;
+      /*
+       * non-finite candidates (e.g. overflow at very small steps) are discarded;
+       * the median and MAD are computed from the finite candidates
+       */
       for (i = 0; i < n; ++i)
         {
           double di = gsl_vector_get(der, i);
+          if (gsl_finite(di))
+            finite[nfinite++] = di;
+        }
 
-          if ((fabs(di - median) <= tol) || (MAD == 0.0))
-            cand->index[cand->nkeep++] = i;
+      cand->nkeep = 0;
+
+      if (nfinite > 0)
+        {
+          /* compute MAD (before median, since the median sorts the array) */
+          MAD = gsl_stats_mad(finite, 1, nfinite, work);
+
+          /* compute median */
+          median = gsl_stats_median(finite, 1, nfinite);
+
+          tol = GSL_MAX(alpha * MAD, GSL_DBL_EPSILON * fabs(median));
+
+          for (i = 0; i < n; ++i)
+            {
+              double di = gsl_vector_get(der, i);
+
+              if (gsl_finite(di) && ((fabs(di - median) <= tol) || (MAD == 0.0)))
+                cand->index[cand->nkeep++] = i;
+            }
         }
 
       if (cand->nkeep == 0)

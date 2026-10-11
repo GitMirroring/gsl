@@ -52,7 +52,7 @@ test_gradient_tol(const double tol, const gradient_test_function * TF, const int
   /* compute gradient */
   (TF->df)(x, (void *) A, g);
 
-  params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
+  params = test_parameters(1, method_order, stencil_type, step_policy);
 
   if (fixed_step)
     {

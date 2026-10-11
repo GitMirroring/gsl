@@ -53,7 +53,7 @@ test_jacobian_tol(const double tol, const jacobian_test_function * TF, const int
   /* compute Jacobian */
   (TF->df)(x, (void *) A, J);
 
-  params = test_parameters(1, method_order, stencil_type, step_policy, -1.0, -1.0);
+  params = test_parameters(1, method_order, stencil_type, step_policy);
   w = gsl_deriv_jacobian_alloc(&params, m, n);
 
   if (fixed_step)
