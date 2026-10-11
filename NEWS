@@ -10,6 +10,10 @@
 
 ** bug fix in collocation matrix for order-1 interpolating B-splines
 
+** the CBLAS library reported by pkg-config (gsl.pc) and gsl-config
+   can be selected at configure time with the GSL_CBLAS_LIB variable,
+   e.g. ./configure GSL_CBLAS_LIB=-lopenblas (default: -lgslcblas)
+
 * What was new in gsl-2.8:
 
 ** apply patch for bug #63679 (F. Weimer)

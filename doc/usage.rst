@@ -114,6 +114,19 @@ and matrix operations.  The following command line will link with the
 If the |atlas| library is installed in a non-standard directory use
 the :code:`-L` option to add it to the search path, as described above.  
 
+Applications which obtain the linking flags from :code:`pkg-config --libs gsl`
+or :code:`gsl-config --libs` are given the |cblas| library which was selected
+when GSL was configured. By default this is :file:`libgslcblas`; an
+alternative library can be selected with the :code:`GSL_CBLAS_LIB` variable
+of the :code:`configure` script, for example::
+
+    $ ./configure GSL_CBLAS_LIB="-L/opt/openblas/lib -lopenblas"
+
+The :code:`configure` script checks that the given library provides the
+|cblas| interface. The selection can be overridden when linking an
+application, with :code:`pkg-config --define-variable=GSL_CBLAS_LIB=-lcblas --libs gsl`
+or by setting the :code:`GSL_CBLAS_LIB` environment variable for :code:`gsl-config`.
+
 For more information about |blas| functions see :ref:`chap_blas-support`.
 
 .. index::

@@ -4,6 +4,19 @@ set -e
 # skip test if we have no pkg-config
 pkg-config --version >/dev/null 2>&1 || exit 77
 PKG_CONFIG_PATH=.
-export PKG_CONFIG_PATH 
+export PKG_CONFIG_PATH
+
+# the CBLAS library can be overridden by the user
 pkg-config --define-variable=GSL_CBLAS_LIB=-lfoo --libs gsl | grep 'lfoo' > /dev/null 2>&1
+
+# by default, gsl.pc and gsl-config report the CBLAS library selected at
+# configure time (GSL_CBLAS_LIB_CONFIGURED is set by AM_TESTS_ENVIRONMENT)
+if test -n "$GSL_CBLAS_LIB_CONFIGURED" ; then
+   test "`pkg-config --variable=GSL_CBLAS_LIB gsl`" = "$GSL_CBLAS_LIB_CONFIGURED"
+   (unset GSL_CBLAS_LIB; sh ./gsl-config --libs) | grep -F -e "$GSL_CBLAS_LIB_CONFIGURED" > /dev/null 2>&1
+fi
+
+# gsl-config honors the GSL_CBLAS_LIB environment variable
+GSL_CBLAS_LIB=-lbar sh ./gsl-config --libs | grep 'lbar' > /dev/null 2>&1
+
 exit 0

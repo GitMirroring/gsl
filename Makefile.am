@@ -36,6 +36,7 @@ gsl_histogram_LDADD = libgsl.la cblas/libgslcblas.la
 
 check_SCRIPTS = test_gsl_histogram.sh pkgconfig.test
 TESTS = test_gsl_histogram.sh pkgconfig.test
+AM_TESTS_ENVIRONMENT = GSL_CBLAS_LIB_CONFIGURED='$(GSL_CBLAS_LIB)'; export GSL_CBLAS_LIB_CONFIGURED;
 
 #bin_PROGRAMS = main dummy
 #dummy_SOURCES = version.c
@@ -51,6 +52,7 @@ edit = $(SED) \
 	-e 's|@GSL_CFLAGS[@]|$(GSL_CFLAGS)|g' \
 	-e 's|@GSL_LIBM[@]|$(GSL_LIBM)|g' \
 	-e 's|@GSL_LIBS[@]|$(GSL_LIBS)|g' \
+	-e 's|@GSL_CBLAS_LIB[@]|$(GSL_CBLAS_LIB)|g' \
 	-e 's|@LIBS[@]|$(LIBS)|g' \
 	-e 's|@VERSION[@]|$(VERSION)|g'
 

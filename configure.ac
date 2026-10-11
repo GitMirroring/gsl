@@ -133,6 +133,25 @@ AC_SUBST(GSL_CFLAGS)
 AC_SUBST(GSL_LIBS)
 AC_SUBST(GSL_LIBM)
 
+dnl CBLAS library for applications linking with GSL, recorded in gsl.pc and
+dnl gsl-config; the default is the CBLAS library provided with GSL. For example
+dnl ./configure GSL_CBLAS_LIB="-L/opt/openblas/lib -lopenblas"
+AC_ARG_VAR([GSL_CBLAS_LIB], [linker flags for the CBLAS library which applications should link with GSL, recorded in gsl.pc and gsl-config (default: -lgslcblas)])
+if test "x$GSL_CBLAS_LIB" = "x" || test "x$GSL_CBLAS_LIB" = "x-lgslcblas" ; then
+   GSL_CBLAS_LIB="-lgslcblas"
+else
+   dnl check that the given library provides the CBLAS interface
+   AC_MSG_CHECKING([for cblas_dgemm in $GSL_CBLAS_LIB])
+   gsl_save_LIBS="$LIBS"
+   LIBS="$GSL_CBLAS_LIB $LIBM $LIBS"
+   AC_LINK_IFELSE([AC_LANG_CALL([], [cblas_dgemm])],
+                  [AC_MSG_RESULT([yes])],
+                  [AC_MSG_RESULT([no])
+                   AC_MSG_ERROR([cblas_dgemm not found with GSL_CBLAS_LIB=$GSL_CBLAS_LIB])])
+   LIBS="$gsl_save_LIBS"
+fi
+AC_SUBST(GSL_CBLAS_LIB)
+
 if test "$ac_cv_c_inline" != no ; then 
 dnl Check for "extern inline", using a modified version of the test
 dnl for AC_C_INLINE from acspecific.mt

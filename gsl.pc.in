@@ -2,7 +2,7 @@ prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
-GSL_CBLAS_LIB=-lgslcblas
+GSL_CBLAS_LIB=@GSL_CBLAS_LIB@
 
 Name: GSL
 Description: GNU Scientific Library
