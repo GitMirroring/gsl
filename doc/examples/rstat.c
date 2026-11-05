@@ -6,7 +6,7 @@ main(void)
 {
   double data[5] = {17.2, 18.1, 16.5, 18.3, 12.6};
   double mean, variance, largest, smallest, sd,
-         rms, sd_mean, median, skew, kurtosis;
+         rms, sd_mean, median, mad, skew, kurtosis;
   gsl_rstat_workspace *rstat_p = gsl_rstat_alloc();
   size_t i, n;
 
@@ -19,6 +19,7 @@ main(void)
   largest  = gsl_rstat_max(rstat_p);
   smallest = gsl_rstat_min(rstat_p);
   median   = gsl_rstat_median(rstat_p);
+  mad      = gsl_rstat_mad(rstat_p);
   sd       = gsl_rstat_sd(rstat_p);
   sd_mean  = gsl_rstat_sd_mean(rstat_p);
   skew     = gsl_rstat_skew(rstat_p);
@@ -34,6 +35,7 @@ main(void)
   printf ("The largest value is %g\n", largest);
   printf ("The smallest value is %g\n", smallest);
   printf( "The median is %g\n", median);
+  printf( "The median absolute deviation is %g\n", mad);
   printf( "The standard deviation is %g\n", sd);
   printf( "The root mean square is %g\n", rms);
   printf( "The standard devation of the mean is %g\n", sd_mean);

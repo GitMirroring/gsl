@@ -1,7 +1,7 @@
 noinst_LTLIBRARIES = libgslrstat.la
 
 pkginclude_HEADERS = gsl_rstat.h gsl_wrstat.h
-noinst_HEADERS = test_rstat.c test_wrstat.c
+noinst_HEADERS = kll.c test_rstat.c test_wrstat.c
 
 AM_CPPFLAGS = -I$(top_srcdir)
 

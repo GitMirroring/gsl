@@ -10,49 +10,50 @@ int
 main(void)
 {
   const size_t N = 10000;
+  const double p[3] = { 0.25, 0.5, 0.75 };
   double *data = malloc(N * sizeof(double));
-  gsl_rstat_quantile_workspace *work_25 = gsl_rstat_quantile_alloc(0.25);
-  gsl_rstat_quantile_workspace *work_50 = gsl_rstat_quantile_alloc(0.5);
-  gsl_rstat_quantile_workspace *work_75 = gsl_rstat_quantile_alloc(0.75);
+  gsl_rstat_workspace *rstat_random = gsl_rstat_alloc();
+  gsl_rstat_workspace *rstat_sorted = gsl_rstat_alloc();
   gsl_rng *r = gsl_rng_alloc(gsl_rng_default);
-  double exact_p25, exact_p50, exact_p75;
-  double val_p25, val_p50, val_p75;
-  size_t i;
+  size_t i, count = 0;
 
-  /* add data to quantile accumulators; also store data for exact
+  /* add data to accumulator in random order; also store data for exact
    * comparisons */
   for (i = 0; i < N; ++i)
     {
       data[i] = gsl_ran_rayleigh(r, 1.0);
-      gsl_rstat_quantile_add(data[i], work_25);
-      gsl_rstat_quantile_add(data[i], work_50);
-      gsl_rstat_quantile_add(data[i], work_75);
+      gsl_rstat_add(data[i], rstat_random);
     }
 
-  /* exact values */
+  /* add the same data to a second accumulator in ascending order */
   gsl_sort(data, 1, N);
-  exact_p25 = gsl_stats_quantile_from_sorted_data(data, 1, N, 0.25);
-  exact_p50 = gsl_stats_quantile_from_sorted_data(data, 1, N, 0.5);
-  exact_p75 = gsl_stats_quantile_from_sorted_data(data, 1, N, 0.75);
 
-  /* estimated values */
-  val_p25 = gsl_rstat_quantile_get(work_25);
-  val_p50 = gsl_rstat_quantile_get(work_50);
-  val_p75 = gsl_rstat_quantile_get(work_75);
+  for (i = 0; i < N; ++i)
+    gsl_rstat_add(data[i], rstat_sorted);
 
   printf ("The dataset is %g, %g, %g, %g, %g, ...\n",
-         data[0], data[1], data[2], data[3], data[4]);
+          data[0], data[1], data[2], data[3], data[4]);
 
-  printf ("0.25 quartile: exact = %.5f, estimated = %.5f, error = %.6e\n",
-          exact_p25, val_p25, (val_p25 - exact_p25) / exact_p25);
-  printf ("0.50 quartile: exact = %.5f, estimated = %.5f, error = %.6e\n",
-          exact_p50, val_p50, (val_p50 - exact_p50) / exact_p50);
-  printf ("0.75 quartile: exact = %.5f, estimated = %.5f, error = %.6e\n",
-          exact_p75, val_p75, (val_p75 - exact_p75) / exact_p75);
+  /* quartiles: exact values and estimates from both accumulators */
+  for (i = 0; i < 3; ++i)
+    {
+      double exact = gsl_stats_quantile_from_sorted_data(data, 1, N, p[i]);
+      double est_random = gsl_rstat_quantile(p[i], rstat_random);
+      double est_sorted = gsl_rstat_quantile(p[i], rstat_sorted);
 
-  gsl_rstat_quantile_free(work_25);
-  gsl_rstat_quantile_free(work_50);
-  gsl_rstat_quantile_free(work_75);
+      printf ("%.2f quantile: exact = %.5f, estimated = %.5f (random order), %.5f (sorted order)\n",
+              p[i], exact, est_random, est_sorted);
+    }
+
+  /* empirical CDF: fraction of data <= 1 */
+  for (i = 0; i < N; ++i)
+    count += (data[i] <= 1.0);
+
+  printf ("fraction of data <= 1: exact = %.5f, estimated = %.5f\n",
+          (double) count / (double) N, gsl_rstat_cdf(1.0, rstat_random));
+
+  gsl_rstat_free(rstat_random);
+  gsl_rstat_free(rstat_sorted);
   gsl_rng_free(r);
   free(data);
 
