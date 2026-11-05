@@ -20,6 +20,7 @@
 #include <config.h>
 #include <stdlib.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_multilarge.h>
@@ -41,7 +42,7 @@ static void test_multifit_solve(const double lambda, const gsl_matrix * X,
                                 const gsl_vector * y, const gsl_vector * wts,
                                 const gsl_vector * diagL, const gsl_matrix * L,
                                 double *rnorm, double *snorm, gsl_vector * c);
-static void test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
+static void test_multilarge_solve(const gsl_multilarge_linear_type * T, const size_t rows_per_block, const double lambda,
                                   const gsl_matrix * X, const gsl_vector * y, gsl_vector * wts,
                                   const gsl_vector * diagL, const gsl_matrix * L,
                                   double *rnorm, double *snorm, gsl_vector * c);
@@ -228,15 +229,14 @@ test_multifit_solve(const double lambda, const gsl_matrix * X,
 
 /* solve least squares system with multilarge */
 static void
-test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
+test_multilarge_solve(const gsl_multilarge_linear_type * T, const size_t rows_per_block, const double lambda,
                       const gsl_matrix * X, const gsl_vector * y, gsl_vector * wts,
                       const gsl_vector * diagL, const gsl_matrix * L,
                       double *rnorm, double *snorm, gsl_vector * c)
 {
   const size_t n = X->size1;
   const size_t p = X->size2;
-  const size_t nblock = 5;
-  const size_t nrows = n / nblock; /* number of rows per block */
+  const size_t nrows = GSL_MIN(rows_per_block, n);
   gsl_multilarge_linear_workspace *w =
     gsl_multilarge_linear_alloc(T, p);
   gsl_matrix *Xs = gsl_matrix_alloc(nrows, p);
@@ -315,7 +315,7 @@ test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
 static void
 test_random(const gsl_multilarge_linear_type * T,
             const size_t n, const size_t p,
-            const double tol,
+            const size_t rows_per_block, const double tol,
             const gsl_rng * r)
 {
   const double tol1 = 1.0e3 * tol;
@@ -334,7 +334,6 @@ test_random(const gsl_multilarge_linear_type * T,
   size_t i;
 
   /* generate LS system */
-  /*XXXtest_random_matrix_ill(X, r);*/
   test_random_matrix(X, r, -1.0, 1.0);
   test_random_vector(c, r, -1.0, 1.0);
 
@@ -361,7 +360,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* unweighted with L = I */
       {
         test_multifit_solve(lambda, X, y, NULL, NULL, NULL, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, NULL, NULL, NULL, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, NULL, NULL, NULL, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s unweighted stdform n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -374,7 +373,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* weighted, L = diag(L) */
       {
         test_multifit_solve(lambda, X, y, w, diagL, NULL, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, w, diagL, NULL, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, w, diagL, NULL, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s weighted diag(L) n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -387,7 +386,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* unweighted, L = diag(L) */
       {
         test_multifit_solve(lambda, X, y, NULL, diagL, NULL, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, NULL, diagL, NULL, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, NULL, diagL, NULL, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s unweighted diag(L) n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -400,7 +399,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* weighted, L = square */
       {
         test_multifit_solve(lambda, X, y, w, NULL, Lsqr, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, w, NULL, Lsqr, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, w, NULL, Lsqr, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s weighted Lsqr n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -413,7 +412,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* unweighted, L = square */
       {
         test_multifit_solve(lambda, X, y, NULL, NULL, Lsqr, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, NULL, NULL, Lsqr, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, NULL, NULL, Lsqr, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s unweighted Lsqr n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -426,7 +425,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* weighted, L = tall */
       {
         test_multifit_solve(lambda, X, y, w, NULL, Ltall, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, w, NULL, Ltall, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, w, NULL, Ltall, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s weighted Ltall n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -439,7 +438,7 @@ test_random(const gsl_multilarge_linear_type * T,
       /* unweighted, L = tall */
       {
         test_multifit_solve(lambda, X, y, NULL, NULL, Ltall, &rnorm0, &snorm0, c0);
-        test_multilarge_solve(T, lambda, X, y, NULL, NULL, Ltall, &rnorm1, &snorm1, c1);
+        test_multilarge_solve(T, rows_per_block, lambda, X, y, NULL, NULL, Ltall, &rnorm1, &snorm1, c1);
 
         sprintf(str, "random %s unweighted Ltall n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
@@ -461,6 +460,202 @@ test_random(const gsl_multilarge_linear_type * T,
   gsl_vector_free(c1);
 }
 
+/* accumulate rows [first, first + nrows) of (X,y) into w, in blocks of size rows_per_block */
+static void
+test_accumulate_rows(const size_t first, const size_t nrows, const size_t rows_per_block,
+                     const gsl_matrix * X, const gsl_vector * y,
+                     gsl_multilarge_linear_workspace * w)
+{
+  const size_t p = X->size2;
+  gsl_matrix *Xs = gsl_matrix_alloc(rows_per_block, p);
+  gsl_vector *ys = gsl_vector_alloc(rows_per_block);
+  size_t rowidx = first;
+
+  while (rowidx < first + nrows)
+    {
+      size_t nr = GSL_MIN(rows_per_block, first + nrows - rowidx);
+      gsl_matrix_const_view Xv = gsl_matrix_const_submatrix(X, rowidx, 0, nr, p);
+      gsl_vector_const_view yv = gsl_vector_const_subvector(y, rowidx, nr);
+      gsl_matrix_view Xsv = gsl_matrix_submatrix(Xs, 0, 0, nr, p);
+      gsl_vector_view ysv = gsl_vector_subvector(ys, 0, nr);
+
+      /* accumulate() destroys its inputs, so pass copies */
+      gsl_matrix_memcpy(&Xsv.matrix, &Xv.matrix);
+      gsl_vector_memcpy(&ysv.vector, &yv.vector);
+      gsl_multilarge_linear_accumulate(&Xsv.matrix, &ysv.vector, w);
+
+      rowidx += nr;
+    }
+
+  gsl_matrix_free(Xs);
+  gsl_vector_free(ys);
+}
+
+/* check that the strict lower triangle of the TSQR R factor is zero */
+static void
+test_tsqr_lower_zero(const gsl_multilarge_linear_workspace * w, const char * desc)
+{
+  const gsl_matrix * R = gsl_multilarge_linear_matrix_ptr(w);
+  size_t i, j;
+  int nonzero = 0;
+
+  for (i = 1; i < R->size1; ++i)
+    {
+      for (j = 0; j < i; ++j)
+        nonzero += (gsl_matrix_get(R, i, j) != 0.0);
+    }
+
+  gsl_test(nonzero, "tsqr %s lower triangle of R is zero", desc);
+}
+
+/* solve with w and compare against multifit SVD solution using the first n rows of (X,y) */
+static void
+test_tsqr_compare(const double lambda, const size_t n,
+                  const gsl_matrix * X, const gsl_vector * y,
+                  gsl_multilarge_linear_workspace * w,
+                  const double tol, const char * desc)
+{
+  const size_t p = X->size2;
+  gsl_matrix_const_view Xv = gsl_matrix_const_submatrix(X, 0, 0, n, p);
+  gsl_vector_const_view yv = gsl_vector_const_subvector(y, 0, n);
+  gsl_vector *c0 = gsl_vector_alloc(p);
+  gsl_vector *c1 = gsl_vector_alloc(p);
+  double rnorm0, snorm0, rnorm1, snorm1;
+  char str[2048];
+  int status;
+
+  sprintf(str, "tsqr %s n=%zu p=%zu lambda=%g", desc, n, p, lambda);
+
+  test_multifit_solve(lambda, &Xv.matrix, &yv.vector, NULL, NULL, NULL, &rnorm0, &snorm0, c0);
+  status = gsl_multilarge_linear_solve(lambda, c1, &rnorm1, &snorm1, w);
+
+  gsl_test(status, "%s solve status", str);
+  test_compare_vectors(tol, c0, c1, str);
+  gsl_test_rel(rnorm1, rnorm0, 1.0e3 * tol, "rnorm %s", str);
+  gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+
+  gsl_vector_free(c0);
+  gsl_vector_free(c1);
+}
+
+/* test TSQR handling of blocks with fewer than p rows, reset, and
+ * re-solving after additional rows are accumulated */
+static void
+test_tsqr_blocks(const size_t n, const size_t p, const double tol, const gsl_rng * r)
+{
+  const double lambda = 0.1;
+  const size_t nlcurve = 50;
+  const size_t n1 = n / 2; /* rows accumulated before the first solve */
+  gsl_matrix *X = gsl_matrix_alloc(n, p);
+  gsl_vector *y = gsl_vector_alloc(n);
+  gsl_vector *c = gsl_vector_alloc(p);
+  gsl_vector *reg0 = gsl_vector_alloc(nlcurve);
+  gsl_vector *rho0 = gsl_vector_alloc(nlcurve);
+  gsl_vector *eta0 = gsl_vector_alloc(nlcurve);
+  gsl_vector *reg1 = gsl_vector_alloc(nlcurve);
+  gsl_vector *rho1 = gsl_vector_alloc(nlcurve);
+  gsl_vector *eta1 = gsl_vector_alloc(nlcurve);
+  gsl_multilarge_linear_workspace *w0 = gsl_multilarge_linear_alloc(gsl_multilarge_linear_tsqr, p);
+  gsl_multilarge_linear_workspace *w = gsl_multilarge_linear_alloc(gsl_multilarge_linear_tsqr, p);
+  gsl_error_handler_t *old_handler;
+  double rnorm, snorm, rcond1;
+  char str[2048];
+  size_t i;
+  int status;
+
+  test_random_matrix(X, r, -1.0, 1.0);
+  test_random_vector(y, r, -1.0, 1.0);
+
+  /* reference workspace: all rows accumulated in a single block */
+  test_accumulate_rows(0, n, n, X, y, w0);
+
+  old_handler = gsl_set_error_handler_off();
+
+  /* fewer than p rows accumulated: solve, rcond and lcurve must fail */
+  for (i = 0; i < p - 1; ++i)
+    {
+      test_accumulate_rows(i, 1, 1, X, y, w);
+
+      status = gsl_multilarge_linear_solve(lambda, c, &rnorm, &snorm, w);
+      gsl_test(status != GSL_EINVAL, "tsqr solve with %zu/%zu rows returns GSL_EINVAL", i + 1, p);
+
+      status = gsl_multilarge_linear_rcond(&rcond1, w);
+      gsl_test(status != GSL_EINVAL, "tsqr rcond with %zu/%zu rows returns GSL_EINVAL", i + 1, p);
+
+      status = gsl_multilarge_linear_lcurve(reg1, rho1, eta1, w);
+      gsl_test(status != GSL_EINVAL, "tsqr lcurve with %zu/%zu rows returns GSL_EINVAL", i + 1, p);
+    }
+
+  /* remaining rows up to n1, one at a time */
+  test_accumulate_rows(p - 1, n1 - (p - 1), 1, X, y, w);
+  test_tsqr_lower_zero(w, "single rows");
+  test_tsqr_compare(0.0, n1, X, y, w, tol, "single rows");
+  test_tsqr_compare(lambda, n1, X, y, w, tol, "single rows");
+
+  /* add the rest of the rows; the SVD of R computed above must not be reused */
+  test_accumulate_rows(n1, n - n1, 3, X, y, w);
+  test_tsqr_compare(lambda, n, X, y, w, tol, "solve after additional rows");
+
+  sprintf(str, "tsqr small blocks n=%zu p=%zu", n, p);
+
+  /* R is unique up to the signs of its rows, so compare |R| with the single-block reference */
+  {
+    const gsl_matrix * R0 = gsl_multilarge_linear_matrix_ptr(w0);
+    const gsl_matrix * R1 = gsl_multilarge_linear_matrix_ptr(w);
+    size_t j;
+
+    for (i = 0; i < p; ++i)
+      {
+        for (j = i; j < p; ++j)
+          {
+            gsl_test_abs(fabs(gsl_matrix_get(R1, i, j)), fabs(gsl_matrix_get(R0, i, j)),
+                         tol * fabs(gsl_matrix_get(R0, i, i)), "%s |R(%zu,%zu)|", str, i, j);
+          }
+      }
+  }
+
+  /* the rcond estimate depends on the row signs of R, so only check it is valid */
+  status = gsl_multilarge_linear_rcond(&rcond1, w);
+  gsl_test(status, "%s rcond status", str);
+  gsl_test(!(rcond1 > 0.0 && rcond1 <= 1.0), "%s rcond in (0,1] (%g)", str, rcond1);
+
+  /* lcurve depends only on the singular values of R and must match the reference */
+
+  status = gsl_multilarge_linear_lcurve(reg0, rho0, eta0, w0);
+  gsl_test(status, "%s reference lcurve status", str);
+  status = gsl_multilarge_linear_lcurve(reg1, rho1, eta1, w);
+  gsl_test(status, "%s lcurve status", str);
+  test_compare_vectors(tol, reg0, reg1, "tsqr lcurve reg_param");
+  test_compare_vectors(1.0e3 * tol, rho0, rho1, "tsqr lcurve rho");
+  test_compare_vectors(tol, eta0, eta1, "tsqr lcurve eta");
+
+  /* reset and accumulate again in small blocks */
+  gsl_multilarge_linear_reset(w);
+
+  test_accumulate_rows(0, 1, 1, X, y, w);
+  status = gsl_multilarge_linear_solve(lambda, c, &rnorm, &snorm, w);
+  gsl_test(status != GSL_EINVAL, "tsqr solve after reset with 1/%zu rows returns GSL_EINVAL", p);
+
+  test_accumulate_rows(1, n - 1, 3, X, y, w);
+  test_tsqr_lower_zero(w, "after reset");
+  test_tsqr_compare(0.0, n, X, y, w, tol, "after reset");
+  test_tsqr_compare(lambda, n, X, y, w, tol, "after reset");
+
+  gsl_set_error_handler(old_handler);
+
+  gsl_matrix_free(X);
+  gsl_vector_free(y);
+  gsl_vector_free(c);
+  gsl_vector_free(reg0);
+  gsl_vector_free(rho0);
+  gsl_vector_free(eta0);
+  gsl_vector_free(reg1);
+  gsl_vector_free(rho1);
+  gsl_vector_free(eta1);
+  gsl_multilarge_linear_free(w0);
+  gsl_multilarge_linear_free(w);
+}
+
 int
 main (void)
 {
@@ -473,16 +668,22 @@ main (void)
     const double tol2 = 1.0e-11;
     const size_t n_vals[] = { 200, 356, 501 };
     const size_t p_vals[] = { 10, 21, 34 };
-    size_t i;
+    const size_t rows_per_block[] = { 1, 3, 50 }; /* include blocks with fewer than p rows */
+    size_t i, j;
 
-    for (i = 0; i < 1; ++i)
+    for (i = 0; i < sizeof(n_vals) / sizeof(n_vals[0]); ++i)
       {
         size_t n = n_vals[i];
         size_t p = p_vals[i];
 
-        /* generate random ill-conditioned LS system and test */
-        test_random(gsl_multilarge_linear_normal, n, p, tol1, r);
-        test_random(gsl_multilarge_linear_tsqr, n, p, tol2, r);
+        for (j = 0; j < sizeof(rows_per_block) / sizeof(rows_per_block[0]); ++j)
+          {
+            /* generate random ill-conditioned LS system and test */
+            test_random(gsl_multilarge_linear_normal, n, p, rows_per_block[j], tol1, r);
+            test_random(gsl_multilarge_linear_tsqr, n, p, rows_per_block[j], tol2, r);
+          }
+
+        test_tsqr_blocks(n, p, tol2, r);
       }
   }
 

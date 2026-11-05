@@ -1,6 +1,6 @@
 /* tsqr.c
  * 
- * Copyright (C) 2015, 2019 Patrick Alken
+ * Copyright (C) 2015, 2019, 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@
 typedef struct
 {
   size_t p;             /* number of columns of LS matrix */
-  int nblocks;          /* number of blocks processed */
+  size_t nrows;         /* number of rows in system */
+  int init;             /* 1 if initialized, 0 if not */
   int svd;              /* SVD of R factor has been computed */
 
   gsl_matrix *T;        /* block reflector matrix, p-by-p */
@@ -125,7 +126,8 @@ tsqr_alloc(const size_t p)
     }
 
   state->p = p;
-  state->nblocks = 0;
+  state->nrows = 0;
+  state->init = 0;
 
   state->R = gsl_matrix_alloc(p, p);
   if (state->R == NULL)
@@ -205,7 +207,8 @@ tsqr_reset(void *vstate)
 
   gsl_matrix_set_zero(state->R);
   gsl_vector_set_zero(state->QTb);
-  state->nblocks = 0;
+  state->nrows = 0;
+  state->init = 0;
   state->svd = 0;
 
   return GSL_SUCCESS;
@@ -247,41 +250,130 @@ tsqr_accumulate(gsl_matrix * A, gsl_vector * b, void * vstate)
     {
       GSL_ERROR("A and b have different numbers of rows", GSL_EBADLEN);
     }
-  else if (state->nblocks == 0 && n < p)
+
+  /* R will change, so any previously computed SVD is no longer valid */
+  state->svd = 0;
+
+  if (state->init == 0)
     {
-      GSL_ERROR ("n must be >= p", GSL_EBADLEN);
-    }
-  else if (state->nblocks == 0)
-    {
+      /* we have not yet computed an initial QR decomposition */
+
       int status;
-      gsl_matrix_view R = gsl_matrix_submatrix(A, 0, 0, p, p);
-      gsl_vector_view QTb0 = gsl_vector_subvector(state->QTb, 0, p);
-      double * norm_z2 = gsl_vector_ptr(state->QTb, p);
-      gsl_vector_view b1 = gsl_vector_subvector(b, 0, p);
+      const size_t total_n = state->nrows + n;
 
-      /* this is the first matrix block A_1, compute its (dense) QR decomposition */
-
-      /* compute QR decomposition of A */
-      status = gsl_linalg_QR_decomp_r(A, state->T);
-      if (status)
-        return status;
-
-      /* store upper triangular R factor in state->R */
-      gsl_matrix_tricpy(CblasUpper, CblasNonUnit, state->R, &R.matrix);
-
-      /* compute Q^T b and keep the first p elements */
-      gsl_linalg_QR_QTvec_r(A, state->T, b, state->work);
-      gsl_vector_memcpy(&QTb0.vector, &b1.vector);
-
-      if (n > p)
+      if (total_n < p)
         {
-          gsl_vector_view b2 = gsl_vector_subvector(b, p, n - p);
-          *norm_z2 = gsl_blas_dnrm2(&b2.vector);
+          /* we do not yet have enough rows to perform a QR, just store
+           * this block of rows */
+          gsl_matrix_view destm = gsl_matrix_submatrix(state->R, state->nrows, 0, n, p);
+          gsl_vector_view destv = gsl_vector_subvector(state->QTb, state->nrows, n);
+
+          gsl_matrix_memcpy(&destm.matrix, A);
+          gsl_vector_memcpy(&destv.vector, b);
         }
       else
-        *norm_z2 = 0.0;
+        {
+          /* we have enough rows to do QR */
+          gsl_vector_view QTb0 = gsl_vector_subvector(state->QTb, 0, p);
+          double * norm_z2 = gsl_vector_ptr(state->QTb, p);
+          gsl_vector_view b1;
+          gsl_matrix_view R;
+          gsl_matrix * tmp_A = NULL;
+          gsl_vector * tmp_b = NULL;
+          gsl_matrix * Aptr;
+          gsl_vector * bptr;
 
-      state->nblocks = 1;
+          if (state->nrows > 0)
+            {
+              /* we have stored rows from previous calls, allocate a new matrix,
+               * copy all the rows into it, and perform QR */
+              gsl_matrix_view srcm, destm;
+              gsl_vector_view srcv, destv;
+
+              tmp_A = gsl_matrix_alloc(total_n, p);
+              tmp_b = gsl_vector_alloc(total_n);
+
+              /* copy previously stored rows into tmp_A */
+              srcm = gsl_matrix_submatrix(state->R, 0, 0, state->nrows, p);
+              destm = gsl_matrix_submatrix(tmp_A, 0, 0, state->nrows, p);
+              gsl_matrix_memcpy(&destm.matrix, &srcm.matrix);
+
+              /* copy new rows into tmp_A */
+              destm = gsl_matrix_submatrix(tmp_A, state->nrows, 0, n, p);
+              gsl_matrix_memcpy(&destm.matrix, A);
+
+              /* copy previously stored rows into tmp_b */
+              srcv = gsl_vector_subvector(state->QTb, 0, state->nrows);
+              destv = gsl_vector_subvector(tmp_b, 0, state->nrows);
+              gsl_vector_memcpy(&destv.vector, &srcv.vector);
+
+              /* copy new rows into tmp_b */
+              destv = gsl_vector_subvector(tmp_b, state->nrows, n);
+              gsl_vector_memcpy(&destv.vector, b);
+
+              Aptr = tmp_A;
+              bptr = tmp_b;
+            }
+          else
+            {
+              Aptr = A;
+              bptr = b;
+            }
+
+          R = gsl_matrix_submatrix(Aptr, 0, 0, p, p);
+          b1 = gsl_vector_subvector(bptr, 0, p);
+
+          /* compute QR decomposition */
+          status = gsl_linalg_QR_decomp_r(Aptr, state->T);
+          if (status)
+            {
+              if (tmp_A)
+                gsl_matrix_free(tmp_A);
+
+              if (tmp_b)
+                gsl_vector_free(tmp_b);
+
+              return status;
+            }
+
+          /* store upper triangular R factor in state->R */
+          gsl_matrix_tricpy(CblasUpper, CblasNonUnit, state->R, &R.matrix);
+
+          /* zero the strict lower triangle of state->R, which may contain rows
+           * stored from previous calls; the SVD of R and gsl_multilarge_linear_matrix_ptr()
+           * access the full matrix */
+          {
+            size_t i;
+
+            for (i = 1; i < p; ++i)
+              {
+                gsl_vector_view v = gsl_matrix_subrow(state->R, i, 0, i);
+                gsl_vector_set_zero(&v.vector);
+              }
+          }
+
+          /* compute Q^T b and keep the first p elements */
+          gsl_linalg_QR_QTvec_r(Aptr, state->T, bptr, state->work);
+          gsl_vector_memcpy(&QTb0.vector, &b1.vector);
+
+          if (total_n > p)
+            {
+              gsl_vector_view b2 = gsl_vector_subvector(bptr, p, total_n - p);
+              *norm_z2 = gsl_blas_dnrm2(&b2.vector);
+            }
+          else
+            *norm_z2 = 0.0;
+
+          if (tmp_A)
+            gsl_matrix_free(tmp_A);
+
+          if (tmp_b)
+            gsl_vector_free(tmp_b);
+
+          state->init = 1;
+        }
+
+      state->nrows += n;
 
       return GSL_SUCCESS;
     }
@@ -320,6 +412,8 @@ tsqr_accumulate(gsl_matrix * A, gsl_vector * b, void * vstate)
       gsl_blas_dgemv(CblasNoTrans, -1.0, A, state->work, 1.0, b);                  /* b := b - V~ w */
       *norm_z2 = gsl_hypot(*norm_z2, gsl_blas_dnrm2(b));
 
+      state->nrows += n;
+
       return GSL_SUCCESS;
     }
 }
@@ -355,6 +449,10 @@ tsqr_solve(const double lambda, gsl_vector * x,
   else if (lambda < 0.0)
     {
       GSL_ERROR ("regularization parameter should be non-negative", GSL_EINVAL);
+    }
+  else if (state->init == 0)
+    {
+      GSL_ERROR ("at least p rows must be accumulated before solving", GSL_EINVAL);
     }
   else
     {
@@ -415,6 +513,11 @@ tsqr_lcurve(gsl_vector * reg_param, gsl_vector * rho,
   int status;
   size_t i;
 
+  if (state->init == 0)
+    {
+      GSL_ERROR ("at least p rows must be accumulated before computing L-curve", GSL_EINVAL);
+    }
+
   /* compute SVD of R if not already computed */
   if (state->svd == 0)
     {
@@ -454,6 +557,12 @@ static int
 tsqr_rcond(double * rcond, void * vstate)
 {
   tsqr_state_t *state = (tsqr_state_t *) vstate;
+
+  if (state->init == 0)
+    {
+      GSL_ERROR ("at least p rows must be accumulated before computing rcond", GSL_EINVAL);
+    }
+
   return gsl_linalg_tri_rcond(CblasUpper, state->R, rcond, state->work3);
 }
 
