@@ -157,8 +157,9 @@ NOTE: it may be necessary to use icc -fp-model precise to
 make all the checks pass:
 > make clean && ./configure CC=icc CFLAGS="-g -O2 -Wall -fp-model precise" && make && make check
 
-* Test example programs compilation and output
-> make check && sh scripts/test_examples.sh
+* Test example programs compilation and output (see the comments in the
+script for how the outputs are compared, and its --help for options)
+> make check && make -C doc/examples check && scripts/test_examples.py
 
 * Make sure the library passes "make check" with GSL_TEST_VERBOSE=1
 (it is possible to get segfaults in the verbose test output functions
