@@ -2,6 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT([gsl],[2.8+])
 AC_CONFIG_SRCDIR(gsl_math.h)
+AC_CONFIG_MACRO_DIRS([m4])
 
 AM_INIT_AUTOMAKE([gnu])
 AC_CONFIG_HEADERS([config.h])
