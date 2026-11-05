@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix multilarge/tsqr bug related to adding an initial small number
+   of rows
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
