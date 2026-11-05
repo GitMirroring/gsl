@@ -10,24 +10,8 @@
 ** add functions:
    - gsl_matrix_axpby
    - gsl_permutation_view_array
-   - gsl_rstat_alloc2
-   - gsl_rstat_quantile
-   - gsl_rstat_mad0
-   - gsl_rstat_mad
-   - gsl_rstat_cdf
-   - gsl_rstat_merge
-   - gsl_wrstat_alloc2
-   - gsl_wrstat_median
-   - gsl_wrstat_quantile
-   - gsl_wrstat_mad0
-   - gsl_wrstat_mad
-   - gsl_wrstat_cdf
-   - gsl_wrstat_merge
-   - gsl_wrstat_skew
-   - gsl_wrstat_kurtosis
-   - gsl_wrstat_norm
-   - gsl_wrstat_sd_mean
-   - gsl_wrstat_neff
+   - gsl_rstat_{alloc2,quantile,mad0,mad,cdf,merge}
+   - gsl_wrstat_{alloc2,median,quantile,mad0,mad,cdf,merge,skew,kurtosis,norm,sd_mean,neff}
 
 ** new interface (gsl_sf_alf) for associated Legendre functions
 
