@@ -34,6 +34,7 @@ noinst_HEADERS =     \
   deriv_common.c     \
   test_adaptive.c    \
   test_d.c           \
+  test_esterr.c      \
   test_directional.c \
   test_f.c           \
   test_fixed.c       \

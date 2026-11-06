@@ -46,8 +46,11 @@ test_fdf (const gsl_root_fdfsolver_type * T, const char * description,
           gsl_function_fdf *fdf, double root, double correct_root);
 
 void
-test_fdf_e (const gsl_root_fdfsolver_type * T, const char * description, 
+test_fdf_e (const gsl_root_fdfsolver_type * T, const char * description,
             gsl_function_fdf *fdf, double root, double correct_root);
+
+void
+test_fdf_set_calls (const gsl_root_fdfsolver_type * T);
 
 
 void

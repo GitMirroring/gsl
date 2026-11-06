@@ -75,6 +75,12 @@ main (void)
       test_f_e (*T, "invalid range check [1, 1]", &F_cos, 1.0, 1.0, 1.0, M_PI);
       test_f_e (*T, "invalid range check [-1, 1]", &F_cos, -1.0, 0.0, 1.0, M_PI);
     }
+  /* Brent must accept parabolic steps anywhere inside the bracket
+     (bug #43496: steps to the right longer than x - x_lower were
+     rejected in favour of golden section, costing iterations) */
+  test_iterations (gsl_min_fminimizer_brent, "x^4 - 1 [-3 (-1) 17]",
+                   &F_func1, -3.0, -1.0, 17.0, 8);
+
   test_bracket("cos(x) [1,2]",&F_cos,1.0,2.0,15);
   test_bracket("sqrt(|x|) [-1,0]",&F_func2,-1.0,0.0,15);
   test_bracket("sqrt(|x|) [-1,-0.6]",&F_func2,-1.0,-0.6,15);
@@ -121,6 +127,18 @@ test_f (const gsl_min_fminimizer_type * T,
 
       if (m < a || m > b)
         gsl_test (GSL_FAILURE, "m lies outside interval %g (%g,%g)", m, a, b);
+
+      /* the stored function values must belong to the current bracket */
+
+      if (gsl_min_fminimizer_f_lower (s) != GSL_FN_EVAL (f, a))
+        gsl_test (GSL_FAILURE, "%s, %s: f_lower %g is not f(x_lower) = %g",
+                  gsl_min_fminimizer_name (s), description,
+                  gsl_min_fminimizer_f_lower (s), GSL_FN_EVAL (f, a));
+
+      if (gsl_min_fminimizer_f_upper (s) != GSL_FN_EVAL (f, b))
+        gsl_test (GSL_FAILURE, "%s, %s: f_upper %g is not f(x_upper) = %g",
+                  gsl_min_fminimizer_name (s), description,
+                  gsl_min_fminimizer_f_upper (s), GSL_FN_EVAL (f, b));
 
       if (status) break ;
 
@@ -182,6 +200,40 @@ test_f_e (const gsl_min_fminimizer_type * T,
 
   gsl_test (!status, "%s, %s", gsl_min_fminimizer_name(s), description, 
             gsl_min_fminimizer_x_minimum(s) - correct_minimum);
+
+  gsl_min_fminimizer_free (s);
+}
+
+void
+test_iterations (const gsl_min_fminimizer_type * T,
+                 const char * description, gsl_function *f,
+                 double lower_bound, double middle, double upper_bound,
+                 size_t max_iterations)
+{
+  int status;
+  size_t iterations = 0;
+  gsl_min_fminimizer * s = gsl_min_fminimizer_alloc (T);
+
+  gsl_min_fminimizer_set (s, f, middle, lower_bound, upper_bound);
+
+  do
+    {
+      iterations++;
+      status = gsl_min_fminimizer_iterate (s);
+
+      if (status)
+        break;
+
+      status = gsl_min_test_interval (gsl_min_fminimizer_x_lower (s),
+                                      gsl_min_fminimizer_x_upper (s),
+                                      EPSABS, EPSREL);
+    }
+  while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
+
+  gsl_test (status != GSL_SUCCESS || iterations > max_iterations,
+            "%s, %s converges in at most %u iterations (%u observed)",
+            gsl_min_fminimizer_name (s), description,
+            (unsigned int) max_iterations, (unsigned int) iterations);
 
   gsl_min_fminimizer_free (s);
 }

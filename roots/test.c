@@ -120,6 +120,7 @@ main (void)
       test_fdf_e (*S,"max iterations x -> +Inf, x exp(-x) {2}", &FDF_func4, 2.0, 0.0);
       test_fdf_e (*S,"max iterations x -> -Inf, 1/(1 + exp(-x)) {0}", &FDF_func5, 0.0, 0.0);
 	  test_fdf(*S, "-pi * x + e {1.5}", &FDF_func7, 1.5, M_E / M_PI);
+      test_fdf_set_calls (*S);
   }
 
   test_fdf (gsl_root_fdfsolver_steffenson,
@@ -301,9 +302,58 @@ test_fdf_e (const gsl_root_fdfsolver_type * T,
     }
   while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
 
-  gsl_test (!status, "%s, %s", gsl_root_fdfsolver_name(s), 
+  gsl_test (!status, "%s, %s", gsl_root_fdfsolver_name(s),
             description, gsl_root_fdfsolver_root(s) - correct_root);
   gsl_root_fdfsolver_free(s);
+}
+
+/* count calls to f, df and fdf of f(x) = x^2 - 2 */
+
+typedef struct { int nf, ndf, nfdf; } call_counts;
+
+static double
+count_f (double x, void * params)
+{
+  ((call_counts *) params)->nf++;
+  return x * x - 2.0;
+}
+
+static double
+count_df (double x, void * params)
+{
+  ((call_counts *) params)->ndf++;
+  return 2.0 * x;
+}
+
+static void
+count_fdf (double x, void * params, double * y, double * dy)
+{
+  ((call_counts *) params)->nfdf++;
+  *y = x * x - 2.0;
+  *dy = 2.0 * x;
+}
+
+/* setting a solver needs f and f' at the starting point and should get
+   both from a single fdf call (bugs #50734, #49465) */
+void
+test_fdf_set_calls (const gsl_root_fdfsolver_type * T)
+{
+  call_counts c = { 0, 0, 0 };
+  gsl_function_fdf FDF;
+  gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc (T);
+
+  FDF.f = &count_f;
+  FDF.df = &count_df;
+  FDF.fdf = &count_fdf;
+  FDF.params = &c;
+
+  gsl_root_fdfsolver_set (s, &FDF, 1.0);
+
+  gsl_test (c.nf != 0 || c.ndf != 0 || c.nfdf != 1,
+            "%s, set uses one fdf call (f %d, df %d, fdf %d calls)",
+            gsl_root_fdfsolver_name (s), c.nf, c.ndf, c.nfdf);
+
+  gsl_root_fdfsolver_free (s);
 }
 
 void

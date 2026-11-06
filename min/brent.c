@@ -125,7 +125,8 @@ brent_iterate (void *vstate, gsl_function * f, double *x_minimum, double * f_min
       e = d;
     }
 
-  if (fabs (p) < fabs (0.5 * q * r) && p < q * w_lower && p < q * w_upper)
+  /* accept the parabolic step d = p/q (q > 0) if z + d lies inside (x_left, x_right) */
+  if (fabs (p) < fabs (0.5 * q * r) && p > -q * w_lower && p < q * w_upper)
     {
       double t2 = 2 * tolerance ;
 

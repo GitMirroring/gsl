@@ -28,7 +28,7 @@ The functions :math:`P_l^m(x)` grow combinatorially with
 :math:`l` and can overflow in double precision for :math:`l` larger than about 150.
 Alternatively, one may calculate normalized associated Legendre
 polynomials. There are a number of different normalization conventions,
-and these functions can be stably computed up to degree and order 2700. The
+and these functions can be computed stably to high degree and order. The
 following normalizations are provided:
 
 * **Schmidt semi-normalization**
@@ -156,10 +156,14 @@ following normalizations are provided:
   :math:`4\pi` normalization condition when integrated over the unit sphere.
   More information on these functions can be found in Hofmann-Wellenhof and Moritz, 2006.
 
-The normalized associated Legendre routines below use a recurrence
-relation which is stable up to a degree and order of about 2700.
-Beyond this, the computed functions could suffer from underflow
-leading to incorrect results. Routines are provided to compute
+The normalized associated Legendre routines below use the recurrence
+relations of Holmes and Featherstone (2002). The sectoral terms
+:math:`P_m^m(x)`, which contain the factor :math:`\sin^m{\theta}`, are carried
+with a separate power-of-two exponent, so they do not underflow at high
+order; values below the smallest normal double precision number are
+returned as zero. Near the poles, the relative rounding error of the
+recurrence grows roughly like :math:`\epsilon L^2` for maximum degree :math:`L`.
+Routines are provided to compute
 first and second derivatives
 :math:`dP_l^m(x)/dx` and :math:`d^2 P_l^m(x)/dx^2` as well as their alternate
 versions :math:`d P_l^m(\cos{\theta})/d\theta` and
@@ -229,7 +233,10 @@ code demonstrates how to access the array elements in order,
    recurrence factors are stored at the end of :data:`result_array`, leaving
    room at the front for the calculation of the ALFs.
 
-   This routine must be called prior to calling ALF array functions.
+   This routine must be called prior to calling ALF array functions. The
+   array functions check that :data:`result_array` was initialized by this
+   routine with the same :data:`lmax` and :data:`mmax`, and return
+   :macro:`GSL_EINVAL` otherwise.
 
 .. function:: int gsl_sf_alf_array (const size_t lmax, const size_t mmax, const double x, double result_array[])
 
@@ -318,6 +325,24 @@ code demonstrates how to access the array elements in order,
    to initialize :data:`result_array` with the multiplicative factors
    used in the recurrence relations.
 
+.. function:: int gsl_sf_alf_vsh2_array (const size_t lmax, const size_t mmax, const double x, double result_array[], double result_deriv_array[], double result_deriv2_array[])
+
+   This function computes the same quantities as :func:`gsl_sf_alf_vsh_array`, stored in
+   :data:`result_array` and :data:`result_deriv_array` with the same conventions, together with
+   the second derivatives
+
+   .. math:: \textrm{result\_deriv2\_array[index(l,m,lmax)]} = \frac{d^2}{d\theta^2} P_l^m(x), \qquad m \geq 0
+
+   for :math:`0 \leq l \leq lmax` and :math:`0 \leq m \leq \min{(l,mmax)}` for :math:`|x| \leq 1`.
+   The derivatives are obtained by differentiating the recurrence relations with respect to
+   :math:`\theta`, which involves only multiplications by :math:`\sin{\theta}` and :math:`\cos{\theta}`,
+   so the results are well defined at the poles, and any :math:`mmax \leq lmax` may be used.
+
+   The function :func:`gsl_sf_alf_precompute` must be called first
+   using the same :data:`lmax` and :data:`mmax` inputs
+   to initialize :data:`result_array` with the multiplicative factors
+   used in the recurrence relations.
+
 .. function:: int gsl_sf_alf_theta_derivk_array (const size_t lmax, const double Plm[], const double input_array[], double output_array[])
 
    This function computes derivatives (with respect to :math:`\theta`) of order :math:`k`,
@@ -326,7 +351,8 @@ code demonstrates how to access the array elements in order,
    while the derivatives :math:`d^k P_l^m/d\theta^k` are stored in the array :data:`output_array`.
    The array :data:`Plm` must also be provided and initialized by :func:`gsl_sf_alf_precompute` to
    precompute the factors in the recurrence relations. The maximum degree :math:`L` is given in :data:`lmax`,
-   and for this algorithm to work, it is required that :math:`L = M`.
+   and for this algorithm to work, it is required that :math:`L = M`: :data:`Plm` must be
+   initialized with :code:`mmax = lmax`, otherwise :macro:`GSL_EINVAL` is returned.
 
 .. function:: size_t gsl_sf_alf_nlm (const size_t lmax, const size_t mmax)
 

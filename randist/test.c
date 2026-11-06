@@ -48,6 +48,7 @@ void testDiscretePDF (double (*f) (void), double (*pdf) (unsigned int),
 
 void test_shuffle (void);
 void test_choose (void);
+void test_binomial_small_mean_f0 (void);
 double test_beta (void);
 double test_beta_pdf (double x);
 double test_bernoulli (void);
@@ -277,6 +278,7 @@ main (void)
 
   test_shuffle ();
   test_choose ();
+  test_binomial_small_mean_f0 ();
 
   testMoments (FUNC (ugaussian), 0.0, 100.0, 0.5);
   testMoments (FUNC (ugaussian), -1.0, 1.0, 0.6826895);
@@ -507,6 +509,42 @@ test_choose (void)
 
   gsl_test (status, "gsl_ran_choose (3) on {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}");
 
+}
+
+/* generator returning a fixed value, to probe the inversion thresholds of
+   discrete samplers deterministically */
+
+static double fixed_u;
+
+static void fixed_set (void *state, unsigned long int s) { (void) state; (void) s; }
+static unsigned long int fixed_get (void *state) { (void) state; return 0; }
+static double fixed_get_double (void *state) { (void) state; return fixed_u; }
+
+static const gsl_rng_type fixed_type =
+  { "fixed", 0xffffffffUL, 0, 1, &fixed_set, &fixed_get, &fixed_get_double };
+
+/* The small-mean binomial sampler returns 0 iff u < f0 = (1-p)^n, so f0 must
+   be accurate: for n = 4e9, p = 2e-9 the old pow(1-p, n) was off by 2e-7
+   relative (bug #68479).  Exact f0 from 300-bit arithmetic. */
+
+void
+test_binomial_small_mean_f0 (void)
+{
+  const unsigned int n = 4000000000U;
+  const double p = 2e-9;
+  const double f0 = 3.3546262521881065561e-04;
+  gsl_rng *r = gsl_rng_alloc (&fixed_type);
+  unsigned int k;
+
+  fixed_u = f0 * (1.0 - 1e-12);
+  k = gsl_ran_binomial (r, p, n);
+  gsl_test (k != 0, "gsl_ran_binomial small mean, u just below (1-p)^n gives 0 (got %u)", k);
+
+  fixed_u = f0 * (1.0 + 1e-12);
+  k = gsl_ran_binomial (r, p, n);
+  gsl_test (k == 0, "gsl_ran_binomial small mean, u just above (1-p)^n gives > 0 (got %u)", k);
+
+  gsl_rng_free (r);
 }
 
 

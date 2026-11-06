@@ -71,26 +71,19 @@ test_h0(const unsigned int deriv_order, const unsigned int method_order)
 
 gsl_deriv_parameters
 test_parameters(const unsigned int deriv_order, const unsigned int method_order,
-                const gsl_deriv_stencil_t stencil_type, const gsl_deriv_step_policy_t step_policy,
-                const double min_step_1, const double max_step_1)
+                const gsl_deriv_stencil_t stencil_type, const gsl_deriv_step_policy_t step_policy)
 {
-  /* this factor scales the input step range (tuned for deriv_order=1) to higher deriv orders */
-  const double step_fac = pow(GSL_DBL_EPSILON, 1.0/(deriv_order+method_order) - 1.0/(method_order+1.0));
   gsl_deriv_parameters params = gsl_deriv_default_parameters(deriv_order, method_order);
 
   params.stencil_type = stencil_type;
   params.step_policy = step_policy;
-
-  if (min_step_1 > 0.0)
-    params.min_step = min_step_1 * step_fac;
-  if (max_step_1 > 0.0)
-    params.max_step = max_step_1 * step_fac;
 
   return params;
 }
 
 #include "test_f.c"
 #include "test_adaptive.c"
+#include "test_esterr.c"
 #include "test_directional.c"
 #include "test_fixed.c"
 #include "test_fornberg.c"
@@ -129,6 +122,9 @@ main ()
   test_deriv_adaptive(tol, test_normal_functions, rng_p);
   test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p); /* tight tolerance for polynomials */
   test_deriv_adaptive(tol, test_scale_functions, rng_p);
+
+  /* test error estimates and candidate selection of the adaptive algorithm */
+  test_esterr(rng_p);
 
   /* test directional derivative */
   test_directional(1.0e2*tol, test_directional_functions, 0, rng_p); /* adaptive */

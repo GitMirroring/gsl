@@ -278,7 +278,7 @@ quad_golden_iterate (void *vstate, gsl_function * f, double *x_minimum,
       else
       	{
           *x_lower = x_m;
-          *f_upper = f_m;
+          *f_lower = f_m;
         }
 
       state->x_prev_small = x_small;

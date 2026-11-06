@@ -321,6 +321,7 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
         {
           const double xi = gsl_vector_get(x, i);
           gsl_vector_view der_init = gsl_vector_view_array(dptr->der_init, dptr->nstep);
+          gsl_vector_view err_init = gsl_vector_view_array(dptr->err_init, dptr->nstep);
           gsl_vector_view der_romb = gsl_vector_view_array(dptr->der_romb, dptr->nromb);
           gsl_vector_view err_romb = gsl_vector_view_array(dptr->err_romb, dptr->nromb);
           gsl_vector_view step_romb = gsl_vector_view_array(dptr->h, dptr->nromb);
@@ -363,7 +364,7 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
             }
 
           /* perform Romberg extrapolation */
-          romb_extrap(&der_init.vector, &der_romb.vector, &err_romb.vector, &romb_state);
+          romb_extrap(&der_init.vector, &err_init.vector, &der_romb.vector, &err_romb.vector, &romb_state);
 
           /* filter out extremely incorrect candidates */
           (cfilter->filter)(&der_romb.vector, &(dptr->cand));

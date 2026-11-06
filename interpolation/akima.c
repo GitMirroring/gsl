@@ -112,7 +112,8 @@ akima_calc (const double x_array[], double b[],  double c[],  double d[], size_t
           double tL_ip1;
           if (NE_next == 0.0)
             {
-              tL_ip1 = m[i];
+              /* must match b[i+1] = m[i+1] set by the NE == 0 branch above */
+              tL_ip1 = m[i + 1];
             }
           else
             {

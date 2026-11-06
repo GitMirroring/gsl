@@ -2,7 +2,36 @@
 
 ** new double-double arithmetic module (gsl_dd)
 
+** fix multilarge/tsqr bug related to adding an initial small number
+   of rows
+
+** fix for bug #68068 (quad_golden minimizer stored f(x_minimum) in
+   f_upper instead of f_lower when moving the lower bracket point;
+   reported by Fermé le Lundi)
+
+** fix for bug #52351 (Akima splines had derivative discontinuities
+   next to flat stretches of data; reported by T. Walter)
+
+** fix for bug #68495 (gsl_pow_int(x, INT_MIN) negated INT_MIN, which
+   is undefined behaviour; reported by Y. Su)
+
+** fix for bug #43496 (Brent minimizer rejected valid parabolic steps
+   because of a sign error in the step acceptance test, costing
+   iterations)
+
+** fix for bugs #50734 and #49465 (Newton and Steffenson root solvers
+   now initialise with a single fdf call instead of separate f and df
+   calls; reported by L. Singer)
+
+** fix for bug #68479 (gsl_ran_binomial computed (1-p)^n inaccurately
+   in the small-mean branch for large n; reported by Fermé le Lundi)
+
 ** new adaptive differentation module (gsl_deriv)
+
+** new weighted running statistics module (gsl_wrstat)
+
+** gsl_rstat median now uses the KLL quantile algorithm (Karnin, Lang
+   and Liberty, 2016) instead of the P^2 algorithm
 
 ** new or overhauled special functions:
    - gsl_sf_erf*
@@ -17,10 +46,16 @@
 ** add functions:
    - gsl_matrix_axpby
    - gsl_permutation_view_array
+   - gsl_rstat_{alloc2,quantile,mad0,mad,cdf,merge}
+   - gsl_wrstat_{alloc2,median,quantile,mad0,mad,cdf,merge,skew,kurtosis,norm,sd_mean,neff}
 
 ** new interface (gsl_sf_alf) for associated Legendre functions
 
 ** bug fix in collocation matrix for order-1 interpolating B-splines
+
+** the CBLAS library reported by pkg-config (gsl.pc) and gsl-config
+   can be selected at configure time with the GSL_CBLAS_LIB variable,
+   e.g. ./configure GSL_CBLAS_LIB=-lopenblas (default: -lgslcblas)
 
 * What was new in gsl-2.8:
 

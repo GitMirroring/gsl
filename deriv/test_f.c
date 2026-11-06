@@ -39,8 +39,7 @@ typedef struct
   double xmin;
   double xmax;
   double a;
-  double min_step;
-  double max_step;
+  double scale;    /* characteristic length scale of the function for GSL_DERIV_STEP_USER_SCALE; <= 0 for none */
   const char * desc;
 } deriv_test_function;
 
@@ -189,48 +188,52 @@ const deriv_test_t p4_test   = {   p4_f,   p4_df,   p4_d2f,   p4_d3f,   p4_d4f }
 
 static const deriv_test_function test_normal_functions[] =
 {
-  {  &exp_test,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "exp(x)" },
-  { &exp2_test,  -3.0,   3.0,   0.0,   -1.0,    -1.0,    "exp(-x*x)" },
-  {  &sin_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "sin(x)" },
-  {  &cos_test,  -M_PI,  M_PI,  0.0,   -1.0,    -1.0,    "cos(x)" },
-  { &atan_test,  -10.0,  10.0,  0.0,   -1.0,    -1.0,    "atan(x)" },
-  { &esin_test,  -3.0,   5.0,   0.0,   -1.0,    -1.0,    "exp(-x)*sin(x)" },
-  { &xsqx_test,   1.0,   4.0,   0.0,   -1.0,    -1.0,    "x*sqrt(x)" },
+  {  &exp_test,  -5.0,  5.0,   0.0,   -1.0,     "exp(x)" },
+  { &exp2_test,  -3.0,  3.0,   0.0,   -1.0,     "exp(-x*x)" },
+  {  &sin_test,  -M_PI, M_PI,  0.0,   -1.0,     "sin(x)" },
+  {  &cos_test,  -M_PI, M_PI,  0.0,   -1.0,     "cos(x)" },
+  { &atan_test,  -10.0, 10.0,  0.0,   -1.0,     "atan(x)" },
+  { &esin_test,  -3.0,  5.0,   0.0,   -1.0,     "exp(-x)*sin(x)" },
+  { &xsqx_test,   1.0,  4.0,   0.0,   -1.0,     "x*sqrt(x)" },
 
-  { &sinh_test,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "sinh(x)" },
-  { &cosh_test,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "cosh(x)" },
-  { &tanh_test,  -4.0,   4.0,   0.0,   -1.0,    -1.0,    "tanh(x)" },
+  { &sinh_test, -5.0,  5.0,   0.0,   -1.0,     "sinh(x)" },
+  { &cosh_test, -5.0,  5.0,   0.0,   -1.0,     "cosh(x)" },
+  { &tanh_test, -4.0,  4.0,   0.0,   -1.0,     "tanh(x)" },
 
-  { &invx_test,   1.0,   5.0,   0.0,   -1.0,    -1.0,    "1/x" },
-  { &rat1_test,   0.0,   5.0,   0.0,   -1.0,    -1.0,    "1/(1+x)" },
-  { &rat2_test,  -5.0,   5.0,   0.0,   -1.0,    -1.0,    "1/(1+x^2)" },
-  { &rat3_test,  -10.0,  10.0,  0.0,   -1.0,    -1.0,    "x/(1+x^2)" },
+  { &invx_test,  1.0,  5.0,   0.0,   -1.0,     "1/x" },
+  { &rat1_test,  0.0,  5.0,   0.0,   -1.0,     "1/(1+x)" },
+  { &rat2_test, -5.0,  5.0,   0.0,   -1.0,     "1/(1+x^2)" },
+  { &rat3_test, -10.0, 10.0,  0.0,   -1.0,     "x/(1+x^2)" },
 
-  {       NULL,   0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
+  {       NULL,  0.0,  0.0,   0.0,   -1.0,     NULL }
 };
 
 static const deriv_test_function test_poly_functions[] =
 {
-  {  &p1_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x" },
-  {  &p2_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^2" },
-  {  &p3_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^3" },
-  {  &p4_test,   -5.0,   5.0,   0.0,   -1.0,    -1.0,    "x^4" },
-  {      NULL,    0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
+  {  &p1_test,   -5.0,  5.0,   0.0,   -1.0,     "x" },
+  {  &p2_test,   -5.0,  5.0,   0.0,   -1.0,     "x^2" },
+  {  &p3_test,   -5.0,  5.0,   0.0,   -1.0,     "x^3" },
+  {  &p4_test,   -5.0,  5.0,   0.0,   -1.0,     "x^4" },
+  {      NULL,    0.0,  0.0,   0.0,   -1.0,     NULL }
 };
 
-/* the min/max step values were hand tuned using the diagnostic output */
+/*
+ * functions with a characteristic length scale 1/a: the step sizes are scaled by 1/a
+ * (GSL_DERIV_STEP_USER_SCALE), so that the default step range is centered on the plateau
+ * of accurate derivative estimates, which for these functions lies at h ~ eps^(1/(m+p)) / a
+ */
 static const deriv_test_function test_scale_functions[] =
 {
-  { &expa_test,  -5.0,   5.0,   0.01,   1.0e-7,  1.0e3,  "exp(a*x)" },
-  { &expa_test,  -5.0,   5.0,   0.1,    1.0e-8,  1.0e2,  "exp(a*x)" },
-  { &expa_test,  -5.0,   5.0,   1.0,   -1.0,    -1.0,    "exp(a*x)" },
-  { &expa_test,  -2.0,   2.0,   10.0,   1.0e-8,  1.0e0,  "exp(a*x)" },
+  { &expa_test, -5.0,  5.0,   0.01,  1.0/0.01,  "exp(a*x)" },
+  { &expa_test, -5.0,  5.0,   0.1,   1.0/0.1,   "exp(a*x)" },
+  { &expa_test, -5.0,  5.0,   1.0,   1.0,       "exp(a*x)" },
+  { &expa_test, -2.0,  2.0,   10.0,  1.0/10.0,  "exp(a*x)" },
 
-  { &sina_test,  -M_PI,  M_PI,  0.01,   1.0e-3,  1.0e3,  "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  0.1,    1.0e-4,  1.0e1,  "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  1.0,    1.0e-3,  1.0e0,  "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  10.0,   1.0e-6,  1.0e-1, "sin(a*x)" },
-  { &sina_test,  -M_PI,  M_PI,  100.0,  1.0e-7,  1.0e-3, "sin(a*x)" },
+  { &sina_test, -M_PI, M_PI,  0.01,  1.0/0.01,  "sin(a*x)" },
+  { &sina_test, -M_PI, M_PI,  0.1,   1.0/0.1,   "sin(a*x)" },
+  { &sina_test, -M_PI, M_PI,  1.0,   1.0,       "sin(a*x)" },
+  { &sina_test, -M_PI, M_PI,  10.0,  1.0/10.0,  "sin(a*x)" },
+  { &sina_test, -M_PI, M_PI,  100.0, 1.0/100.0, "sin(a*x)" },
 
-  {      NULL,    0.0,   0.0,   0.0,   -1.0,    -1.0,    NULL }
+  {      NULL,   0.0,  0.0,   0.0,  -1.0,       NULL }
 };

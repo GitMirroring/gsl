@@ -45,12 +45,12 @@ test_deriv_fixed_tol(const double tol, const deriv_test_function * TF, const dou
   double result, abserr, h0;
   unsigned int neval;
 
-  params = test_parameters(1, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE, TF->min_step, TF->max_step);
+  params = test_parameters(1, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE);
   h0 = test_h0(1, method_order);
   gsl_deriv_fixed(&params, &F, x, h0, &result, &abserr, &neval);
   gsl_test_rel(result, expected_df, tol, "%s df fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h0);
 
-  params = test_parameters(2, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE, TF->min_step, TF->max_step);
+  params = test_parameters(2, method_order, stencil_type, GSL_DERIV_STEP_ABSOLUTE);
   h0 = test_h0(2, method_order);
   gsl_deriv_fixed(&params, &F, x, h0, &result, &abserr, &neval);
   gsl_test_rel(result, expected_d2f, 1.0e2*tol, "%s d2f fixed %s x=%g a=%g h=%g", TF->desc, desc, x, a, h0);

@@ -381,11 +381,12 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
           for (k = 0; k < l; ++k)
             {
               gsl_vector_view der_init = gsl_matrix_subrow(w->der_init, k, 0, w->nstep);
+              gsl_vector_view err_init = gsl_matrix_subrow(w->err_init, k, 0, w->nstep);
               double der_select, err_select, step_select;
               gsl_deriv_cand_t cand;
 
               /* perform Romberg extrapolation on each row of der_init */
-              romb_extrap(&der_init.vector, w->der_romb, w->err_romb, (romb_state_t *) w->romb_state);
+              romb_extrap(&der_init.vector, &err_init.vector, w->der_romb, w->err_romb, (romb_state_t *) w->romb_state);
 
               /* filter out extremely incorrect candidates */
               (cfilter->filter)(w->der_romb, &cand);

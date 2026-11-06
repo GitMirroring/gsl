@@ -1,6 +1,6 @@
 /* rstat/gsl_rstat.h
  * 
- * Copyright (C) 2015 Patrick Alken
+ * Copyright (C) 2015, 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,10 +59,20 @@ typedef struct
   double M3;
   double M4;
   size_t n;        /* number of data points added */
-  gsl_rstat_quantile_workspace *median_workspace_p; /* median workspace */
+
+  /* quantile estimation (KLL algorithm), see rstat.c */
+  size_t k;        /* accuracy parameter (capacity of top level) */
+  size_t nmax;     /* maximum number of retained data, length of buf */
+  size_t *cap;     /* capacities of levels by depth below the top level */
+  size_t *lev;     /* level h occupies buf[lev[h] .. lev[h+1]-1] */
+  size_t nlevels;  /* number of levels in use */
+  size_t budget;   /* current maximum number of retained data */
+  double *buf;     /* retained data */
+  unsigned long rng; /* random number state */
 } gsl_rstat_workspace;
 
 gsl_rstat_workspace *gsl_rstat_alloc(void);
+gsl_rstat_workspace *gsl_rstat_alloc2(const size_t k);
 void gsl_rstat_free(gsl_rstat_workspace *w);
 size_t gsl_rstat_n(const gsl_rstat_workspace *w);
 int gsl_rstat_add(const double x, gsl_rstat_workspace *w);
@@ -74,7 +84,12 @@ double gsl_rstat_sd(const gsl_rstat_workspace *w);
 double gsl_rstat_rms(const gsl_rstat_workspace *w);
 double gsl_rstat_norm(const gsl_rstat_workspace *w);
 double gsl_rstat_sd_mean(const gsl_rstat_workspace *w);
-double gsl_rstat_median(gsl_rstat_workspace *w);
+double gsl_rstat_median(const gsl_rstat_workspace *w);
+double gsl_rstat_quantile(const double p, const gsl_rstat_workspace *w);
+double gsl_rstat_mad0(const gsl_rstat_workspace *w);
+double gsl_rstat_mad(const gsl_rstat_workspace *w);
+double gsl_rstat_cdf(const double x, const gsl_rstat_workspace *w);
+int gsl_rstat_merge(const gsl_rstat_workspace *src, gsl_rstat_workspace *dest);
 double gsl_rstat_skew(const gsl_rstat_workspace *w);
 double gsl_rstat_kurtosis(const gsl_rstat_workspace *w);
 int gsl_rstat_reset(gsl_rstat_workspace *w);

@@ -19,7 +19,8 @@ Known values for OPTION are:
   --version		output version information
 
 An external CBLAS library can be specified using the GSL_CBLAS_LIB
-environment variable. The GSL CBLAS library is used by default.
+environment variable. By default, the CBLAS library selected when GSL
+was configured is used (@GSL_CBLAS_LIB@).
 
 EOF
 
@@ -62,7 +63,7 @@ while test $# -gt 0; do
        	;;
 
     --libs)
-        : ${GSL_CBLAS_LIB=-lgslcblas}
+        : ${GSL_CBLAS_LIB=@GSL_CBLAS_LIB@}
 	echo @GSL_LIBS@ $GSL_CBLAS_LIB @GSL_LIBM@
        	;;
 

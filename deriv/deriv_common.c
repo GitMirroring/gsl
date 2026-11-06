@@ -41,6 +41,7 @@ typedef struct
   double QR_data[ROMBERG_MAX_M*ROMBERG_MAX_N]; /* QR factorization of LS matrix, size M-by-N */
   double T_data[ROMBERG_MAX_N*ROMBERG_MAX_N];  /* Householder reflector matrix, size N-by-N */
   double sqrt_cov1;                            /* cov1 = (R^T R)^{-1}]_11 */
+  double g[ROMBERG_MAX_M];                     /* extrapolation weights: der_romb = sum_k g_k der_init_k, length M */
 } romb_state_t;
 
 static int geometric_fill(const double max_val, const double ratio, const size_t n, double result[]);
@@ -48,7 +49,8 @@ static int deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size
                       double weights[], gsl_vector_view * W);
 static int vec2mat(const gsl_vector * v, gsl_matrix * A);
 static int romb_init(const gsl_deriv_parameters * params, const double step_ratio, romb_state_t * state);
-static int romb_extrap(const gsl_vector * der_init, gsl_vector * der_romb, gsl_vector * errest, romb_state_t * state);
+static int romb_extrap(const gsl_vector * der_init, const gsl_vector * err_init, gsl_vector * der_romb,
+                       gsl_vector * errest, romb_state_t * state);
 static int scale_get(const gsl_deriv_parameters * params, const double x, const size_t idx, double * scale);
 
 /*
@@ -153,6 +155,7 @@ nexpon
 QR_data
 T_data
 sqrt_cov1
+g
 */
 
 static int
@@ -218,6 +221,25 @@ romb_init(const gsl_deriv_parameters * params, const double step_ratio, romb_sta
       /* cov1 = (R^T R)^{-1}]_11 */
       state->sqrt_cov1 = gsl_blas_dnrm2(&y.vector);
 
+      /*
+       * extrapolation weights g = e_1^T (A^T A)^{-1} A^T: the extrapolated derivative
+       * of a window is sum_k g_k der_init_k, so its rounding error is at most
+       * sum_k |g_k| err_init_k
+       */
+      {
+        double b_data[ROMBERG_MAX_M], x_data[ROMBERG_MAX_M], work_data[ROMBERG_MAX_N];
+        gsl_vector_view b = gsl_vector_view_array(b_data, M);
+        gsl_vector_view x = gsl_vector_view_array(x_data, M);
+        gsl_vector_view work = gsl_vector_view_array(work_data, N);
+
+        for (i = 0; i < M; ++i)
+          {
+            gsl_vector_set_basis(&b.vector, i);
+            gsl_linalg_QR_lssolve_r(&A.matrix, &T.matrix, &b.vector, &x.vector, &work.vector);
+            state->g[i] = x_data[0];
+          }
+      }
+
       return GSL_SUCCESS;
     }
 }
@@ -227,6 +249,7 @@ romb_extrap()
   Perform Romberg extrapolation
 
 Inputs: der_init - initial derivative estimates
+        err_init - rounding error estimates of der_init (may be NULL)
         der_romb - (output) Romberg extrapolated estimates
         errest   - (output) estimated error in extrapolated derivatives
         state    - workspace
@@ -235,10 +258,25 @@ Return: success/error
 
 Notes:
 1) romb_init() must be called prior to initialize state
+
+2) The error estimate of each Romberg window is the largest of:
+
+   a) the 95% uncertainty from the residual of the least-squares fit (as in
+      DERIVEST); the fit has a single degree of freedom, so the residual can be
+      arbitrarily small by chance
+   b) the rounding error propagated through the extrapolation weights,
+      sum_k |g_k| err_init_k (if err_init is provided)
+   c) the smaller of the differences with the extrapolated estimates of the two
+      neighboring windows, which share all but one finite difference estimate
+
+   Without b) and c), selecting the candidate with the smallest error estimate
+   favors windows in the rounding-dominated region whose estimates happen to fit
+   the truncation error model
 */
 
 static int
-romb_extrap(const gsl_vector * der_init, gsl_vector * der_romb, gsl_vector * errest, romb_state_t * state)
+romb_extrap(const gsl_vector * der_init, const gsl_vector * err_init, gsl_vector * der_romb,
+            gsl_vector * errest, romb_state_t * state)
 {
   const size_t nexpon = state->nexpon;
   const size_t M = nexpon + 2;
@@ -292,6 +330,43 @@ romb_extrap(const gsl_vector * der_init, gsl_vector * der_romb, gsl_vector * err
 
       /* error estimates */
       gsl_vector_axpby(t95 * state->sqrt_cov1, &s.vector, 0.0, errest);
+
+      for (j = 0; j < nromb; ++j)
+        {
+          double e = gsl_vector_get(errest, j);
+          const double dj = gsl_vector_get(der_romb, j);
+
+          /* rounding error propagated through the extrapolation */
+          if (err_init != NULL)
+            {
+              double eround = 0.0;
+              size_t k;
+
+              for (k = 0; k < M; ++k)
+                eround += fabs(state->g[k]) * gsl_vector_get(err_init, j + k);
+
+              e = GSL_MAX(e, eround);
+            }
+
+          /*
+           * consistency with the closer of the neighboring windows: a window at
+           * the edge of the plateau agrees with its neighbor inside the plateau,
+           * while an isolated window in the noise region disagrees with both
+           */
+          if (nromb > 1)
+            {
+              double dmin = GSL_POSINF;
+
+              if (j > 0)
+                dmin = GSL_MIN(dmin, fabs(dj - gsl_vector_get(der_romb, j - 1)));
+              if (j + 1 < nromb)
+                dmin = GSL_MIN(dmin, fabs(dj - gsl_vector_get(der_romb, j + 1)));
+
+              e = GSL_MAX(e, dmin);
+            }
+
+          gsl_vector_set(errest, j, e);
+        }
 
       return GSL_SUCCESS;
     }

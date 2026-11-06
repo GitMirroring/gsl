@@ -55,8 +55,7 @@ newton_init (void * vstate, gsl_function_fdf * fdf, double * root)
 
   const double x = *root ;
 
-  state->f = GSL_FN_FDF_EVAL_F (fdf, x);
-  state->df = GSL_FN_FDF_EVAL_DF (fdf, x) ;
+  GSL_FN_FDF_EVAL_F_DF (fdf, x, &(state->f), &(state->df));
 
   return GSL_SUCCESS;
 

@@ -31,7 +31,7 @@ double gsl_pow_int(double x, int n)
 
   if(n < 0) {
     x = 1.0/x;
-    un = -n;
+    un = -(unsigned int) n;  /* not -n, which overflows for n = INT_MIN */
   } else {
     un = n;
   }
