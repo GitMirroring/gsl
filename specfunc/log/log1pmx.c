@@ -81,7 +81,7 @@ gsl_sf_log1pmx_e(const double x, gsl_sf_result * result)
     }
   else
     {
-      const double lterm = log1p(x);
+      const double lterm = gsl_sf_log1p(x);   /* not log1p(): C99, may be unavailable */
       result->val = lterm - x;
       result->err = 2.0 * GSL_DBL_EPSILON * (fabs(lterm) + fabs(x));
       return GSL_SUCCESS;

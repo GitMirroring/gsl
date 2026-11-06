@@ -89,11 +89,30 @@ test_taylorcoeff(void)
   TEST_SF(s, gsl_new_sf_taylorcoeff_e, (200, 100.0, &r),
           1.26797695348096246921e+25, TEST_TOL4, GSL_SUCCESS);
 
+  /*
+   * Beyond the factorial table (n > 300): Stirling form with a
+   * double-double exponent.  Results near the maximum over x (x ~ n/e,
+   * value ~ 1/sqrt(2 pi n)) are the hardest case: there the exponent is
+   * nearly zero and its absolute error is the relative error of the result.
+   * Reference values from 400-bit arithmetic.
+   */
   TEST_SF(s, gsl_new_sf_taylorcoeff_e, (500, 200.0, &r),
-          2.68280617236282960000e+16, TEST_TOL4, GSL_SUCCESS);
+          2.68280617236282960000e+16, TEST_TOL1, GSL_SUCCESS);
 
   TEST_SF(s, gsl_new_sf_taylorcoeff_e, (1000, 300.0, &r),
-          3.28556828371631311966e-91, TEST_TOL4, GSL_SUCCESS);
+          3.28556828371631311966e-91, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (301, 110.0, &r),
+          3.12484653343779320359e-03, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (1000, 367.9, &r),
+          1.33396246318206613407e-02, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (100000, 36788.0, &r),
+          1.46852488288971416014e-03, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (2000000000, 735758882.0, &r),
+          3.51243110735704758016e-06, TEST_TOL1, GSL_SUCCESS);
 
   /*
    * Underflow and overflow in the large-order branch.
@@ -102,6 +121,12 @@ test_taylorcoeff(void)
           0.0, TEST_TOL0, GSL_EUNDRFLW);
 
   TEST_SF(s, gsl_new_sf_taylorcoeff_e, (200, 10000000000.0, &r),
+          GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (400, 1.0, &r),
+          0.0, TEST_TOL0, GSL_EUNDRFLW);
+
+  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (350, 1000.0, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
   return s;

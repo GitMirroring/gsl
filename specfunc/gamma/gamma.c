@@ -21,8 +21,10 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_dd.h>
 
 #include "check.h"
+#include "constants.h"
 #include "error.h"
 #include "eval.h"
 
@@ -182,6 +184,66 @@ static const short fact_exp[GSL_SF_FACT_TABLE_NMAX + 1] = {
   1846, 1854, 1862, 1870, 1878, 1886, 1894, 1903, 1911, 1919, 1927, 1935,
   1943, 1952, 1960, 1968, 1976, 1984, 1992, 2001, 2009, 2017, 2025, 2034,
   2042
+};
+
+/*
+ * Odd double factorials (2k-1)!! for k = 1, ..., 150 (n = 1, 3, ..., 299),
+ * correctly rounded to binary64.  Even double factorials are formed exactly
+ * from the factorial table, (2k)!! = 2^k k!, but the odd ones cannot be:
+ * (2k-1)!! = (2k)! / (2^k k!) needs a division of two rounded mantissas
+ * (up to ~1.4 ulp), so they are tabulated directly.
+ */
+static const double doublefact_odd[150] = {
+  1.00000000000000000e+00, 3.00000000000000000e+00, 1.50000000000000000e+01,
+  1.05000000000000000e+02, 9.45000000000000000e+02, 1.03950000000000000e+04,
+  1.35135000000000000e+05, 2.02702500000000000e+06, 3.44594250000000000e+07,
+  6.54729075000000000e+08, 1.37493105750000000e+10, 3.16234143225000000e+11,
+  7.90585358062500000e+12, 2.13458046676875000e+14, 6.19028335362937500e+15,
+  1.91898783962510624e+17, 6.33265987076285030e+18, 2.21643095476699759e+20,
+  8.20079453263789189e+21, 3.19830986772877752e+23, 1.31130704576879878e+25,
+  5.63862029680583513e+26, 2.53737913356262558e+28, 1.19256819277443417e+30,
+  5.84358414459472708e+31, 2.98022791374331072e+33, 1.57952079428395468e+35,
+  8.68736436856175123e+36, 4.95179769008019794e+38, 2.92156063714731713e+40,
+  1.78215198865986344e+42, 1.12275575285571384e+44, 7.29791239356214034e+45,
+  4.88960130368663387e+47, 3.37382489954377751e+49, 2.39541567867608204e+51,
+  1.74865344543353983e+53, 1.31149008407515480e+55, 1.00984736473786928e+57,
+  7.97779418142916725e+58, 6.46201328695762545e+60, 5.36347102817482921e+62,
+  4.55895037394860494e+64, 3.96628682533528648e+66, 3.52999527454840484e+68,
+  3.21229569983904813e+70, 2.98743500085031499e+72, 2.83806325080779904e+74,
+  2.75292135328356524e+76, 2.72539213975072947e+78, 2.75264606114823658e+80,
+  2.83522544298268388e+82, 2.97698671513181797e+84, 3.18537578519104522e+86,
+  3.47205960585823938e+88, 3.85398616250264568e+90, 4.35500436362798945e+92,
+  5.00825501817218819e+94, 5.85965837126145988e+96, 6.97299346180113711e+98,
+  8.43732208877937612e+100, 1.03779061691986340e+103, 1.29723827114982908e+105,
+  1.64749260436028307e+107, 2.12526545962476529e+109, 2.78409775210844214e+111,
+  3.70285001030422835e+113, 4.99884751391070806e+115, 6.84842109405767047e+117,
+  9.51930532074016206e+119, 1.34222205022436279e+122, 1.91937753182083880e+124,
+  2.78309742114021613e+126, 4.09115320907611789e+128, 6.09581828152341526e+130,
+  9.20468560510035713e+132, 1.40831689758035465e+135, 2.18289119124954973e+137,
+  3.42713917026179333e+139, 5.44915128071625135e+141, 8.77313356195316347e+143,
+  1.43002077059836580e+146, 2.35953427148730346e+148, 3.94042223338379693e+150,
+  6.65931357441861657e+152, 1.13874262122558335e+155, 1.97002473472025929e+157,
+  3.44754328576045375e+159, 6.10215161579600391e+161, 1.09228513922748456e+164,
+  1.97703610200174717e+166, 3.61797606666319711e+168, 6.69325572332691501e+170,
+  1.25163882026213323e+173, 2.36559737029543143e+175, 4.51829097726427385e+177,
+  8.72030158612004976e+179, 1.70045880929340963e+182, 3.34990385430801705e+184,
+  6.66630867007295334e+186, 1.33992804268466365e+189, 2.72005392664986727e+191,
+  5.57611054963222835e+193, 1.15425488377387125e+196, 2.41239270708739105e+198,
+  5.09014861195439477e+200, 1.08420165434628612e+203, 2.33103355684451521e+205,
+  5.05834281835259753e+207, 1.10777707721921894e+210, 2.44818734065447386e+212,
+  5.45945776965947601e+214, 1.22837799817338212e+217, 2.78841805585357741e+219,
+  6.38547734790469242e+221, 1.47504526736598401e+224, 3.43685547296274279e+226,
+  8.07661036146244532e+228, 1.91415665566659957e+231, 4.57483440704317326e+233,
+  1.10253509209740460e+236, 2.67916027379669342e+238, 6.56394267080189868e+240,
+  1.62129383968806889e+243, 4.03702166082329184e+245, 1.01329243686664622e+248,
+  2.56362986527261508e+250, 6.53725615644516843e+252, 1.68007483220640822e+255,
+  4.35139381541459727e+257, 1.13571378582320989e+260, 2.98692725671504215e+262,
+  7.91535723029486152e+264, 2.11340038048872811e+267, 5.68504702351467795e+269,
+  1.54064774337247770e+272, 4.20596833940686419e+274, 1.15664129333688777e+277,
+  3.20389638254317917e+279, 8.93887090729546913e+281, 2.51182272495002680e+284,
+  7.10845831160857592e+286, 2.02591061880844406e+289, 5.81436347598023426e+291,
+  1.68035104455828781e+294, 4.88982153966461766e+296, 1.43271771112173296e+299,
+  4.22651724780911222e+301, 1.25527562259930644e+304, 3.75327411157192600e+306
 };
 
 /*
@@ -533,29 +595,45 @@ gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
     }
   else
     {
-      const double log2pi = M_LNPI + M_LN2;
-      const double ln_test = n*(log(x) + 1.0) +
-                             1.0 -
-                             (n + 0.5)*log(n + 1.0) +
-                             0.5*log2pi;
+      /*
+       * n beyond the factorial table: Stirling's formula
+       *
+       *   x^n / n! = exp(L) / sqrt(2 pi n),   L = n (log(x/n) + 1) - Delta(n),
+       *
+       * with Delta(n) = 1/(12n) - 1/(360n^3) + 1/(1260n^5) - 1/(1680n^7) + O(n^-9)
+       * (the next term is below 1e-25 for n > 300).  The relative error of the result
+       * is the absolute error of the exponent, so L and log(2 pi n)/2 are formed in
+       * double-double arithmetic.
+       */
+      const double nd = (double) n;
+      const double z = 1.0 / (nd * nd);
+      const double delta = (1.0/12.0 - z * (1.0/360.0 - z * (1.0/1260.0 - z * (1.0/1680.0)))) / nd;
+      const gsl_dd log_sqrt_2pi = { GSL_SF_LOG_SQRT_2PI, GSL_SF_LOG_SQRT_2PI_LO };
+      gsl_dd xd, L, h, y;
 
-      if (ln_test < GSL_LOG_DBL_MIN + 1.0)
-        UNDERFLOW_ERROR(result);
-      else if (ln_test > GSL_LOG_DBL_MAX - 1.0)
+      xd.hi = x;
+      xd.lo = 0.0;
+      L = gsl_dd_mul_d(gsl_dd_add_d(gsl_dd_log(gsl_dd_div_d(xd, nd)), 1.0), nd);
+
+      xd.hi = nd;
+      h = gsl_dd_add(gsl_dd_mul_d(gsl_dd_log(xd), 0.5), log_sqrt_2pi);   /* log(sqrt(2 pi n)) */
+      L = gsl_dd_sub_d(gsl_dd_sub(L, h), delta);
+
+      if (L.hi > GSL_LOG_DBL_MAX)
         OVERFLOW_ERROR(result);
+      else if (L.hi < GSL_LOG_DBL_MIN - 37.0)     /* below log(smallest subnormal) */
+        UNDERFLOW_ERROR(result);
+
+      y = gsl_dd_exp(L);
+      result->val = y.hi + y.lo;
+
+      /* subnormal results are returned like those of the table branch above */
+      if (fabs(result->val) < GSL_DBL_MIN)
+        result->err = 2.0 * GSL_SF_TRUE_MIN;
       else
-        {
-          double product = 1.0;
-          int k;
+        result->err = 4.0 * GSL_DBL_EPSILON * fabs(result->val);
 
-          for (k = 1; k <= n; ++k)
-            product *= (x / (double) k);
-
-          result->val = product;
-          result->err = n * GSL_DBL_EPSILON * product;
-          CHECK_UNDERFLOW(result);
-          return GSL_SUCCESS;
-        }
+      return GSL_SUCCESS;
     }
 }
 
@@ -613,36 +691,22 @@ gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result)
 int
 gsl_new_sf_doublefact_e(const unsigned int n, gsl_sf_result * result)
 {
-  unsigned int k;
-  double mant;
-  int e, de;
-
   if (n > GSL_SF_DOUBLEFACT_NMAX)
     OVERFLOW_ERROR(result);
-  else if (n == 0U || n == 1U)
+
+  if (n & 1U)
     {
-      result->val = 1.0;
-      result->err = 0.0;
-      return GSL_SUCCESS;
-    }
-  else if ((n & 1U) == 0U)
-    {
-      k = n / 2U;
-      mant = fact_mant[k];
-      e = (int) fact_exp[k] + (int) k;
+      /* odd: tabulated, correctly rounded */
+      result->val = doublefact_odd[n / 2U];
     }
   else
     {
-      k = (n + 1U) / 2U;
-      mant = fact_mant[2U*k] / fact_mant[k];
-      e = (int) fact_exp[2U*k] - (int) fact_exp[k] - (int) k;
-      mant = frexp(mant, &de);
-      e += de;
+      /* even: (2k)!! = 2^k k!, exact scaling of the correctly rounded k! */
+      const unsigned int k = n / 2U;
+      result->val = ldexp(fact_mant[k], (int) fact_exp[k] + (int) k);
     }
 
-  result->val = ldexp(mant, e);
-  result->err = 4.0 * GSL_DBL_EPSILON * fabs(result->val);
-
+  result->err = GSL_DBL_EPSILON * fabs(result->val);
   return GSL_SUCCESS;
 }
 

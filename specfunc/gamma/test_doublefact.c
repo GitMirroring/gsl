@@ -60,16 +60,16 @@ test_doublefact(void)
           8.15441406938059447903e+307, TEST_TOL2, GSL_SUCCESS);
 
   /*
-   * Finite odd branch.
+   * Finite odd branch: tabulated, correctly rounded.
    */
   TEST_SF(s, gsl_new_sf_doublefact_e, (73U, &r),
-          1.74865344543353982608e+53, TEST_TOL2, GSL_SUCCESS);
+          1.74865344543353982608e+53, TEST_TOL0, GSL_SUCCESS);
 
   TEST_SF(s, gsl_new_sf_doublefact_e, (183U, &r),
-          3.61797606666319711405e+168, TEST_TOL2, GSL_SUCCESS);
+          3.61797606666319711405e+168, TEST_TOL0, GSL_SUCCESS);
 
   TEST_SF(s, gsl_new_sf_doublefact_e, (299U, &r),
-          3.75327411157192600059e+306, TEST_TOL2, GSL_SUCCESS);
+          3.75327411157192600059e+306, TEST_TOL0, GSL_SUCCESS);
 
   /*
    * Overflow.
