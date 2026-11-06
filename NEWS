@@ -13,6 +13,10 @@
 ** fix for bug #68495 (gsl_pow_int(x, INT_MIN) negated INT_MIN, which
    is undefined behaviour; reported by Y. Su)
 
+** fix for bug #43496 (Brent minimizer rejected valid parabolic steps
+   because of a sign error in the step acceptance test, costing
+   iterations)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)

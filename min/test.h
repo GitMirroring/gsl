@@ -32,8 +32,14 @@ test_f (const gsl_min_fminimizer_type * T,
         double correct_minimum);
 
 int
-test_bracket (const char * description,gsl_function *f,double lower_bound, 
+test_bracket (const char * description,gsl_function *f,double lower_bound,
               double upper_bound, unsigned int max);
+
+void
+test_iterations (const gsl_min_fminimizer_type * T,
+                 const char * description, gsl_function *f,
+                 double lower_bound, double middle, double upper_bound,
+                 size_t max_iterations);
 
 double f_cos (double x, void * p);
 double func1 (double x, void * p);
