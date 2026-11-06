@@ -10,6 +10,9 @@
 ** fix for bug #52351 (Akima splines had derivative discontinuities
    next to flat stretches of data; reported by T. Walter)
 
+** fix for bug #68495 (gsl_pow_int(x, INT_MIN) negated INT_MIN, which
+   is undefined behaviour; reported by Y. Su)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)

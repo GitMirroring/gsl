@@ -372,6 +372,12 @@ main (void)
     y = gsl_pow_int (u, n);
     y_expected = pow (u, n);
     gsl_test_rel (y, y_expected, 1e-6, "gsl_pow_int(%.7f,%d)", u, n);
+
+    /* exact results; INT_MIN is even, INT_MAX odd (bug #68495: -INT_MIN overflowed) */
+
+    gsl_test_rel (gsl_pow_int (-1.0, INT_MIN), 1.0, 0.0, "gsl_pow_int(-1,INT_MIN)");
+    gsl_test_rel (gsl_pow_int (-1.0, INT_MAX), -1.0, 0.0, "gsl_pow_int(-1,INT_MAX)");
+    gsl_test_rel (gsl_pow_int (2.0, INT_MIN), 0.0, 0.0, "gsl_pow_int(2,INT_MIN)");
   }
 
   /* Test for ldexp */
