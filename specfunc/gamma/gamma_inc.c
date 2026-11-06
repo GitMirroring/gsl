@@ -24,6 +24,7 @@
 #include <gsl/gsl_sf_erf.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 #include "constants.h"
 #include "error.h"
@@ -31,6 +32,9 @@
 #include "stirling.c"
 
 #define GAMMA_INC_MAXITER         10000
+
+/* Temme: largest a*phi for which phi in double precision suffices */
+#define GAMMA_INC_TEMME_APHI_DD   0.25
 
 typedef enum { TARGET_P = 0, TARGET_Q = 1 } gamma_inc_target_t;
 
@@ -44,17 +48,18 @@ static int gamma_inc_P_series(const double a, const double x, gsl_sf_result * re
 
 /* Q kernel functions */
 static int gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result);
+static int gamma_inc_complement(const gsl_sf_result * r, gsl_sf_result * result);
+static double gamma_inc_rgamma1pm1(const double a);
 static int gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result);
 static int gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result);
 
 /* Temme kernel functions */
-static double gamma_inc_half_erfc_dd(const gsl_dd z);
 static int gamma_inc_use_temme(const double a, const double x);
 static int gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_result * result);
 
 /* rgammax primitive functions */
 static gsl_dd gamma_inc_log_ratio_m_ratio_p1(const double a, const double x);
-static gsl_dd gamma_inc_log_ratio_near1(const double a, const double x);
+static gsl_dd gamma_inc_phi_dd(const double a, const double x);
 static double gamma_inc_rgammax_large(const double a, const double x);
 static double gamma_inc_rgammax(const double a, const double x);
 
@@ -71,14 +76,9 @@ static gsl_dd dd_div_diff(const double a, const double x);
  * For small a and x, use the dedicated Taylor kernel.  Near x = a
  * for sufficiently large a, use the Temme uniform asymptotic expansion.
  * On the lower side of the transition, evaluate P directly with the
- * positive series.  On the upper side, evaluate the complementary
- * quantity Q with the validated Q dispatcher and form
- *
- *   P(a,x) = 1 - Q(a,x).
- *
- * Using the complementary upper-tail representation for x > a avoids
- * the severe loss of accuracy that occurs when the positive P series
- * is used far into the upper tail.
+ * positive series.  On the upper side, evaluate Q with the Q dispatcher
+ * and form P = 1 - Q when Q <= 1/2; otherwise (just above x = a) the
+ * P series is still efficient and avoids the loss of an ulp of Q.
  *
  * The limiting value at x = 0 is P(a,0) = 0.  Arguments with a <= 0
  * or x < 0 are outside the real-valued domain of this interface and
@@ -121,18 +121,11 @@ gsl_new_sf_gamma_inc_P_e(const double a, const double x,
       if (status)
         return status;
 
-      result->val = 1.0 - q.val;
+      /* complement only when P >= 1/2, where it loses at most half an ulp */
+      if (q.val > 0.5)
+        return gamma_inc_P_series(a, x, result);
 
-      /*
-       * Protect against a tiny over/undershoot introduced by the
-       * subtraction or by the Q kernel's final rounding.
-       */
-      result->val = GSL_MAX(result->val, 0.0);
-      result->val = GSL_MIN(result->val, 1.0);
-
-      result->err = q.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
-
-      return GSL_SUCCESS;
+      return gamma_inc_complement(&q, result);
     }
 }
 
@@ -146,10 +139,11 @@ gsl_new_sf_gamma_inc_P_e(const double a, const double x,
  * The parameter plane is divided among several numerical methods.  For
  * 0 < a <= 2, use the direct small-a Taylor/GRAT1 kernel.  Near the
  * transition x = a for sufficiently large a, use the Temme uniform
- * asymptotic expansion.  On the lower side of the transition, form
- * Q = 1-P from the positive P series.  On the upper side, use either
- * P complementation, the normalized continued fraction, or the large-x
- * asymptotic expansion according to the validated dispatcher boundaries.
+ * asymptotic expansion.  For x <= a, and for a < 12, x < 40, form
+ * Q = 1-P from the positive P series when P <= 1/2, and use the
+ * continued fraction otherwise (1-P would lose up to an ulp of P,
+ * twice an ulp of Q).  Elsewhere use the continued fraction or the
+ * large-x asymptotic expansion.
  *
  * The limiting value at x = 0 is Q(a,0) = 1.  Arguments with a <= 0
  * or x < 0 are outside the real-valued domain of this interface and
@@ -180,7 +174,7 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
     {
       return gamma_inc_temme_eval(a, x, TARGET_Q, result);
     }
-  else if (x <= a)
+  else if (x <= a || (a < 12.0 && x < 40.0))
     {
       gsl_sf_result p;
 
@@ -188,39 +182,15 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
       if (status)
         return status;
 
-      result->val = 1.0 - p.val;
-      result->val = GSL_MAX(result->val, 0.0);
-      result->val = GSL_MIN(result->val, 1.0);
+      /* complement only when Q >= 1/2, where it loses at most half an ulp */
+      if (p.val > 0.5)
+        return gamma_inc_Q_cf(a, x, result);
 
-      result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
-
-      return GSL_SUCCESS;
+      return gamma_inc_complement(&p, result);
     }
   else if (a < 12.0)
     {
-      if (x >= 40.0)
-        return gamma_inc_Q_asymp(a, x, result);
-      else
-        {
-          gsl_sf_result p;
-
-          status = gamma_inc_P_series(a, x, &p);
-          if (status)
-            return status;
-
-          if (1.0 - p.val >= 0.34)
-            {
-              result->val = 1.0 - p.val;
-              result->val = GSL_MAX(result->val, 0.0);
-              result->val = GSL_MIN(result->val, 1.0);
-
-              result->err = p.err + 2.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
-
-              return GSL_SUCCESS;
-            }
-
-          return gamma_inc_Q_cf(a, x, result);
-        }
+      return gamma_inc_Q_asymp(a, x, result);
     }
   else
     {
@@ -235,6 +205,18 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
 
 double gsl_new_sf_gamma_inc_P(const double a, const double x) { EVAL_RESULT(gsl_new_sf_gamma_inc_P_e(a, x, &result)); }
 double gsl_new_sf_gamma_inc_Q(const double a, const double x) { EVAL_RESULT(gsl_new_sf_gamma_inc_Q_e(a, x, &result)); }
+
+/*
+ * result = 1 - r for r <= 1/2: the subtraction loses at most half an ulp
+ * (both 1 - r and its ulp are >= 1/2 and 2^-53).
+ */
+static int
+gamma_inc_complement(const gsl_sf_result * r, gsl_sf_result * result)
+{
+  result->val = 1.0 - r->val;
+  result->err = r->err + GSL_DBL_EPSILON * result->val;
+  return GSL_SUCCESS;
+}
 
 /*****************************************
  * INTERNAL ROUTINES (Taylor kernel)     *
@@ -458,174 +440,82 @@ gamma_inc_P_series(const double a, const double x, gsl_sf_result * result)
  * INTERNAL ROUTINES (Q kernels)         *
  *****************************************/
 
+
 /*
- * Compute Q(a,x) directly for
+ * Compute 1/Gamma(1+a) - 1 for |a| < 0.25 from its Taylor series
  *
- *   0 < a <= 2.
+ *   1/Gamma(1+a) - 1 = sum_{k>=1} c_k a^k,   c_1 = Euler's constant, ...
  *
- * For x < 1.1, use the small-x representation derived from
- *
- *   P(a,x) = x^a / Gamma(a+1) * (1 - J(a,x)),
- *
- * and reconstruct Q = 1-P using double-double arithmetic in the
- * cancellation-sensitive terms.  The logarithm of x, the exponential
- * correction, and the Taylor correction J(a,x) are retained in
- * double-double form where needed.
- *
- * For x >= 1.1, use the GRAT1 continued-fraction representation for Q.
- * The continued fraction and its exponential prefactor are evaluated
- * in double-double arithmetic.
- *
- * Intended domain: 0 < a <= 2, x > 0.
+ * truncated after 19 terms (remainder below 1e-22 relative) and summed by
+ * Horner's method in double precision (cf. "gam1" in DiDonato and Morris,
+ * ACM TOMS 12, 1986).  The result has a relative error of about one ulp;
+ * forming it from lngamma1p and expm1 instead roughly triples the error,
+ * which matters because gamma_inc_Q_small_a() has Q(a,x) ~ a here.
  */
+static double
+gamma_inc_rgamma1pm1(const double a)
+{
+  static const double c[19] = {
+    +5.77215664901532866e-01, -6.55878071520253902e-01, -4.20026350340952370e-02,
+    +1.66538611382291479e-01, -4.21977345555443334e-02, -9.62197152787697303e-03,
+    +7.21894324666309990e-03, -1.16516759185906517e-03, -2.15241674114950975e-04,
+    +1.28050282388116196e-04, -2.01348547807882387e-05, -1.25049348214267063e-06,
+    +1.13302723198169593e-06, -2.05633841697760707e-07, +6.11609510448141609e-09,
+    +5.00200764446922295e-09, -1.18127457048702004e-09, +1.04342671169110054e-10,
+    +7.78226343990507081e-12
+  };
+  double p = c[18];
+  int k;
+
+  for (k = 17; k >= 0; --k)
+    p = p * a + c[k];
+
+  return p * a;
+}
 
 static int
 gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 {
+  /*
+   * Q(a,x) for 0 < a <= 2, x > 0.  Use the continued fraction of
+   * gamma_inc_Q_cf() for x >= 1.1, and for x >= 0.5 when a < 0.25 (see below).
+   * Otherwise use the series of DiDonato and Morris (TOMS 12, 1986, "grat1"):
+   *
+   *   Q(a,x) = 1 - x^a (1 - J(a,x)) / Gamma(1+a)
+   *          = J (1+l)(1+h) - (l + h + l h),
+   *
+   * with l = x^a - 1 = expm1(a log x), h = 1/Gamma(1+a) - 1 and J from
+   * gamma_inc_P_taylor_x_sum().  The second form avoids the cancellation in
+   * 1 - x^a/Gamma(1+a), but for small a its terms still nearly cancel as x
+   * grows: Q -> a E1(x) while the terms are ~ a log(x), a*Euler and
+   * a Ein(x), so the rounding errors are amplified by up to ~6 at x = 1
+   * (~3 at x = 0.5).  The continued fraction is accurate there, so it is
+   * used for x >= 1.1, and for x >= 0.5 when a < 0.25; it needs ~250 terms
+   * at x = 0.5.  For a >= 0.25 the amplification is small.
+   */
+  double j, jerr, z, h;
   int status;
-  const double tol = 0.1 * GSL_DBL_EPSILON / (a + 1.0);
-  double L, h;
-  gsl_sf_result lg1p;
-  int n;
 
-  status = gsl_sf_lngamma1p_e(a, &lg1p);
+  if (x >= 1.1 || (a < 0.25 && x >= 0.5))
+    return gamma_inc_Q_cf(a, x, result);
+
+  status = gamma_inc_P_taylor_x_sum(a, x, &j, &jerr);
   if (status)
     return status;
 
-  L = lg1p.val;
-  h = gsl_sf_expm1(-L);
+  if (fabs(a) < 0.25)
+    h = gamma_inc_rgamma1pm1(a);
+  else
+    h = gsl_sf_expm1(-gsl_sf_lngamma1p(a));   /* not 1/Gamma(1+a) - 1, which cancels */
 
-  if (x < 1.1)
-    {
-      gsl_dd an, c, sum, t, j, z, logx;
-      gsl_dd q1, q2, q3, oneg, hd, jd, ld, pd, omj, gdd;
+  z = a * log(x);
 
-      an.hi = 3.0;
-      an.lo = 0.0;
-      c.hi = x;
-      c.lo = 0.0;
-      sum = gsl_dd_div_d(c, a + 3.0);
-
-      do
-        {
-          an.hi += 1.0;
-          c = gsl_dd_mul_d(c, -x);
-          c = gsl_dd_div_d(c, an.hi);
-          t = gsl_dd_div_d(c, a + an.hi);
-          sum = gsl_dd_add(sum, t);
-          if (an.hi >= GAMMA_INC_MAXITER)
-            GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
-        }
-      while (fabs(t.hi + t.lo) > tol);
-
-      q1 = gsl_dd_mul_d(sum, 1.0/6.0);
-      q2 = gsl_dd_add(q1, gsl_dd_div_d((gsl_dd){-0.5, 0.0}, a + 2.0));
-      q3 = gsl_dd_mul_d(q2, x);
-      q3 = gsl_dd_add(q3, gsl_dd_div_d((gsl_dd){1.0, 0.0}, a + 1.0));
-      j = gsl_dd_mul_d(q3, a);
-      j = gsl_dd_mul_d(j, x);
-
-      if (x == 1.0)
-        {
-          logx.hi = 0.0;
-          logx.lo = 0.0;
-        }
-      else
-        logx = gsl_dd_log((gsl_dd){x, 0.0});
-
-      z = gsl_dd_mul_d(logx, a);
-
-      hd.hi = h;
-      hd.lo = 0.0;
-
-      gdd = gsl_dd_add((gsl_dd){1.0, 0.0}, hd);
-      oneg = gdd;
-      jd = j;
-
-      if (x < 0.25 && z.hi + z.lo <= -0.13394)
-        {
-          gsl_dd ez;
-
-          ez = gsl_dd_exp(z);
-          omj.hi = 1.0 - jd.hi;
-          omj.lo = -jd.lo;
-          pd = gsl_dd_mul(ez, omj);
-          pd = gsl_dd_mul(pd, oneg);
-
-          {
-            gsl_dd one_minus_p;
-            one_minus_p = gsl_dd_add((gsl_dd){1.0, 0.0}, (gsl_dd){-pd.hi, -pd.lo});
-            result->val = one_minus_p.hi + one_minus_p.lo;
-          }
-
-          result->err = fabs(pd.hi + pd.lo) * (fabs(z.hi + z.lo) + 16.0) * GSL_DBL_EPSILON +
-                        fabs(result->val) * 4.0 * GSL_DBL_EPSILON + GSL_SF_TRUE_MIN;
-        }
-      else
-        {
-          ld = gsl_dd_expm1(z);
-
-          {
-            gsl_dd one_plus_l, term1, term2;
-            one_plus_l = gsl_dd_add((gsl_dd){1.0, 0.0}, ld);
-            term1 = gsl_dd_mul(one_plus_l, jd);
-            term2 = gsl_dd_mul_d(ld, -1.0);
-            term1 = gsl_dd_add(term1, term2);
-            term1 = gsl_dd_mul(term1, oneg);
-            hd.hi = -hd.hi; hd.lo = -hd.lo;
-            term1 = gsl_dd_add(term1, hd);
-
-            result->val = term1.hi + term1.lo;
-            result->err = 64.0 * GSL_DBL_EPSILON * fabs(result->val) +
-                          fabs(ld.hi) * GSL_DBL_EPSILON + fabs(jd.hi) * GSL_DBL_EPSILON + fabs(L) * GSL_DBL_EPSILON +
-                          GSL_SF_TRUE_MIN;
-          }
-        }
-
-      return 0;
-    }
-
-  /* GRAT1 continued fraction, entirely in double-double arithmetic. */
   {
-    gsl_dd A2nm1, A2n, B2nm1, B2n, am0, an0, tmp, logx, logcore, rrdd;
-    double c = 1.0;
+    const double l = gsl_sf_expm1(z);
 
-    A2nm1.hi = 1.0; A2nm1.lo = 0.0;
-    A2n.hi = 1.0; A2n.lo = 0.0;
-    B2nm1.hi = x; B2nm1.lo = 0.0;
-    B2n.hi = x + 1.0 - a; B2n.lo = 0.0;
-
-    logx = gsl_dd_log((gsl_dd){x, 0.0});
-    logcore = gsl_dd_mul_d(logx,a);
-    logcore = gsl_dd_add(logcore, (gsl_dd){-x, 0.0});
-    logcore = gsl_dd_add(logcore, (gsl_dd){-L, 0.0});
-    rrdd.hi = a; rrdd.lo = 0.0;
-    tmp = gsl_dd_exp(logcore);
-    rrdd = gsl_dd_mul(rrdd, tmp);
-
-    for (n = 0; n < GAMMA_INC_MAXITER; n++)
-      {
-        A2nm1 = gsl_dd_add(gsl_dd_mul_d(A2n, x), gsl_dd_mul_d(A2nm1, c));
-        B2nm1 = gsl_dd_add(gsl_dd_mul_d(B2n, x), gsl_dd_mul_d(B2nm1, c));
-        am0 = gsl_dd_div(A2nm1, B2nm1);
-        c += 1.0;
-        tmp = gsl_dd_mul_d(A2n, c - a);
-        A2n = gsl_dd_add(A2nm1, tmp);
-        tmp = gsl_dd_mul_d(B2n, c - a);
-        B2n = gsl_dd_add(B2nm1, tmp);
-        an0 = gsl_dd_div(A2n, B2n);
-
-        if (fabs((an0.hi - am0.hi) + (an0.lo - am0.lo)) < tol * fabs(an0.hi + an0.lo))
-          break;
-      }
-
-    if (n == GAMMA_INC_MAXITER)
-      GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
-
-    rrdd = gsl_dd_mul(rrdd, an0);
-    result->val = rrdd.hi + rrdd.lo;
-    result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_DBL_EPSILON * fabs(rrdd.hi) +
-                  GSL_SF_TRUE_MIN;
+    result->val = j * (1.0 + l) * (1.0 + h) - (l + h + l * h);
+    result->err = 8.0 * GSL_DBL_EPSILON * (fabs(result->val) + fabs(j) + fabs(l) + fabs(h)) +
+                  jerr + GSL_SF_TRUE_MIN;
   }
 
   return GSL_SUCCESS;
@@ -657,46 +547,61 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 static int
 gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
 {
-  gsl_dd a2nm1 = {1.0, 0.0}, a2n = {1.0, 0.0};
-  gsl_dd b2nm1 = {x, 0.0}, b2n = {x + 1.0 - a, 0.0};
-  gsl_dd prev = {0.0, 0.0};
-  double c = 1.0;
-  int n;
+  /*
+   * Legendre continued fraction for x > a,
+   *
+   *   Q(a,x) = x^a e^-x / Gamma(a) * 1/g,
+   *   g = b_0 + a_1/(b_1 + a_2/(b_2 + ...)),
+   *   b_k = x + 2k + 1 - a,  a_k = -k (k - a),
+   *
+   * in double precision.  The modified Lentz algorithm only estimates the
+   * number of terms n; g is then evaluated backward from b_N, which damps
+   * the rounding errors of each step (Lentz's running product of correction
+   * factors accumulates them instead: up to ~5 eps after a few terms).
+   * Lentz's test |delta - 1| <= eps stops too early when convergence is
+   * slow (x near 1: truncation errors up to ~7 eps), so the backward pass
+   * uses N = 3n/2 + 2 terms, which makes the truncation error negligible.
+   */
+  const double tiny = 1.0e-300;
+  double g = x + 1.0 - a;
+  double C, D, delta;
+  int n, k;
 
-  for (n = 0; n < GAMMA_INC_MAXITER; n++)
+  if (g == 0.0)
+    g = tiny;
+
+  C = g;
+  D = 0.0;
+
+  for (n = 1; n < GAMMA_INC_MAXITER; n++)
     {
-      gsl_dd curr, diff;
+      const double an = -(double) n * ((double) n - a);
+      const double bn = x + 2.0 * n + 1.0 - a;
 
-      a2nm1 = gsl_dd_add(gsl_dd_mul_d(a2n, x), gsl_dd_mul_d(a2nm1, c));
-      b2nm1 = gsl_dd_add(gsl_dd_mul_d(b2n, x), gsl_dd_mul_d(b2nm1, c));
+      D = bn + an * D;
+      if (D == 0.0)
+        D = tiny;
+      C = bn + an / C;
+      if (C == 0.0)
+        C = tiny;
+      D = 1.0 / D;
+      delta = C * D;
+      g *= delta;
 
-      c += 1.0;
-
-      a2n = gsl_dd_add(a2nm1, gsl_dd_mul_d(a2n, c - a));
-      b2n = gsl_dd_add(b2nm1, gsl_dd_mul_d(b2n, c - a));
-
-      a2nm1 = gsl_dd_div(a2nm1, b2n);
-      b2nm1 = gsl_dd_div(b2nm1, b2n);
-      a2n = gsl_dd_div(a2n, b2n);
-
-      b2n.hi = 1.0; b2n.lo = 0.0;
-      curr = a2n;
-
-      ++n;
-      if (n > 1)
-        {
-          diff = gsl_dd_sub(curr, prev);
-          if (fabs(diff.hi + diff.lo) <= 2.0 * GSL_DBL_EPSILON * fabs(curr.hi + curr.lo))
-            break;
-        }
-
-      prev = curr;
+      if (fabs(delta - 1.0) <= GSL_DBL_EPSILON)
+        break;
     }
 
   if (n >= GAMMA_INC_MAXITER)
     GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
-  result->val = gamma_inc_rgammax(a, x) * (a2n.hi + a2n.lo);
+  /* backward evaluation */
+  n += n / 2 + 2;
+  g = x + 2.0 * n + 1.0 - a;
+  for (k = n; k >= 1; k--)
+    g = (x + 2.0 * (k - 1) + 1.0 - a) - (double) k * ((double) k - a) / g;
+
+  result->val = gamma_inc_rgammax(a, x) / g;
   result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
@@ -728,17 +633,26 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
 static int
 gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
 {
-  double term = 1.0, sum = 1.0, prev = 1.0;
+  /* compensated (Kahan) summation: up to ~40 terms for x ~ 2.5a, whose
+     rounding errors would otherwise add up to a few ulp */
+  double term = 1.0, prev = 1.0;
+  double sum = 1.0, comp = 0.0;
   int n;
   double r;
 
   for (n = 1; n < GAMMA_INC_MAXITER; n++)
     {
+      double y, t;
+
       term *= (a - (double)n) / x;
       if (fabs(term) > prev)
         break;
 
-      sum += term;
+      y = term - comp;
+      t = sum + y;
+      comp = (t - sum) - y;
+      sum = t;
+
       prev = fabs(term);
       if (term == 0.0 || fabs(term) <= GSL_DBL_EPSILON * fabs(sum))
         break;
@@ -748,24 +662,6 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
     GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
   r = gamma_inc_rgammax(a, x);
-  if(a <= 20.0 && x > 700.0)
-    {
-      /* The moderate-a rgammax branch forms exp(-x) directly.  In the
-       * far tail that can enter the subnormal range before Q does.
-       * Reconstruct log(R) in binary64/DD arithmetic instead. */
-      gsl_dd lx, lr, ta, negx, er;
-      lx = gsl_dd_log((gsl_dd){x, 0.0});
-      ta = gsl_dd_mul_d(lx, a);
-      negx.hi = -x; negx.lo = 0.0;
-      lr = gsl_dd_add(ta, negx);
-      if(lr.hi > GSL_SF_LOG_TRUE_MIN)
-        {
-          er = gsl_dd_exp(lr);
-          r = (er.hi + er.lo) / gsl_new_sf_gamma(a);
-        }
-      else
-        r = 0.0;
-    }
 
   result->val = (r / x) * sum;
   result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
@@ -778,39 +674,17 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
  *****************************************/
 
 /*
- * Evaluate one half of erfc(z) for a double-double argument
- *
- *   z = z.hi + z.lo.
- *
- * The leading value is evaluated at z.hi and corrected to first order
- * for z.lo,
- *
- *   erfc(z.hi + z.lo)/2 = erfc(z.hi)/2 - exp(-z.hi^2) z.lo / sqrt(pi) + O(z.lo^2).
- *
- * Retaining this correction is important in the small tail, where
- * rounding the erfc argument to a single double can noticeably amplify
- * the final ULP error.
- */
-static double
-gamma_inc_half_erfc_dd(const gsl_dd z)
-{
-  return 0.5 * gsl_sf_erfc(z.hi) - exp(-z.hi * z.hi) / M_SQRTPI * z.lo;
-}
-
-/*
  * Return nonzero if the Temme uniform asymptotic expansion should be
  * used for the point (a,x).
  *
  * Define
  *
  *   s = (x-a)/a,
- *   eta^2 / 2 = s - log(1+s),
+ *   eta^2 / 2 = phi = s - log(1+s),
  *
  * with sign(eta) = sign(x-a).  The present dispatcher uses Temme for
  *
  *   a >= 12,  |eta| <= 0.5.
- *
- * Only |eta| is needed here, so its sign is not formed explicitly.
  *
  * This routine is a Boolean predicate; its return value is not a GSL
  * error status.
@@ -819,19 +693,11 @@ gamma_inc_half_erfc_dd(const gsl_dd z)
 static int
 gamma_inc_use_temme(const double a, const double x)
 {
-  gsl_dd s;
-  gsl_dd q;
-  double eta;
-
   if (a < 12.0 || x <= 0.0)
     return 0;
 
-  s = dd_div_diff(a, x);
-  q = gsl_dd_log1pmx(s);
-
-  eta = sqrt(GSL_MAX(-2.0 * (q.hi + q.lo), 0.0));
-
-  return eta <= 0.5;
+  /* eta <= 0.5 <=> phi <= 1/8; phi in double is accurate enough here */
+  return -gsl_sf_log1pmx((x - a) / a) <= 0.125;
 }
 
 /*
@@ -851,9 +717,8 @@ gamma_inc_use_temme(const double a, const double x)
  * recurrence and the coefficients gamma_inc_temme_d[].
  *
  * TARGET_P selects the lower ratio P(a,x), while TARGET_Q selects the
- * upper ratio Q(a,x).  The reduced variables and exponential scaling
- * are retained in double-double arithmetic where necessary to avoid
- * loss of accuracy for large a.
+ * upper ratio Q(a,x).  a phi is formed in double-double only when it is
+ * larger than GAMMA_INC_TEMME_APHI_DD (see below).
  *
  * The caller is responsible for ensuring that (a,x) lies in the
  * validated Temme region.
@@ -876,27 +741,30 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
                                                -5.1391118342425723e-16, -1.9752288294349442e-15 };
 
   const int N = 24;
-  gsl_dd s, q, phi, aphi, zdd;
-  double beta[27], sum, scale, R, value, last;
+  const double phi = GSL_MAX(-gsl_sf_log1pmx((x - a) / a), 0.0);
+  const double eta = (x < a) ? -sqrt(2.0 * phi) : sqrt(2.0 * phi);
+  gsl_dd aphi, z;
+  double beta[27], sum, scale, e, R, value, last;
   int n;
 
-  s = dd_div_diff(a, x);
-  q = gsl_dd_log1pmx(s);
-  phi.hi = -q.hi;
-  phi.lo = -q.lo;
+  /*
+   * The leading term erfc(z)/2, z^2 = a phi, has relative error ~ |d(a phi)|,
+   * so a phi is needed to absolute accuracy.  The double phi (relative
+   * error ~ 2 eps, from rounding s) suffices while a phi is small;
+   * otherwise form phi = s - log1p(s) in double-double from the exact
+   * difference x - a.
+   */
+  aphi.hi = a * phi;
+  aphi.lo = 0.0;
 
-  if (phi.hi + phi.lo < 0)
-    {
-      phi.hi = 0;
-      phi.lo = 0;
-    }
+  if (aphi.hi > GAMMA_INC_TEMME_APHI_DD)
+    aphi = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), a);
 
-  zdd = gsl_dd_sqrt(gsl_dd_mul_d(phi, 2.0));
-
+  z = gsl_dd_sqrt(aphi);
   if (x < a)
     {
-      zdd.hi = -zdd.hi;
-      zdd.lo = -zdd.lo;
+      z.hi = -z.hi;
+      z.lo = -z.lo;
     }
 
   for (n = N + 1; n <= N + 2; ++n)
@@ -907,39 +775,26 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
 
   sum = beta[N];
   for (n = N - 1; n >= 0; --n)
-    sum = sum * zdd.hi + beta[n];
+    sum = sum * eta + beta[n];
 
   sum *= a / (a + beta[1]);
-  aphi = gsl_dd_mul_d(phi, a);
-  scale = exp(-aphi.hi) * exp(-aphi.lo) / sqrt(2*M_PI*a);
+
+  /* e = exp(-a phi) = exp(-z^2), shared by R and the erfc correction */
+  e = exp(-aphi.hi) * (1.0 - aphi.lo);
+  scale = e / sqrt(2.0 * M_PI * a);
   R = scale * sum;
 
-  if (aphi.hi == 0.0 && aphi.lo == 0.0)
-    {
-      zdd.hi = 0.0;
-      zdd.lo = 0.0;
-    }
-  else
-    {
-      zdd = gsl_dd_sqrt(aphi);
-    }
-
-  if (x < a)
-    {
-      zdd.hi = -zdd.hi;
-      zdd.lo = -zdd.lo;
-    }
-
+  /*
+   * erfc(z.hi + z.lo)/2 = erfc(z.hi)/2 - exp(-z^2) z.lo / sqrt(pi) + O(z.lo^2);
+   * the correction matters in the tail, where erfc amplifies the rounding
+   * of its argument.
+   */
   if (target == TARGET_Q)
-    value = gamma_inc_half_erfc_dd(zdd) + R;
+    value = 0.5 * gsl_sf_erfc(z.hi) - e * z.lo / M_SQRTPI + R;
   else
-    {
-      zdd.hi = -zdd.hi;
-      zdd.lo = -zdd.lo;
-      value = gamma_inc_half_erfc_dd(zdd) - R;
-    }
+    value = 0.5 * gsl_sf_erfc(-z.hi) + e * z.lo / M_SQRTPI - R;
 
-  last = fabs(beta[N] * pow(zdd.hi < 0 ? -zdd.hi : zdd.hi, (double)N));
+  last = fabs(beta[N] * pow(fabs(eta), (double) N));
 
   result->val = value;
   result->err = 4.0 * GSL_DBL_EPSILON * fabs(value) + fabs(scale) * last +
@@ -970,12 +825,16 @@ gamma_inc_log_ratio_m_ratio_p1(const double a, const double x)
   return gsl_dd_add(gsl_dd_add(lg, nt), one);
 }
 
-/* q = log(1+s)-s, s=(x-a)/a, using the compensated near-one form. */
+/*
+ * phi = s - log(1+s), s = (x-a)/a, in double-double.  For x in [a/2, 2a]
+ * the difference x - a is exact (Sterbenz), and dd_div_diff() keeps the
+ * rounding of the division.
+ */
 static gsl_dd
-gamma_inc_log_ratio_near1(const double a, const double x)
+gamma_inc_phi_dd(const double a, const double x)
 {
   const gsl_dd s = dd_div_diff(a, x);
-  return gsl_dd_log1pmx(s);
+  return gsl_dd_sub(s, gsl_dd_log1p(s));
 }
 
 /*
@@ -1010,7 +869,7 @@ gamma_inc_rgammax_large(const double a, const double x)
   /* Near x=a use the exact-difference representation.  Away from it,
    * form the quotient x/a directly as a compensated pair. */
   if (x >= 0.5 * a && x <= 2.0 * a)
-    q = gamma_inc_log_ratio_near1(a, x);
+    q = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), -1.0);
   else
     q = gamma_inc_log_ratio_m_ratio_p1(a, x);
 
@@ -1047,7 +906,7 @@ gamma_inc_rgammax_large(const double a, const double x)
 static double
 gamma_inc_rgammax(const double a, const double x)
 {
-  if (a < 1.0 || x < 0.0)
+  if (a <= 0.0 || x < 0.0)
     return GSL_NAN;
 
   if (x == 0.0)
@@ -1055,6 +914,26 @@ gamma_inc_rgammax(const double a, const double x)
 
   if (a > 20.0)
     return gamma_inc_rgammax_large(a, x);
+
+  if (x > 700.0)
+    {
+      /* exp(-x) alone would lose precision or underflow before the product
+         does: form log(x^a e^-x) = a log(x) - x in double-double */
+      gsl_dd lr = gsl_dd_sub_d(gsl_dd_mul_d(gsl_dd_log((gsl_dd){x, 0.0}), a), x);
+      gsl_dd er;
+
+      if (lr.hi <= GSL_SF_LOG_TRUE_MIN)
+        return 0.0;
+
+      er = gsl_dd_exp(lr);
+      return (er.hi + er.lo) / gsl_new_sf_gamma(a);
+    }
+
+  if (a < 0.25)
+    {
+      /* 1/Gamma(a) = a (1 + h) is more accurate than dividing by Gamma(a) */
+      return pow(x, a) * exp(-x) * (a + a * gamma_inc_rgamma1pm1(a));
+    }
 
   return pow(x, a) * exp(-x) / gsl_new_sf_gamma(a);
 }
