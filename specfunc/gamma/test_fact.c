@@ -32,37 +32,37 @@ test_fact(void)
   /*
    * Exact factorials.
    */
-  TEST_SF(s, gsl_new_sf_fact_e, (0U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (0U, &r),
           1.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (1U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (1U, &r),
           1.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (5U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (5U, &r),
           1.20000000000000000000e+02, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (22U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (22U, &r),
           1.12400072777760768000e+21, TEST_TOL0, GSL_SUCCESS);
 
   /*
    * Rounded finite factorials.
    */
-  TEST_SF(s, gsl_new_sf_fact_e, (23U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (23U, &r),
           2.58520167388849782129e+22, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (50U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (50U, &r),
           3.04140932017133755764e+64, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (100U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (100U, &r),
           9.33262154439441509656e+157, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_fact_e, (170U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (170U, &r),
           7.25741561530799903500e+306, TEST_TOL1, GSL_SUCCESS);
 
   /*
    * Overflow.
    */
-  TEST_SF(s, gsl_new_sf_fact_e, (171U, &r),
+  TEST_SF(s, gsl_sf_fact_e, (171U, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
   return s;

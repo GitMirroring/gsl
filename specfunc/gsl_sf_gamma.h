@@ -41,24 +41,6 @@ int gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result);
 double gsl_new_sf_lnbeta(const double a, const double b);
 int gsl_new_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn);
 
-/* gamma/gamma.c */
-int gsl_new_sf_gamma_e(const double x, gsl_sf_result * result);
-int gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result);
-int gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result);
-int gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result);
-int gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result);
-int gsl_new_sf_doublefact_e(const unsigned int n, gsl_sf_result * result);
-int gsl_new_sf_lnfact_e(const unsigned int n, gsl_sf_result * result);
-int gsl_new_sf_lndoublefact_e(const unsigned int n, gsl_sf_result * result);
-double gsl_new_sf_gamma(const double x);
-double gsl_new_sf_gammainv(const double x);
-double gsl_new_sf_gammastar(const double x);
-double gsl_new_sf_taylorcoeff(const int n, const double x);
-double gsl_new_sf_fact(const unsigned int n);
-double gsl_new_sf_doublefact(const unsigned int n);
-double gsl_new_sf_lnfact(const unsigned int n);
-double gsl_new_sf_lndoublefact(const unsigned int n);
-
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
@@ -239,12 +221,6 @@ double gsl_sf_gamma_inc_Q(const double a, const double x);
  */
 int gsl_sf_gamma_inc_P_e(const double a, const double x, gsl_sf_result * result);
 double gsl_sf_gamma_inc_P(const double a, const double x);
-
-/* gamma/gamma_inc.c */
-int gsl_new_sf_gamma_inc_P_e(const double a, const double x, gsl_sf_result * result);
-int gsl_new_sf_gamma_inc_Q_e(const double a, const double x, gsl_sf_result * result);
-double gsl_new_sf_gamma_inc_P(const double a, const double x);
-double gsl_new_sf_gamma_inc_Q(const double a, const double x);
 
 /* Non-normalized Incomplete Gamma Function
  *

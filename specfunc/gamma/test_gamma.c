@@ -150,7 +150,7 @@ test_gamma(void)
 {
   int s = 0;
 
-  TEST_GAMMA_FUNC(gsl_new_sf_gamma_e);
+  TEST_GAMMA_FUNC(gsl_sf_gamma_e);
   TEST_GAMMA_FUNC(gamma_fallback_e);
 
   return s;

@@ -32,49 +32,49 @@ test_doublefact(void)
   /*
    * Exact special cases and small exact values.
    */
-  TEST_SF(s, gsl_new_sf_doublefact_e, (0U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (0U, &r),
           1.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (1U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (1U, &r),
           1.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (20U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (20U, &r),
           3.71589120000000000000e+09, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (21U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (21U, &r),
           1.37493105750000000000e+10, TEST_TOL0, GSL_SUCCESS);
 
   /*
    * Finite even branch.
    */
-  TEST_SF(s, gsl_new_sf_doublefact_e, (50U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (50U, &r),
           5.20469842636666625086e+32, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (150U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (150U, &r),
           9.37262840292216559752e+131, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (298U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (298U, &r),
           2.71813802312686482634e+305, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (300U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (300U, &r),
           8.15441406938059447903e+307, TEST_TOL2, GSL_SUCCESS);
 
   /*
    * Finite odd branch: tabulated, correctly rounded.
    */
-  TEST_SF(s, gsl_new_sf_doublefact_e, (73U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (73U, &r),
           1.74865344543353982608e+53, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (183U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (183U, &r),
           3.61797606666319711405e+168, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_doublefact_e, (299U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (299U, &r),
           3.75327411157192600059e+306, TEST_TOL0, GSL_SUCCESS);
 
   /*
    * Overflow.
    */
-  TEST_SF(s, gsl_new_sf_doublefact_e, (301U, &r),
+  TEST_SF(s, gsl_sf_doublefact_e, (301U, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
   return s;

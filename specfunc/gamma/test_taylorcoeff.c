@@ -32,22 +32,22 @@ test_taylorcoeff(void)
   /*
    * Domain errors.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (-1, 1.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (-1, 1.0, &r),
           GSL_NAN, TEST_TOL0, GSL_EDOM);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (2, -1.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (2, -1.0, &r),
           GSL_NAN, TEST_TOL0, GSL_EDOM);
 
   /*
    * Exact special cases: n = 0, n = 1, and x = 0.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (0, 123.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (0, 123.0, &r),
           1.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (1, 0.125, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (1, 0.125, &r),
           1.25000000000000000000e-01, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (7, 0.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (7, 0.0, &r),
           0.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
   /*
@@ -56,37 +56,37 @@ test_taylorcoeff(void)
    * These points exercise low, moderate, and upper-end orders in the
    * precomputed reciprocal-factorial branch.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (2, 0.1, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (2, 0.1, &r),
           5.00000000000000097145e-03, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (5, 1.25, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (5, 1.25, &r),
           2.54313151041666678231e-02, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (10, 20.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (10, 20.0, &r),
           2.82186948853615531698e+06, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (20, 5.5, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (20, 5.5, &r),
           2.63711563134619796610e-04, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (30, 30.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (30, 30.0, &r),
           7.76207020879728149414e+11, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (50, 25.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (50, 25.0, &r),
           2.59373475312613067217e+05, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (100, 55.5, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (100, 55.5, &r),
           2.87935131741831720000e+16, TEST_TOL2, GSL_SUCCESS);
 
   /*
    * Generic large-order branch: n > 100.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (101, 25.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (101, 25.0, &r),
           1.65050121123519168813e-19, TEST_TOL4, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (150, 50.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (150, 50.0, &r),
           1.22632968045484534447e-08, TEST_TOL4, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (200, 100.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (200, 100.0, &r),
           1.26797695348096246921e+25, TEST_TOL4, GSL_SUCCESS);
 
   /*
@@ -96,37 +96,37 @@ test_taylorcoeff(void)
    * nearly zero and its absolute error is the relative error of the result.
    * Reference values from 400-bit arithmetic.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (500, 200.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (500, 200.0, &r),
           2.68280617236282960000e+16, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (1000, 300.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (1000, 300.0, &r),
           3.28556828371631311966e-91, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (301, 110.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (301, 110.0, &r),
           3.12484653343779320359e-03, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (1000, 367.9, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (1000, 367.9, &r),
           1.33396246318206613407e-02, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (100000, 36788.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (100000, 36788.0, &r),
           1.46852488288971416014e-03, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (2000000000, 735758882.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (2000000000, 735758882.0, &r),
           3.51243110735704758016e-06, TEST_TOL1, GSL_SUCCESS);
 
   /*
    * Underflow and overflow in the large-order branch.
    */
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (200, 1e-10, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (200, 1e-10, &r),
           0.0, TEST_TOL0, GSL_EUNDRFLW);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (200, 10000000000.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (200, 10000000000.0, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (400, 1.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (400, 1.0, &r),
           0.0, TEST_TOL0, GSL_EUNDRFLW);
 
-  TEST_SF(s, gsl_new_sf_taylorcoeff_e, (350, 1000.0, &r),
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (350, 1000.0, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
   return s;

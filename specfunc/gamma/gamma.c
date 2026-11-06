@@ -264,7 +264,7 @@ static const double doublefact_odd[150] = {
  */
 
 int
-gsl_new_sf_gamma_e(const double x, gsl_sf_result * result)
+gsl_sf_gamma_e(const double x, gsl_sf_result * result)
 {
 #ifdef HAVE_TGAMMA
 
@@ -310,7 +310,7 @@ gsl_new_sf_gamma_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
+gsl_sf_gammainv_e(const double x, gsl_sf_result * result)
 {
   int status;
   gsl_sf_result tmp;
@@ -505,7 +505,7 @@ gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result)
+gsl_sf_gammastar_e(const double x, gsl_sf_result * result)
 {
   if (x <= 0.0)
     DOMAIN_ERROR(result);
@@ -537,7 +537,7 @@ gsl_new_sf_gammastar_e(const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
+gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
 {
   if (x < 0.0 || n < 0)
     DOMAIN_ERROR(result);
@@ -641,7 +641,7 @@ gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result)
+gsl_sf_fact_e(const unsigned int n, gsl_sf_result * result)
 {
   if (n > GSL_SF_FACT_NMAX)
     OVERFLOW_ERROR(result);
@@ -675,7 +675,7 @@ gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_doublefact_e(const unsigned int n, gsl_sf_result * result)
+gsl_sf_doublefact_e(const unsigned int n, gsl_sf_result * result)
 {
   if (n > GSL_SF_DOUBLEFACT_NMAX)
     OVERFLOW_ERROR(result);
@@ -709,7 +709,7 @@ gsl_new_sf_doublefact_e(const unsigned int n, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_lnfact_e(const unsigned int n, gsl_sf_result * result)
+gsl_sf_lnfact_e(const unsigned int n, gsl_sf_result * result)
 {
   if (n <= GSL_SF_FACT_TABLE_NMAX)
     {
@@ -737,7 +737,7 @@ gsl_new_sf_lnfact_e(const unsigned int n, gsl_sf_result * result)
  */
 
 int
-gsl_new_sf_lndoublefact_e(const unsigned int n, gsl_sf_result * result)
+gsl_sf_lndoublefact_e(const unsigned int n, gsl_sf_result * result)
 {
   unsigned int k;
   double l2 = M_LN2;
@@ -787,14 +787,14 @@ gsl_new_sf_lndoublefact_e(const unsigned int n, gsl_sf_result * result)
     }
 }
 
-double gsl_new_sf_gamma(const double x) { EVAL_RESULT(gsl_new_sf_gamma_e(x, &result)); }
-double gsl_new_sf_gammainv(const double x) { EVAL_RESULT(gsl_new_sf_gammainv_e(x, &result)); }
-double gsl_new_sf_gammastar(const double x) { EVAL_RESULT(gsl_new_sf_gammastar_e(x, &result)); }
-double gsl_new_sf_taylorcoeff(const int n, const double x) { EVAL_RESULT(gsl_new_sf_taylorcoeff_e(n, x, &result)); }
-double gsl_new_sf_fact(const unsigned int n) { EVAL_RESULT(gsl_new_sf_fact_e(n, &result)); }
-double gsl_new_sf_doublefact(const unsigned int n) { EVAL_RESULT(gsl_new_sf_doublefact_e(n, &result)); }
-double gsl_new_sf_lnfact(const unsigned int n) { EVAL_RESULT(gsl_new_sf_lnfact_e(n, &result)); }
-double gsl_new_sf_lndoublefact(const unsigned int n) { EVAL_RESULT(gsl_new_sf_lndoublefact_e(n, &result)); }
+double gsl_sf_gamma(const double x) { EVAL_RESULT(gsl_sf_gamma_e(x, &result)); }
+double gsl_sf_gammainv(const double x) { EVAL_RESULT(gsl_sf_gammainv_e(x, &result)); }
+double gsl_sf_gammastar(const double x) { EVAL_RESULT(gsl_sf_gammastar_e(x, &result)); }
+double gsl_sf_taylorcoeff(const int n, const double x) { EVAL_RESULT(gsl_sf_taylorcoeff_e(n, x, &result)); }
+double gsl_sf_fact(const unsigned int n) { EVAL_RESULT(gsl_sf_fact_e(n, &result)); }
+double gsl_sf_doublefact(const unsigned int n) { EVAL_RESULT(gsl_sf_doublefact_e(n, &result)); }
+double gsl_sf_lnfact(const unsigned int n) { EVAL_RESULT(gsl_sf_lnfact_e(n, &result)); }
+double gsl_sf_lndoublefact(const unsigned int n) { EVAL_RESULT(gsl_sf_lndoublefact_e(n, &result)); }
 
 /********************************************
  * INTERNAL ROUTINES FOR GAMMA              *

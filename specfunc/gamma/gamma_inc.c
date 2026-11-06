@@ -86,8 +86,8 @@ static gsl_dd dd_div_diff(const double a, const double x);
  */
 
 int
-gsl_new_sf_gamma_inc_P_e(const double a, const double x,
-                         gsl_sf_result * result)
+gsl_sf_gamma_inc_P_e(const double a, const double x,
+                     gsl_sf_result * result)
 {
   int status;
 
@@ -117,7 +117,7 @@ gsl_new_sf_gamma_inc_P_e(const double a, const double x,
     {
       gsl_sf_result q;
 
-      status = gsl_new_sf_gamma_inc_Q_e(a, x, &q);
+      status = gsl_sf_gamma_inc_Q_e(a, x, &q);
       if (status)
         return status;
 
@@ -145,24 +145,32 @@ gsl_new_sf_gamma_inc_P_e(const double a, const double x,
  * twice an ulp of Q).  Elsewhere use the continued fraction or the
  * large-x asymptotic expansion.
  *
- * The limiting value at x = 0 is Q(a,0) = 1.  Arguments with a <= 0
+ * The limiting value at x = 0 is Q(a,0) = 1, and Q(0,x) = 0 for x > 0
+ * (the limit a -> 0, kept for compatibility).  Arguments with a < 0
  * or x < 0 are outside the real-valued domain of this interface and
  * produce a domain error.
  */
 
 int
-gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
-                         gsl_sf_result * result)
+gsl_sf_gamma_inc_Q_e(const double a, const double x,
+                     gsl_sf_result * result)
 {
   int status;
 
-  if (a <= 0.0 || x < 0.0)
+  if (a < 0.0 || x < 0.0)
     {
       DOMAIN_ERROR(result);
     }
   else if (x == 0.0)
     {
       result->val = 1.0;
+      result->err = 0.0;
+      return GSL_SUCCESS;
+    }
+  else if (a == 0.0)
+    {
+      /* limit a -> 0 for x > 0 */
+      result->val = 0.0;
       result->err = 0.0;
       return GSL_SUCCESS;
     }
@@ -203,8 +211,8 @@ gsl_new_sf_gamma_inc_Q_e(const double a, const double x,
     }
 }
 
-double gsl_new_sf_gamma_inc_P(const double a, const double x) { EVAL_RESULT(gsl_new_sf_gamma_inc_P_e(a, x, &result)); }
-double gsl_new_sf_gamma_inc_Q(const double a, const double x) { EVAL_RESULT(gsl_new_sf_gamma_inc_Q_e(a, x, &result)); }
+double gsl_sf_gamma_inc_P(const double a, const double x) { EVAL_RESULT(gsl_sf_gamma_inc_P_e(a, x, &result)); }
+double gsl_sf_gamma_inc_Q(const double a, const double x) { EVAL_RESULT(gsl_sf_gamma_inc_Q_e(a, x, &result)); }
 
 /*
  * result = 1 - r for r <= 1/2: the subtraction loses at most half an ulp
@@ -926,7 +934,7 @@ gamma_inc_rgammax(const double a, const double x)
         return 0.0;
 
       er = gsl_dd_exp(lr);
-      return (er.hi + er.lo) / gsl_new_sf_gamma(a);
+      return (er.hi + er.lo) / gsl_sf_gamma(a);
     }
 
   if (a < 0.25)
@@ -935,7 +943,7 @@ gamma_inc_rgammax(const double a, const double x)
       return pow(x, a) * exp(-x) * (a + a * gamma_inc_rgamma1pm1(a));
     }
 
-  return pow(x, a) * exp(-x) / gsl_new_sf_gamma(a);
+  return pow(x, a) * exp(-x) / gsl_sf_gamma(a);
 }
 
 /**********************************************
