@@ -122,6 +122,18 @@ test_f (const gsl_min_fminimizer_type * T,
       if (m < a || m > b)
         gsl_test (GSL_FAILURE, "m lies outside interval %g (%g,%g)", m, a, b);
 
+      /* the stored function values must belong to the current bracket */
+
+      if (gsl_min_fminimizer_f_lower (s) != GSL_FN_EVAL (f, a))
+        gsl_test (GSL_FAILURE, "%s, %s: f_lower %g is not f(x_lower) = %g",
+                  gsl_min_fminimizer_name (s), description,
+                  gsl_min_fminimizer_f_lower (s), GSL_FN_EVAL (f, a));
+
+      if (gsl_min_fminimizer_f_upper (s) != GSL_FN_EVAL (f, b))
+        gsl_test (GSL_FAILURE, "%s, %s: f_upper %g is not f(x_upper) = %g",
+                  gsl_min_fminimizer_name (s), description,
+                  gsl_min_fminimizer_f_upper (s), GSL_FN_EVAL (f, b));
+
       if (status) break ;
 
       status = gsl_min_test_interval (a, b, EPSABS, EPSREL);
