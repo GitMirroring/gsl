@@ -963,6 +963,38 @@ test_akima (void)
   return s;
 }
 
+/* Akima splines are C1: the derivative must be continuous at the knots, including where
+   flat stretches of data make the Akima weights 0/0 (bug #52351) */
+static int
+test_akima_c1 (const gsl_interp_type * T)
+{
+  int s = 0;
+  size_t k;
+  const double eps = 1.0e-9;
+  double x[8] = { 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0 };
+  double y[8] = { 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 3.0, 3.0 };
+  gsl_interp_accel *a = gsl_interp_accel_alloc ();
+  gsl_interp *interp = gsl_interp_alloc (T, 8);
+
+  gsl_interp_init (interp, x, y, 8);
+
+  for (k = 1; k < 7; k++)
+    {
+      const double dl = gsl_interp_eval_deriv (interp, x, y, x[k] - eps, a);
+      const double dr = gsl_interp_eval_deriv (interp, x, y, x[k] + eps, a);
+      int sk = fabs (dl - dr) > 1.0e-6;
+
+      gsl_test (sk, "%s derivative continuous at x = %g (%g left, %g right)",
+                gsl_interp_name (interp), x[k], dl, dr);
+      s += sk;
+    }
+
+  gsl_interp_free (interp);
+  gsl_interp_accel_free (a);
+
+  return s;
+}
+
 static int
 test_steffen1 (void)
 {
@@ -1224,6 +1256,8 @@ main (int argc, char **argv)
   status += test_csplinep();
   status += test_csplinep2();
   status += test_akima();
+  status += test_akima_c1(gsl_interp_akima);
+  status += test_akima_c1(gsl_interp_akima_periodic);
   status += test_steffen1();
   status += test_steffen2();
 
