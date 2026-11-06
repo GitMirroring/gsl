@@ -17,6 +17,10 @@
    because of a sign error in the step acceptance test, costing
    iterations)
 
+** fix for bugs #50734 and #49465 (Newton and Steffenson root solvers
+   now initialise with a single fdf call instead of separate f and df
+   calls; reported by L. Singer)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
