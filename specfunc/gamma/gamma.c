@@ -27,6 +27,7 @@
 #include "constants.h"
 #include "error.h"
 #include "eval.h"
+#include "stirling.c"
 
 #include "chebyshev.h"
 #include "cheb_eval.c"
@@ -341,7 +342,7 @@ gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
         {
           result->val = tmp.val < 0.0 ? GSL_NEGINF : GSL_POSINF;
           result->err = GSL_POSINF;
-          return GSL_EOVRFLW;
+          GSL_ERROR ("overflow", GSL_EOVRFLW);   /* keeps the sign of the infinity */
         }
 
       status = gamma_2_inf_scaled(-x, &gm, &ge);
@@ -361,7 +362,7 @@ gsl_new_sf_gammainv_e(const double x, gsl_sf_result * result)
       if (gsl_isinf(result->val))
         {
           result->err = GSL_POSINF;
-          return GSL_EOVRFLW;
+          GSL_ERROR ("overflow", GSL_EOVRFLW);   /* keeps the sign of the infinity */
         }
 
       /* Propagate the sin(pi*x) and scaled Gamma errors */
@@ -570,17 +571,9 @@ gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
       y = ldexp(p, scale);
 
       if (gsl_isinf(y))
-        {
-          result->val = y;
-          result->err = GSL_POSINF;
-          return GSL_EOVRFLW;
-        }
+        OVERFLOW_ERROR(result);
       else if (y == 0.0)
-        {
-          result->val = 0.0;
-          result->err = GSL_SF_TRUE_MIN;
-          return GSL_EUNDRFLW;
-        }
+        UNDERFLOW_ERROR(result);
       else
         {
           result->val = y;
@@ -600,14 +593,12 @@ gsl_new_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
        *
        *   x^n / n! = exp(L) / sqrt(2 pi n),   L = n (log(x/n) + 1) - Delta(n),
        *
-       * with Delta(n) = 1/(12n) - 1/(360n^3) + 1/(1260n^5) - 1/(1680n^7) + O(n^-9)
-       * (the next term is below 1e-25 for n > 300).  The relative error of the result
+       * with Delta the Stirling correction (stirling.c).  The relative error of the result
        * is the absolute error of the exponent, so L and log(2 pi n)/2 are formed in
        * double-double arithmetic.
        */
       const double nd = (double) n;
-      const double z = 1.0 / (nd * nd);
-      const double delta = (1.0/12.0 - z * (1.0/360.0 - z * (1.0/1260.0 - z * (1.0/1680.0)))) / nd;
+      const double delta = gamma_stirling_delta(nd);
       const gsl_dd log_sqrt_2pi = { GSL_SF_LOG_SQRT_2PI, GSL_SF_LOG_SQRT_2PI_LO };
       gsl_dd xd, L, h, y;
 
@@ -654,21 +645,15 @@ gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result)
 {
   if (n > GSL_SF_FACT_NMAX)
     OVERFLOW_ERROR(result);
-  else if (n > GSL_SF_FACT_TABLE_NMAX)
-    {
-      return GSL_EOVRFLW;
-    }
+
+  result->val = ldexp(fact_mant[n], (int) fact_exp[n]);
+
+  if (n <= 22U)
+    result->err = 0.0;      /* exact */
   else
-    {
-      result->val = ldexp(fact_mant[n], (int) fact_exp[n]);
+    result->err = GSL_DBL_EPSILON * fabs(result->val);
 
-      if (n <= 22U)
-        result->err = 0.0;
-      else
-        result->err = GSL_DBL_EPSILON * fabs(result->val);
-
-      return GSL_SUCCESS;
-    }
+  return GSL_SUCCESS;
 }
 
 /*
@@ -682,7 +667,8 @@ gsl_new_sf_fact_e(const unsigned int n, gsl_sf_result * result)
  * from the scaled factorial table using
  *
  *   (2k)!!   = 2^k k!
- *   (2k-1)!! = (2k)! / (2^k k!).
+ *
+ * and the odd values (2k-1)!! from a table of correctly rounded values.
  *
  * Values above GSL_SF_DOUBLEFACT_NMAX overflow the double-precision
  * range and return GSL_EOVRFLW.
@@ -842,12 +828,11 @@ gamma_system_e(const double x, gsl_sf_result * result)
   if (gsl_isinf(result->val))
     {
       result->err = GSL_POSINF;
-      return GSL_EOVRFLW;
+      GSL_ERROR ("overflow", GSL_EOVRFLW);     /* keeps the sign of the infinity */
     }
   else if (result->val == 0.0)
     {
-      result->err = GSL_SF_TRUE_MIN;
-      return GSL_EUNDRFLW;
+      UNDERFLOW_ERROR(result);
     }
   else if (fabs(result->val) < GSL_DBL_MIN)
     {

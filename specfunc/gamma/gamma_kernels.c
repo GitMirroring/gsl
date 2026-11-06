@@ -36,6 +36,7 @@
 
 #include "constants.h"
 #include "error.h"
+#include "stirling.c"
 
 static int gamma1p_H(const double x, gsl_sf_result * result);
 static int gamma1p_central(const double x, gsl_sf_result * result);
@@ -236,33 +237,17 @@ gamma_product(const double x, const double x_eps, const int n,
 
 /*
  * Evaluate the exponential correction in the Stirling expansion used
- * by gamma_high_scaled().
+ * by gamma_high_scaled(): for the adjusted argument x_adj > 10 and the
+ * correction x_eps, return
  *
- * For the adjusted argument x_adj and correction x_eps, return
+ *   x_eps log(x_adj) + Delta(x_adj),
  *
- *   x_eps log(x_adj) + S(x_adj),
- *
- * where S is the truncated odd inverse-power Stirling series
- *
- *   S(x) = c0/x + c1/x^3 + c2/x^5 + ...
- *
- * evaluated by Horner's method in 1/x^2.
+ * with Delta the Stirling correction (stirling.c).
  */
 static double
 gamma_stirling_exp_adj(const double x_adj, const double x_eps)
 {
-  static const double c[6] = { 8.333333333333332870740406e-02, -2.777777777777777883788657e-03,
-                               7.936507936507936501052685e-04, -5.952380952380952917890600e-04,
-                               8.417508417508417139715760e-04, -1.917526917526917633674555e-03 };
-  double x2, b;
-  int i;
-
-  x2 = x_adj * x_adj;
-  b = c[5];
-  for (i = 1; i <= 5; ++i)
-    b = b / x2 + c[5 - i];
-
-  return x_eps * log(x_adj) + b / x_adj;
+  return x_eps * log(x_adj) + gamma_stirling_delta(x_adj);
 }
 
 /*
@@ -444,7 +429,10 @@ gamma_2_inf_scaled(const double x, gsl_sf_result * mant, int * exp2)
 
   if (x > GAMMA_SCALED_X_MAX)
     {
-      return GSL_EOVRFLW;
+      mant->val = GSL_POSINF;
+      mant->err = GSL_POSINF;
+      *exp2 = 0;
+      GSL_ERROR ("overflow", GSL_EOVRFLW);
     }
 
   return gamma_high_scaled(x, mant, exp2);
@@ -490,7 +478,7 @@ gamma_neg_small(const double x, gsl_sf_result * result)
   if (gsl_isinf(result->val))
     {
       result->err = GSL_POSINF;
-      return GSL_EOVRFLW;
+      GSL_ERROR ("overflow", GSL_EOVRFLW);
     }
 
   return GSL_SUCCESS;
@@ -550,7 +538,7 @@ gamma_neg_recurrence(const double x, gsl_sf_result * result)
   if (gsl_isinf(result->val))
     {
       result->err = GSL_POSINF;
-      return GSL_EOVRFLW;
+      GSL_ERROR ("overflow", GSL_EOVRFLW);
     }
 
   return GSL_SUCCESS;
@@ -598,9 +586,7 @@ gamma_neg_reflection(const double x, gsl_sf_result * result)
 
   if (y > GAMMA_SCALED_X_MAX)
     {
-      result->val = 0.0;
-      result->err = GSL_SF_TRUE_MIN;
-      return GSL_EUNDRFLW;
+      UNDERFLOW_ERROR(result);
     }
 
   status = gamma_high_scaled_eps(y, y_eps, &gm, &ge);
@@ -622,12 +608,11 @@ gamma_neg_reflection(const double x, gsl_sf_result * result)
   if (gsl_isinf(result->val))
     {
       result->err = GSL_POSINF;
-      return GSL_EOVRFLW;
+      GSL_ERROR ("overflow", GSL_EOVRFLW);
     }
   else if (result->val == 0.0)
     {
-      result->err = GSL_SF_TRUE_MIN;
-      return GSL_EUNDRFLW;
+      UNDERFLOW_ERROR(result);
     }
   else if (fabs(result->val) < GSL_DBL_MIN)
     {

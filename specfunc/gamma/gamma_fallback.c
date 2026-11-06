@@ -107,7 +107,7 @@ gamma_fallback_e(const double x, gsl_sf_result * result)
       if (gsl_isinf(result->val))
         {
           result->err = GSL_POSINF;
-          return GSL_EOVRFLW;
+          GSL_ERROR ("overflow", GSL_EOVRFLW);
         }
 
       return GSL_SUCCESS;
@@ -130,7 +130,7 @@ gamma_fallback_e(const double x, gsl_sf_result * result)
       if (gsl_isinf(result->val))
         {
           result->err = GSL_POSINF;
-          return GSL_EOVRFLW;
+          GSL_ERROR ("overflow", GSL_EOVRFLW);
         }
 
       return GSL_SUCCESS;

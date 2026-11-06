@@ -27,6 +27,7 @@
 #include "constants.h"
 #include "error.h"
 #include "lngamma.h"
+#include "stirling.c"
 
 static int lngamma_fallback_e(const double x, gsl_sf_result * result);
 
@@ -400,43 +401,19 @@ lngamma_recurrence(const double x, gsl_sf_result * result)
 }
 
 /*
- * Evaluate log(Gamma(x)) for large positive x using Stirling's
- * expansion with an approximated remainder.
+ * Evaluate log(Gamma(x)) for x >= LNGAMMA_X_RECUR_STIRLING by Stirling's
+ * formula,
  *
- *   log(Gamma(x)) = (x - 1/2)(log(x) - 1) - 1/2 + log(sqrt(2*pi)) + R(x).
+ *   log(Gamma(x)) = (x - 1/2)(log(x) - 1) - 1/2 + log(sqrt(2*pi)) + Delta(x),
  *
- * With
- *
- *   t = 1/x,
- *   u = t^2,
- *   v = LNGAMMA_STIRLING_SCALE*u - 1,
- *
- * approximate the remainder by
- *
- *   R(x) = t P(v),
- *
- * where P is a degree-4 polynomial.  The transformation maps
- *
- *   x in [LNGAMMA_X_RECUR_STIRLING, infinity)
- *
- * onto v in [1,-1], so the approximation covers the complete
- * semi-infinite large-x domain.
+ * with Delta the Stirling correction (stirling.c).
  */
 static int
 lngamma_stirling(const double x, gsl_sf_result * result)
 {
-  static const double P[5] = { 0.0833116801042943673193300712526394485175055312775091535458318332065380896085724915926523506,
-                              -0.0000216053468869444527756868895079526119339815771522477656302614326015892438456960547648136461,
-                               0.0000000476073820463398096823885412011280987886273825150989355526167045268157021593489042443611532,
-                              -0.000000000271891336223976711247020197256663724316025619734256434929266139301491651564665700065352107,
-                               0.00000000000287863899744118155562453381913130753526379718867925114822298836372133477234622468542424781 };
-  const double t = 1.0/x;
-  const double u = t*t;
-  const double v = LNGAMMA_STIRLING_SCALE * u - 1.0;
   const double l = log(x);
-  const double p = P[0] + v * (P[1] + v * (P[2] + v * (P[3] + v * P[4])));
   const double a = (x - 0.5) * (l - 1.0);
-  const double r = t * p;
+  const double r = gamma_stirling_delta(x);
 
   result->val = a - 0.5 + GSL_SF_LOG_SQRT_2PI + r;
   result->err = 2.0 * GSL_DBL_EPSILON * (fabs(a) +

@@ -96,9 +96,7 @@ gsl_sf_erfcx_e(const double x, gsl_sf_result * result)
     {
       if (x < -ERFCX_NEG_X_MAX)
         {
-          result->val = GSL_POSINF;
-          result->err = 0.0;
-          return GSL_EOVRFLW;
+          OVERFLOW_ERROR(result);
         }
       else
         {

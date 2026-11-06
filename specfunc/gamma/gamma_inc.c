@@ -28,6 +28,7 @@
 #include "constants.h"
 #include "error.h"
 #include "eval.h"
+#include "stirling.c"
 
 #define GAMMA_INC_MAXITER         10000
 
@@ -286,7 +287,7 @@ gamma_inc_P_taylor_x_sum(const double a, const double x,
         break;
 
       if (l >= GAMMA_INC_MAXITER)
-        return GSL_EMAXITER;
+        GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
     }
 
   *temp = a * x * ((sm / 6.0 - 0.5 / (a + 2.0)) * x + 1.0 / (a + 1.0));
@@ -420,7 +421,7 @@ gamma_inc_p_series_sum(const double a, const double x, double * sum, int * nterm
   *sum = s;
   *nterms = n;
 
-  return GSL_EMAXITER;
+  GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 }
 
 /*
@@ -513,7 +514,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
           t = gsl_dd_div_d(c, a + an.hi);
           sum = gsl_dd_add(sum, t);
           if (an.hi >= GAMMA_INC_MAXITER)
-            return GSL_EMAXITER;
+            GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
         }
       while (fabs(t.hi + t.lo) > tol);
 
@@ -619,7 +620,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
       }
 
     if (n == GAMMA_INC_MAXITER)
-      return GSL_EMAXITER;
+      GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
     rrdd = gsl_dd_mul(rrdd, an0);
     result->val = rrdd.hi + rrdd.lo;
@@ -693,7 +694,7 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
     }
 
   if (n >= GAMMA_INC_MAXITER)
-    return GSL_EMAXITER;
+    GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
   result->val = gamma_inc_rgammax(a, x) * (a2n.hi + a2n.lo);
   result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
@@ -744,7 +745,7 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
     }
 
   if (n >= GAMMA_INC_MAXITER)
-    return GSL_EMAXITER;
+    GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
   r = gamma_inc_rgammax(a, x);
   if(a <= 20.0 && x > 700.0)
@@ -978,54 +979,6 @@ gamma_inc_log_ratio_near1(const double a, const double x)
 }
 
 /*
- * Compute the Stirling correction to log Gamma(a),
- *
- *   E(a) = log Gamma(a) - [(a - 1/2) log(a) - a + log(sqrt(2*pi))].
- *
- * For a < 1000, use the rational approximation
- *
- *   E(a) = p(z) / [(c + z) a],
- *
- * where z = 1/a^2 and p(z) is evaluated by Horner's method.
- *
- * For a >= 1000, use the asymptotic expansion
- *
- *   E(a) = [1/12 - z/360 + z^2/1260 - z^3/1680] / a.
- */
-static double
-gamma_inc_stirling_error(const double a)
-{
-  const double denom = 0.30865217988013567769;
-  static const double c[6] = {
-    0.25721014990011306473e-1,
-    0.82475966166999631057e-1,
-   -0.25328157302663562668e-2,
-    0.60992926669463371e-3,
-   -0.33543297638406e-3,
-    0.250505279903e-3
-  };
-
-  const double z = 1.0 / (a * a);
-
-  if (a < 1000.0)
-    {
-      double p = c[0] + z * (c[1] + z * (c[2] + z * (c[3] + z * (c[4] + z * c[5]))));
-      return p / ((denom + z) * a);
-    }
-  else
-    {
-      double p;
-
-      p = -1.0 / 1680.0;
-      p =  1.0 / 1260.0 + z * p;
-      p = -1.0 / 360.0  + z * p;
-      p =  1.0 / 12.0   + z * p;
-
-      return p / a;
-    }
-}
-
-/*
  * Compute
  *
  *   rgammax(a,x) = x^a exp(-x) / Gamma(a)
@@ -1039,7 +992,7 @@ gamma_inc_stirling_error(const double a)
  *   q = log(x/a) - x/a + 1
  *
  * and E(a) is the Stirling correction returned by
- * gamma_inc_stirling_error().
+ * gamma_stirling_delta() (stirling.c).
  *
  * The reduced logarithmic quantity q and the product a*q are retained
  * in double-double arithmetic.  Near x=a, q is formed from
@@ -1051,7 +1004,7 @@ gamma_inc_stirling_error(const double a)
 static double
 gamma_inc_rgammax_large(const double a, const double x)
 {
-  const double E = gamma_inc_stirling_error(a);
+  const double E = gamma_stirling_delta(a);
   gsl_dd q, aq, w;
 
   /* Near x=a use the exact-difference representation.  Away from it,

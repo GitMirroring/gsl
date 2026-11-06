@@ -26,6 +26,7 @@
 
 #include "constants.h"
 #include "error.h"
+#include "stirling.c"
 
 #include "lngamma1p_kernels.c"
 
@@ -180,91 +181,13 @@ gammastar_mid2_e(const double x, gsl_sf_result * result)
 }
 
 /*
- * Evaluate Gamma*(x) for x >= 16 using its direct Stirling
- * asymptotic expansion,
- *
- *   Gamma*(x) ~ sum_{k=0}^\infty g_k / x^k,
- *
- * where g_k are the Stirling coefficients for the scaled Gamma
- * function.
- *
- * Since the expansion is asymptotic rather than convergent, terms are
- * generated until the term of least magnitude is found.  The series is
- * then summed only through that term.  Compensated summation is used
- * to reduce rounding error in the accumulated result.
+ * Evaluate Gamma*(x) = exp(Delta(x)) for x >= 16, with Delta the
+ * Stirling correction (stirling.c).
  */
-
 static int
 gammastar_asym_e(const double x, gsl_sf_result * result)
 {
-  /* Coefficients of the direct asymptotic expansion for Gamma*(x). */
-  static const double gammastar_g[64] = { 1.000000000000000000e+00,  8.333333333333332871e-02,
-                                          3.472222222222222029e-03, -2.681327160493827272e-03,
-                                         -2.294720936213991678e-04,  7.840392217200666154e-04,
-                                          6.972813758365857106e-05, -5.921664373536939321e-04,
-                                         -5.171790908260591875e-05,  8.394987206720872647e-04,
-                                          7.204895416020010873e-05, -1.914438498565477608e-03,
-                                         -1.625162627839158303e-04,  6.403362833808069580e-03,
-                                          5.401647678926045247e-04, -2.952788094569911911e-02,
-                                         -2.481743600264997660e-03,  1.795401170612348496e-01,
-                                          1.505611304002642432e-02, -1.391801093265337519e+00,
-                                         -1.165462765994632055e-01,  1.339798545514258876e+01,
-                                          1.120804464289911540e+00, -1.568014127040227379e+02,
-                                         -1.310786302263386638e+01,  2.192555536090523219e+03,
-                                          1.831907334845243440e+02, -3.610111929322207288e+04,
-                                         -3.015077312622305726e+03,  6.913463761418780778e+05,
-                                          5.772133636304072570e+04, -1.523581214571527392e+07,
-                                         -1.271735639253008412e+06,  3.828476795804702640e+08,
-                                          3.194982041479770094e+07, -1.088093297226180458e+10,
-                                         -9.078945781584213972e+08,  3.472824091526162720e+11,
-                                          2.897284580034444427e+10, -1.236839364434079688e+13,
-                                         -1.031740231156091309e+12,  4.887450343054861250e+14,
-                                          4.076578479659595312e+13, -2.131863391684895200e+16,
-                                         -1.778015011380106250e+15,  1.021701154543785984e+18,
-                                          8.520549903706526400e+16, -5.357191941523875430e+19,
-                                         -4.467379411519482368e+18,  3.061392001778059837e+21,
-                                          2.552759895178464133e+20, -1.899885314174473701e+23,
-                                         -1.584151624421081927e+22,  1.276271360813679147e+25,
-                                          1.064126385790708399e+24, -9.252403565252561340e+26,
-                                         -7.714143340931511993e+25,  7.218501021544890480e+28,
-                                          6.018176609209553116e+27, -6.044932539206480316e+30,
-                                         -5.039595772671955215e+29,  5.420460403064736772e+32,
-                                          4.518852020163048883e+31, -5.192769458361049477e+34 };
-  double inv, p, term, mag, best, sum, corr, y, t;
-  int n, best_n;
-
-  inv = 1.0 / x;
-  p = 1.0;
-  best = fabs(gammastar_g[0]);
-  best_n = 0;
-
-  for (n = 0; n < 64; ++n)
-    {
-      if (n > 0)
-        p *= inv;
-      term = gammastar_g[n] * p;
-      mag = fabs(term);
-      if (mag < best)
-        {
-          best = mag;
-          best_n = n;
-        }
-    }
-
-  sum = 0.0;
-  corr = 0.0;
-  p = 1.0;
-  for (n = 0; n <= best_n; ++n)
-    {
-      if (n > 0)
-        p *= inv;
-      y = gammastar_g[n] * p - corr;
-      t = sum + y;
-      corr = (t - sum) - y;
-      sum = t;
-    }
-
-  result->val = sum;
-  result->err = 8.0 * GSL_DBL_EPSILON * fabs(result->val);
+  result->val = exp(gamma_stirling_delta(x));
+  result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
   return GSL_SUCCESS;
 }
