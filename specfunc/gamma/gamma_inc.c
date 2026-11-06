@@ -50,8 +50,19 @@ static int gamma_inc_P_series(const double a, const double x, gsl_sf_result * re
 static int gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result);
 static int gamma_inc_complement(const gsl_sf_result * r, gsl_sf_result * result);
 static double gamma_inc_rgamma1pm1(const double a);
+static int gamma_inc_cf_g(const double a, const double x, double * g);
 static int gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result);
+static int gamma_inc_use_asymp(const double a, const double x);
+static int gamma_inc_asymp_sum(const double a, const double x, double * sum, int * nterms);
 static int gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result);
+
+/* non-normalized Gamma(a,x) kernels */
+static int gamma_inc_xpow_exp_scaled(const double a, const double x, const double S,
+                                     const double S_relerr, gsl_sf_result * result);
+static int gamma_inc_upper_tail(const double a, const double x, gsl_sf_result * result);
+static int gamma_inc_upper_gamma_Q(const double a, const double x, gsl_sf_result * result);
+static double gamma_inc_upper_small_e(const double e, const double x);
+static int gamma_inc_upper_recur(const double a, const double x, gsl_sf_result * result);
 
 /* Temme kernel functions */
 static int gamma_inc_use_temme(const double a, const double x);
@@ -196,23 +207,63 @@ gsl_sf_gamma_inc_Q_e(const double a, const double x,
 
       return gamma_inc_complement(&p, result);
     }
-  else if (a < 12.0)
+  else if (gamma_inc_use_asymp(a, x))
     {
       return gamma_inc_Q_asymp(a, x, result);
     }
   else
     {
-      const double s = (x - a) / a;
-
-      if (x >= 200.0 || (a >= 20.0 && s >= 1.5))
-        return gamma_inc_Q_asymp(a, x, result);
-
       return gamma_inc_Q_cf(a, x, result);
+    }
+}
+
+/*
+ * Compute the non-normalized upper incomplete gamma function
+ *
+ *   Gamma(a,x) = integral_x^infinity t^(a-1) e^-t dt
+ *
+ * for real a and x >= 0 (x > 0 when a <= 0, where the integral
+ * diverges at x = 0).
+ *
+ * For x >= 1/2 and x > a (outside the Temme region) evaluate
+ * x^a e^-x times the continued fraction or the large-x asymptotic sum
+ * directly: forming Gamma(a) Q(a,x) there would underflow in Q long
+ * before Gamma(a,x) does.  For a > 0 otherwise use Gamma(a) Q(a,x),
+ * and for a <= 0, x < 1/2 the scaled downward recurrence of
+ * gamma_inc_upper_recur().
+ */
+
+int
+gsl_sf_gamma_inc_e(const double a, const double x, gsl_sf_result * result)
+{
+  if (x < 0.0)
+    {
+      DOMAIN_ERROR(result);
+    }
+  else if (x == 0.0)
+    {
+      if (a > 0.0)
+        return gsl_sf_gamma_e(a, result);
+
+      DOMAIN_ERROR(result);
+    }
+  else if (x >= 0.5 && x > a && !gamma_inc_use_temme(a, x))
+    {
+      return gamma_inc_upper_tail(a, x, result);
+    }
+  else if (a > 0.0)
+    {
+      return gamma_inc_upper_gamma_Q(a, x, result);
+    }
+  else
+    {
+      return gamma_inc_upper_recur(a, x, result);
     }
 }
 
 double gsl_sf_gamma_inc_P(const double a, const double x) { EVAL_RESULT(gsl_sf_gamma_inc_P_e(a, x, &result)); }
 double gsl_sf_gamma_inc_Q(const double a, const double x) { EVAL_RESULT(gsl_sf_gamma_inc_Q_e(a, x, &result)); }
+double gsl_sf_gamma_inc(const double a, const double x) { EVAL_RESULT(gsl_sf_gamma_inc_e(a, x, &result)); }
 
 /*
  * result = 1 - r for r <= 1/2: the subtraction loses at most half an ulp
@@ -553,10 +604,10 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
  */
 
 static int
-gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
+gamma_inc_cf_g(const double a, const double x, double * g_out)
 {
   /*
-   * Legendre continued fraction for x > a,
+   * Legendre continued fraction for x > a (any real a),
    *
    *   Q(a,x) = x^a e^-x / Gamma(a) * 1/g,
    *   g = b_0 + a_1/(b_1 + a_2/(b_2 + ...)),
@@ -609,6 +660,20 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
   for (k = n; k >= 1; k--)
     g = (x + 2.0 * (k - 1) + 1.0 - a) - (double) k * ((double) k - a) / g;
 
+  *g_out = g;
+
+  return GSL_SUCCESS;
+}
+
+static int
+gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
+{
+  double g;
+  int status = gamma_inc_cf_g(a, x, &g);
+
+  if (status)
+    return status;
+
   result->val = gamma_inc_rgammax(a, x) / g;
   result->err = 32.0 * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
@@ -638,15 +703,31 @@ gamma_inc_Q_cf(const double a, const double x, gsl_sf_result * result)
  * region.
  */
 
+/*
+ * Return nonzero if the large-x asymptotic expansion is used for (a,x),
+ * x > a: a > 2 and x >= 40 for a < 12; x >= 200 or x >= 2.5a (a >= 20)
+ * otherwise.  Elsewhere the continued fraction is used.
+ */
 static int
-gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
+gamma_inc_use_asymp(const double a, const double x)
+{
+  if (a <= 2.0)
+    return 0;
+  else if (a < 12.0)
+    return x >= 40.0;
+  else
+    return x >= 200.0 || (a >= 20.0 && (x - a) / a >= 1.5);
+}
+
+/* sum of the asymptotic series 1 + (a-1)/x + (a-1)(a-2)/x^2 + ... */
+static int
+gamma_inc_asymp_sum(const double a, const double x, double * sum_out, int * nterms)
 {
   /* compensated (Kahan) summation: up to ~40 terms for x ~ 2.5a, whose
      rounding errors would otherwise add up to a few ulp */
   double term = 1.0, prev = 1.0;
   double sum = 1.0, comp = 0.0;
   int n;
-  double r;
 
   for (n = 1; n < GAMMA_INC_MAXITER; n++)
     {
@@ -669,12 +750,232 @@ gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
   if (n >= GAMMA_INC_MAXITER)
     GSL_ERROR ("gamma_inc: series or continued fraction failed to converge", GSL_EMAXITER);
 
-  r = gamma_inc_rgammax(a, x);
+  *sum_out = sum;
+  *nterms = n;
 
-  result->val = (r / x) * sum;
+  return GSL_SUCCESS;
+}
+
+static int
+gamma_inc_Q_asymp(const double a, const double x, gsl_sf_result * result)
+{
+  double sum;
+  int n;
+  int status = gamma_inc_asymp_sum(a, x, &sum, &n);
+
+  if (status)
+    return status;
+
+  result->val = (gamma_inc_rgammax(a, x) / x) * sum;
   result->err = (n + 16.0) * GSL_DBL_EPSILON * fabs(result->val) + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
+}
+
+/*****************************************
+ * INTERNAL ROUTINES (Gamma(a,x))        *
+ *****************************************/
+
+/*
+ * result = x^a e^-x S, where S > 0 has relative error S_relerr.  In
+ * double precision pow(x,a) exp(-x) has an error of ~2 ulp; when a
+ * factor or the product would leave the normal range, form the
+ * exponent in double-double instead (exp(a log x - x) in double would
+ * cost |a log x - x| ulp).
+ */
+static int
+gamma_inc_xpow_exp_scaled(const double a, const double x, const double S,
+                          const double S_relerr, gsl_sf_result * result)
+{
+  const double lx = log(x);
+
+  if (fabs(a * lx) < 700.0 && x < 700.0)
+    {
+      result->val = pow(x, a) * exp(-x) * S;
+
+      if (fabs(result->val) >= GSL_DBL_MIN && fabs(result->val) <= GSL_DBL_MAX)
+        {
+          result->err = (S_relerr + 4.0 * GSL_DBL_EPSILON) * fabs(result->val);
+          return GSL_SUCCESS;
+        }
+    }
+
+  {
+    /*
+     * x^a e^-x S = 2^(k+j) exp(r) m, with r = a log(x) - x - k log(2) in
+     * double-double (|r| <= log(2)/2) and S = m 2^j (frexp), so that
+     * neither a large exponent nor log(S) is rounded to double
+     */
+    const gsl_dd ln2 = { M_LN2, GSL_SF_LN2_DD_LO };
+    gsl_dd xd, lr, er;
+    double lt, k, m;
+    int j;
+
+    xd.hi = x;
+    xd.lo = 0.0;
+    lr = gsl_dd_sub_d(gsl_dd_mul_d(gsl_dd_log(xd), a), x);
+    lt = lr.hi + log(S);
+
+    if (lt > GSL_LOG_DBL_MAX + 1.0)
+      {
+        OVERFLOW_ERROR(result);
+      }
+    else if (lt < GSL_SF_LOG_TRUE_MIN - 1.0)
+      {
+        UNDERFLOW_ERROR(result);
+      }
+
+    k = floor(lr.hi / M_LN2 + 0.5);
+    er = gsl_dd_exp(gsl_dd_sub(lr, gsl_dd_mul_d(ln2, k)));
+    m = frexp(S, &j);
+
+    result->val = ldexp((er.hi + er.lo) * m, (int) k + j);
+
+    if (!gsl_finite(result->val))
+      {
+        OVERFLOW_ERROR(result);
+      }
+    else if (result->val == 0.0)
+      {
+        UNDERFLOW_ERROR(result);
+      }
+
+    result->err = (S_relerr + 2.0 * GSL_DBL_EPSILON) * fabs(result->val) + GSL_SF_TRUE_MIN;
+
+    return GSL_SUCCESS;
+  }
+}
+
+/* Gamma(a,x) = x^a e^-x S for x >= 1/2, x > a, outside the Temme region */
+static int
+gamma_inc_upper_tail(const double a, const double x, gsl_sf_result * result)
+{
+  double S, relerr;
+  int status;
+
+  if (gamma_inc_use_asymp(a, x))
+    {
+      double sum;
+      int n;
+
+      status = gamma_inc_asymp_sum(a, x, &sum, &n);
+      S = sum / x;
+      relerr = (n + 16.0) * GSL_DBL_EPSILON;
+    }
+  else
+    {
+      double g;
+
+      status = gamma_inc_cf_g(a, x, &g);
+      S = 1.0 / g;
+      relerr = 32.0 * GSL_DBL_EPSILON;
+    }
+
+  if (status)
+    return status;
+
+  return gamma_inc_xpow_exp_scaled(a, x, S, relerr, result);
+}
+
+/* Gamma(a,x) = Gamma(a) Q(a,x) for a > 0 */
+static int
+gamma_inc_upper_gamma_Q(const double a, const double x, gsl_sf_result * result)
+{
+  gsl_sf_result Q;
+  int status = gsl_sf_gamma_inc_Q_e(a, x, &Q);
+
+  if (status)
+    return status;
+
+  if (a < GSL_SF_GAMMA_XMAX)
+    {
+      gsl_sf_result G;
+
+      status = gsl_sf_gamma_e(a, &G);
+      if (status)
+        return status;
+
+      result->val = G.val * Q.val;
+      result->err = fabs(G.val) * Q.err + G.err * fabs(Q.val) +
+                    GSL_DBL_EPSILON * fabs(result->val);
+
+      return GSL_SUCCESS;
+    }
+  else
+    {
+      /* Gamma(a) overflows, but Gamma(a,x) need not when Q is small:
+         use Gamma(a) = x^a e^-x / rgammax(a,x) */
+      const double r = gamma_inc_rgammax(a, x);
+
+      if (r == 0.0 || Q.val == 0.0)
+        OVERFLOW_ERROR(result);
+
+      return gamma_inc_xpow_exp_scaled(a, x, Q.val / r, Q.err / Q.val + GSL_DBL_EPSILON, result);
+    }
+}
+
+/*
+ * Gamma(e,x) for |e| <= 1/2, 0 < x < 1/2.  From
+ * Gamma(e,x) = Gamma(e) - x^e sum_{n>=0} (-x)^n / (n! (e+n)),
+ *
+ *   Gamma(e,x) = -Gamma(1+e) (exp(e m) - 1)/e - x^e sum_{n>=1} (-x)^n / (n! (e+n)),
+ *
+ * with m = log(x) - lngamma1p(e)/e (the terms 1/e of Gamma(e) and of the
+ * n = 0 term cancel analytically).  At e = 0 this is
+ * E1(x) = -log(x) - Euler + Ein(x).  For x < 1/2 < exp(-Euler) both
+ * terms are positive, so there is no cancellation.
+ */
+static double
+gamma_inc_upper_small_e(const double e, const double x)
+{
+  const double m = log(x) - ((e == 0.0) ? -M_EULER : gsl_sf_lngamma1p(e) / e);
+  const double em = e * m;
+  const double f = (em == 0.0) ? m : m * (gsl_sf_expm1(em) / em);
+  double term = 1.0, sum = 0.0;
+  int n;
+
+  for (n = 1; n < GAMMA_INC_MAXITER; ++n)
+    {
+      term *= -x / n;
+      sum += term / (e + n);
+      if (fabs(term) < GSL_DBL_EPSILON * fabs(sum))
+        break;
+    }
+
+  return -gsl_sf_gamma(1.0 + e) * f - ((e == 0.0) ? 1.0 : pow(x, e)) * sum;
+}
+
+/*
+ * Gamma(a,x) for a <= 0, 0 < x < 1/2.  With R(b) = Gamma(b,x) / (x^b e^-x)
+ * the recurrence Gamma(b,x) = (Gamma(b+1,x) - x^b e^-x) / b becomes
+ *
+ *   R(b) = (1 - x R(b+1)) / (-b),
+ *
+ * free of over/underflow.  Start at the nearest integer distance
+ * e = a - round(a) in [-1/2, 1/2] with gamma_inc_upper_small_e(), and take
+ * -round(a) steps downward (a + j is exact for these j).  Then -b >= 1/2
+ * and x R(b+1) <= ~0.65 in every step, so rounding errors are not
+ * amplified, and they are damped once -b is large.
+ */
+static int
+gamma_inc_upper_recur(const double a, const double x, gsl_sf_result * result)
+{
+  const double na = floor(a + 0.5);
+  const double e = a - na;
+  double R;
+  int j, n;
+
+  /* Gamma(a,x) > x^a e^-x / (1 - a + x) overflows for -a log(x) large */
+  if (a * log(x) - x - log(1.0 - a + x) > GSL_LOG_DBL_MAX)
+    OVERFLOW_ERROR(result);
+
+  n = (int) (-na);
+  R = gamma_inc_upper_small_e(e, x) * pow(x, -e) * exp(x);
+
+  for (j = n - 1; j >= 0; --j)
+    R = (1.0 - x * R) / -(a + j);
+
+  return gamma_inc_xpow_exp_scaled(a, x, R, 16.0 * GSL_DBL_EPSILON, result);
 }
 
 /*****************************************
@@ -927,8 +1228,11 @@ gamma_inc_rgammax(const double a, const double x)
     {
       /* exp(-x) alone would lose precision or underflow before the product
          does: form log(x^a e^-x) = a log(x) - x in double-double */
-      gsl_dd lr = gsl_dd_sub_d(gsl_dd_mul_d(gsl_dd_log((gsl_dd){x, 0.0}), a), x);
-      gsl_dd er;
+      gsl_dd xd, lr, er;
+
+      xd.hi = x;
+      xd.lo = 0.0;
+      lr = gsl_dd_sub_d(gsl_dd_mul_d(gsl_dd_log(xd), a), x);
 
       if (lr.hi <= GSL_SF_LOG_TRUE_MIN)
         return 0.0;

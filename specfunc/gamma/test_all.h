@@ -34,6 +34,7 @@ int test_taylorcoeff(void);
 int test_lngamma(void);
 int test_lngamma1p(void);
 
+int test_gamma_inc(void);
 int test_gamma_inc_P(void);
 int test_gamma_inc_Q(void);
 
