@@ -48,7 +48,7 @@ test_ldlt_decomp_eps(const gsl_matrix * m, const double expected_rcond,
                      const double eps, const char * desc)
 {
   int s = 0;
-  size_t i, j, N = m->size2;
+  size_t i, N = m->size2;
 
   gsl_matrix * V  = gsl_matrix_alloc(N, N);
   gsl_matrix * A  = gsl_matrix_alloc(N, N);
@@ -78,18 +78,7 @@ test_ldlt_decomp_eps(const gsl_matrix * m, const double expected_rcond,
   /* compute A = L D LT */
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans, 1.0, L, LT, 0.0, A);
 
-  for (i = 0; i < N; i++)
-    {
-      for (j = 0; j < N; j++)
-        {
-          double Aij = gsl_matrix_get(A, i, j);
-          double mij = gsl_matrix_get(m, i, j);
-
-          gsl_test_rel(Aij, mij, eps,
-                       "%s: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, N, i, j, Aij, mij);
-        }
-    }
+  s += test_matrix_normwise(A, m, eps, desc, "");
 
   if (expected_rcond > 0)
     {
@@ -151,7 +140,7 @@ test_ldlt_solve_eps(const gsl_matrix * m, const gsl_vector * rhs,
                     const char * desc)
 {
   int s = 0;
-  size_t i, N = m->size1;
+  size_t N = m->size1;
   gsl_matrix * u  = gsl_matrix_alloc(N, N);
   gsl_vector * x = gsl_vector_calloc(N);
 
@@ -160,15 +149,7 @@ test_ldlt_solve_eps(const gsl_matrix * m, const gsl_vector * rhs,
   s += gsl_linalg_ldlt_decomp(u);
   s += gsl_linalg_ldlt_solve(u, rhs, x);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps,
-                   "%s: %3lu[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, "");
 
   gsl_vector_free(x);
   gsl_matrix_free(u);
@@ -193,13 +174,13 @@ test_ldlt_solve(gsl_rng * r)
       create_random_vector(sol, r);
       gsl_blas_dsymv(CblasLower, 1.0, m, sol, 0.0, rhs);
 
-      test_ldlt_solve_eps(m, rhs, sol, 64.0 * N * GSL_DBL_EPSILON, "ldlt_solve random");
+      test_ldlt_solve_eps(m, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond(m), "ldlt_solve random");
 
       if (N <= 3)
         {
           create_hilbert_matrix2(m);
           gsl_blas_dsymv(CblasLower, 1.0, m, sol, 0.0, rhs);
-          test_ldlt_solve_eps(m, rhs, sol, 1024.0 * N * GSL_DBL_EPSILON, "ldlt_solve hilbert");
+          test_ldlt_solve_eps(m, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond(m), "ldlt_solve hilbert");
         }
 
       gsl_matrix_free(m);
@@ -214,7 +195,7 @@ static int
 test_ldlt_band_decomp_eps(const size_t p, const gsl_matrix * m, const double eps, const char * desc)
 {
   int s = 0;
-  size_t i, j, N = m->size2;
+  size_t i, N = m->size2;
   double rcond, rcond_expected;
 
   gsl_matrix * V  = gsl_matrix_alloc(N, p + 1);
@@ -244,18 +225,7 @@ test_ldlt_band_decomp_eps(const size_t p, const gsl_matrix * m, const double eps
   /* compute A = L D LT */
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans, 1.0, L, LT, 0.0, A);
 
-  for (i = 0; i < N; i++)
-    {
-      for (j = 0; j < N; j++)
-        {
-          double Aij = gsl_matrix_get(A, i, j);
-          double mij = gsl_matrix_get(m, i, j);
-
-          gsl_test_rel(Aij, mij, eps,
-                       "%s: (p=%zu,N=%zu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, p, N, i, j, Aij, mij);
-        }
-    }
+  s += test_matrix_normwise(A, m, eps, desc, "");
 
   /* test 1-norm calculation */
   if (p > 0)
@@ -315,7 +285,7 @@ test_ldlt_band_solve_eps(const size_t p, const gsl_matrix * m, const gsl_vector 
                          const gsl_vector * sol, const double eps, const char * desc)
 {
   int s = 0;
-  size_t i, N = m->size1;
+  size_t N = m->size1;
   gsl_matrix * u  = gsl_matrix_alloc(N, p + 1);
   gsl_vector * x = gsl_vector_alloc(N);
 
@@ -325,15 +295,7 @@ test_ldlt_band_solve_eps(const size_t p, const gsl_matrix * m, const gsl_vector 
   s += gsl_linalg_ldlt_band_decomp(u);
   s += gsl_linalg_ldlt_band_solve(u, rhs, x);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps,
-                   "%s: p=%zu N=%zu [%lu]: %22.18g   %22.18g\n",
-                   desc, p, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, "");
 
   gsl_vector_free(x);
   gsl_matrix_free(u);
@@ -360,7 +322,7 @@ test_ldlt_band_solve(gsl_rng * r)
           create_random_vector(sol, r);
           gsl_blas_dsymv(CblasLower, 1.0, m, sol, 0.0, rhs);
 
-          test_ldlt_band_solve_eps(p, m, rhs, sol, 64.0 * N * GSL_DBL_EPSILON, "ldlt_band_solve random");
+          test_ldlt_band_solve_eps(p, m, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond(m), "ldlt_band_solve random");
         }
 
       gsl_matrix_free(m);

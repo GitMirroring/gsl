@@ -3,6 +3,15 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bugs #67445 and #49697 (linalg test failures with gcc 14,
+   AVX/AVX-512 and other platforms): the linalg tests on random
+   matrices compared results entry by entry, which backward stable
+   algorithms do not guarantee, so that changes of rounding (compiler,
+   FMA, vectorized BLAS) made some fail; Decompositions are now checked in norm
+   (||A - factors|| <= c n eps ||A||), solutions and inverses relative
+   to the condition number, and least squares solutions by the normal
+   equations; reported by D. Jerius)
+
 ** fix for bug #67705 (linalg tests "QR_solve_r random" and similar
    failed on some platforms: the solutions of random linear systems
    were checked component-wise, which a backward stable solver does

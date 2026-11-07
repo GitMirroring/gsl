@@ -90,28 +90,8 @@ test_LU_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
       gsl_permute_vector_inverse(p, &v.vector);
     }
 
-  /* now test m = PLU */
-  for (i = 0; i < M; ++i)
-    {
-      for (j = 0; j < N; ++j)
-        {
-          double aij = gsl_matrix_get(PLU, i, j);
-          double mij = gsl_matrix_get(m, i, j);
-
-          if (fabs(mij) > GSL_DBL_MIN)
-            {
-              gsl_test_rel(aij, mij, eps,
-                           "%s: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, aij, mij);
-            }
-          else
-            {
-              gsl_test_rel(aij / GSL_DBL_MIN, mij / GSL_DBL_MIN, eps,
-                           "%s: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, aij, mij);
-            }
-        }
-    }
+  /* now test m = PLU (normwise: see test_matrix_normwise) */
+  s += test_matrix_normwise(PLU, m, eps, desc, "");
 
   gsl_matrix_free(A);
   gsl_matrix_free(PLU);

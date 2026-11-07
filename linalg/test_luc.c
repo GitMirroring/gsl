@@ -90,41 +90,8 @@ test_LUc_decomp_eps(const gsl_matrix_complex * m, const double eps, const char *
       gsl_permute_vector_complex_inverse(p, &v.vector);
     }
 
-  /* now test m = PLU */
-  for (i = 0; i < M; ++i)
-    {
-      for (j = 0; j < N; ++j)
-        {
-          gsl_complex aij = gsl_matrix_complex_get(PLU, i, j);
-          gsl_complex mij = gsl_matrix_complex_get(m, i, j);
-
-          if (GSL_REAL(mij) == 0.0 || fabs(GSL_REAL(mij)) > GSL_DBL_MIN)
-            {
-              gsl_test_rel(GSL_REAL(aij), GSL_REAL(mij), eps,
-                           "%s real: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_REAL(aij), GSL_REAL(mij));
-            }
-          else
-            {
-              gsl_test_rel(GSL_REAL(aij) / GSL_DBL_MIN, GSL_REAL(mij) / GSL_DBL_MIN, eps,
-                           "%s real: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_REAL(aij), GSL_REAL(mij));
-            }
-
-          if (GSL_IMAG(mij) == 0.0 || fabs(GSL_IMAG(mij)) > GSL_DBL_MIN)
-            {
-              gsl_test_rel(GSL_IMAG(aij), GSL_IMAG(mij), eps,
-                           "%s imag: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_IMAG(aij), GSL_IMAG(mij));
-            }
-          else
-            {
-              gsl_test_rel(GSL_IMAG(aij) / GSL_DBL_MIN, GSL_IMAG(mij) / GSL_DBL_MIN, eps,
-                           "%s imag: (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_IMAG(aij), GSL_IMAG(mij));
-            }
-        }
-    }
+  /* now test m = PLU (normwise: see test_matrix_normwise) */
+  s += test_matrix_normwise_complex(PLU, m, eps, desc, "");
 
   gsl_matrix_complex_free(A);
   gsl_matrix_complex_free(PLU);

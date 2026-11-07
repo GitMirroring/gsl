@@ -34,7 +34,6 @@ test_QR_band_decomp_eps(const size_t p, const size_t q, const gsl_matrix * A, co
   int s = 0;
   const size_t M = A->size1;
   const size_t N = A->size2;
-  size_t i, j;
 
   gsl_matrix * AB = gsl_matrix_alloc(N, 2*p + q + 1);
   gsl_vector * tau = gsl_vector_alloc(N);
@@ -63,17 +62,7 @@ test_QR_band_decomp_eps(const size_t p, const size_t q, const gsl_matrix * A, co
   /* compute B = Q R */
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans, 1.0, Q, R, 0.0, B);
 
-  for (i = 0; i < M; ++i)
-    {
-      for (j = 0; j < N; ++j)
-        {
-          double aij = gsl_matrix_get(A, i, j);
-          double bij = gsl_matrix_get(B, i, j);
-
-          gsl_test_rel(bij, aij, eps, "%s (M=%3lu,N=%3lu)(p=%3lu,q=%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, M, N, p, q, i, j, aij, bij);
-        }
-    }
+  s += test_matrix_normwise(B, A, eps, desc, "");
 
   gsl_matrix_free(AB);
   gsl_vector_free(tau);

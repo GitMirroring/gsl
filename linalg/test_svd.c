@@ -36,7 +36,7 @@ static int
 test_SV_lssolve_eps(const double lambda, const gsl_matrix * A, const gsl_vector * b, const double eps, const char *desc)
 {
   int s = 0;
-  size_t i, M = A->size1, N = A->size2;
+  const size_t M = A->size1, N = A->size2;
 
   gsl_matrix * U = gsl_matrix_alloc(M, N);
   gsl_matrix * V = gsl_matrix_alloc(N, N);
@@ -44,22 +44,23 @@ test_SV_lssolve_eps(const double lambda, const gsl_matrix * A, const gsl_vector 
   gsl_vector * work = gsl_vector_alloc(N);
   gsl_vector * work2 = gsl_vector_alloc(M+N);
   gsl_vector * x = gsl_vector_alloc(N);
-  gsl_vector * x_aug = gsl_vector_alloc(N);
-  gsl_vector * r = gsl_vector_alloc(M);
-  double rnorm, rnorm_expected;
+  gsl_matrix * B = gsl_matrix_calloc(M + N, N);
+  gsl_vector * f = gsl_vector_calloc(M + N);
+  double rnorm;
 
+  gsl_matrix_memcpy(U, A);
+  s += gsl_linalg_SV_decomp(U, V, S, work);
+  s += gsl_linalg_SV_lssolve(lambda, U, V, S, b, x, &rnorm, work2);
+
+  /*
+   * x minimizes ||b - A x||^2 + lambda^2 ||x||^2, i.e. it is the least
+   * squares solution of the augmented system B x = f with B = [ A ;
+   * lambda*I_N ], f = [ b ; 0 ] (see test_lssolve_normal)
+   */
   {
-    /* form full rank augmented system B = [ A ; lambda*I_N ], f = [ rhs ; 0 ] and solve with QRPT */
+    gsl_matrix_view m = gsl_matrix_submatrix(B, 0, 0, M, N);
     gsl_vector_view v;
-    gsl_matrix_view m;
-    gsl_permutation *p = gsl_permutation_alloc(N);
-    gsl_matrix * B = gsl_matrix_calloc(M + N, N);
-    gsl_vector * f = gsl_vector_calloc(M + N);
-    gsl_vector * tau = gsl_vector_alloc(N);
-    gsl_vector * residual = gsl_vector_alloc(M + N);
-    int signum;
-  
-    m = gsl_matrix_submatrix(B, 0, 0, M, N);
+
     gsl_matrix_memcpy(&m.matrix, A);
 
     m = gsl_matrix_submatrix(B, M, 0, N, N);
@@ -69,47 +70,20 @@ test_SV_lssolve_eps(const double lambda, const gsl_matrix * A, const gsl_vector 
     v = gsl_vector_subvector(f, 0, M);
     gsl_vector_memcpy(&v.vector, b);
 
-    /* solve: [ A ; lambda*I ] x_aug = [ b ; 0 ] */
-    gsl_linalg_QRPT_decomp(B, tau, p, &signum, work);
-    gsl_linalg_QRPT_lssolve(B, tau, p, f, x_aug, residual);
-
-    gsl_permutation_free(p);
-    gsl_matrix_free(B);
-    gsl_vector_free(f);
-    gsl_vector_free(tau);
-    gsl_vector_free(residual);
+    s += test_lssolve_normal(B, f, x, eps, desc);
   }
 
-  gsl_matrix_memcpy(U, A);
-  s += gsl_linalg_SV_decomp(U, V, S, work);
-  s += gsl_linalg_SV_lssolve(lambda, U, V, S, b, x, &rnorm, work2);
+  /* rnorm = ||b - A x|| (accurate to about sqrt(eps) relative to ||b||) */
+  s += test_rnorm(rnorm, A, x, b, sqrt(eps), desc);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(x_aug, i);
-      gsl_test_rel(xi, yi, eps,
-                   "%s lambda=%g (%3lu,%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, lambda, M, N, i, xi, yi);
-    }
-
-  /* compute residual r = b - A x */
-  gsl_vector_memcpy(r, b);
-  gsl_blas_dgemv(CblasNoTrans, -1.0, A, x, 1.0, r);
-  rnorm_expected = gsl_blas_dnrm2(r);
-
-  gsl_test_rel(rnorm, rnorm_expected, sqrt(eps),
-               "%s rnorm lambda=%g (%3lu,%3lu): %22.18g   %22.18g\n",
-               desc, lambda, M, N, rnorm, rnorm_expected);
-
-  gsl_vector_free(r);
   gsl_vector_free(x);
-  gsl_vector_free(x_aug);
   gsl_matrix_free(U);
   gsl_matrix_free(V);
   gsl_vector_free(S);
   gsl_vector_free(work);
   gsl_vector_free(work2);
+  gsl_matrix_free(B);
+  gsl_vector_free(f);
 
   return s;
 }

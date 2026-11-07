@@ -31,7 +31,6 @@ test_symmtd_decomp_eps(const gsl_matrix * m, const double eps, const char * desc
 {
   int s = 0;
   const size_t N = m->size1;
-  size_t i, j;
 
   gsl_matrix * Q = gsl_matrix_alloc(N, N);
   gsl_matrix * T = gsl_matrix_calloc(N, N);
@@ -51,17 +50,8 @@ test_symmtd_decomp_eps(const gsl_matrix * m, const double eps, const char * desc
   gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, Q, T, 0.0, A); /* A := Q T */
   gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, A, Q, 0.0, B);   /* B := Q T Q^T */
 
-  for (i = 0; i < N; i++)
-    {
-      for (j = 0; j <= i; j++)
-        {
-          double bij = gsl_matrix_get(B, i, j);
-          double mij = gsl_matrix_get(m, i, j);
-
-          gsl_test_rel(bij, mij, eps, "%s (%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, i, j, bij, mij);
-        }
-    }
+  /* Q T Q^T = m (m symmetric, normwise: see test_matrix_normwise) */
+  s += test_matrix_normwise(B, m, eps, desc, "");
 
   gsl_matrix_free(T);
   gsl_matrix_free(A);
@@ -96,7 +86,6 @@ test_hermtd_decomp_eps(const gsl_matrix_complex * m, const double eps, const cha
 {
   int s = 0;
   const size_t N = m->size1;
-  size_t i, j;
 
   gsl_matrix_complex * Q = gsl_matrix_complex_alloc(N, N);
   gsl_matrix_complex * T = gsl_matrix_complex_calloc(N, N);
@@ -124,19 +113,8 @@ test_hermtd_decomp_eps(const gsl_matrix_complex * m, const double eps, const cha
   gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, GSL_COMPLEX_ONE, Q, T, GSL_COMPLEX_ZERO, A);    /* A := Q T */
   gsl_blas_zgemm(CblasNoTrans, CblasConjTrans, GSL_COMPLEX_ONE, A, Q, GSL_COMPLEX_ZERO, B);  /* B := Q T Q^T */
 
-  for (i = 0; i < N; i++)
-    {
-      for (j = 0; j <= i; j++)
-        {
-          gsl_complex bij = gsl_matrix_complex_get(B, i, j);
-          gsl_complex mij = gsl_matrix_complex_get(m, i, j);
-
-          gsl_test_rel(GSL_REAL(bij), GSL_REAL(mij), eps, "%s real (%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, i, j, GSL_REAL(bij), GSL_REAL(mij));
-          gsl_test_rel(GSL_IMAG(bij), GSL_IMAG(mij), eps, "%s imag (%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, i, j, GSL_IMAG(bij), GSL_IMAG(mij));
-        }
-    }
+  /* Q T Q^H = m (m Hermitian, normwise: see test_matrix_normwise) */
+  s += test_matrix_normwise_complex(B, m, eps, desc, "");
 
   gsl_matrix_complex_free(T);
   gsl_matrix_complex_free(A);

@@ -243,7 +243,6 @@ test_QRc_decomp_r_eps(const gsl_matrix_complex * m, const double eps, const char
   int s = 0;
   const size_t M = m->size1;
   const size_t N = m->size2;
-  size_t i, j;
 
   gsl_matrix_complex * QR = gsl_matrix_complex_alloc(M, N);
   gsl_matrix_complex * T = gsl_matrix_complex_alloc(N, N);
@@ -262,19 +261,7 @@ test_QRc_decomp_r_eps(const gsl_matrix_complex * m, const double eps, const char
   gsl_matrix_complex_memcpy(A, &Q1.matrix);
   gsl_blas_ztrmm (CblasRight, CblasUpper, CblasNoTrans, CblasNonUnit, GSL_COMPLEX_ONE, R, A);
 
-  for (i = 0; i < M; i++)
-    {
-      for (j = 0; j < N; j++)
-        {
-          gsl_complex aij = gsl_matrix_complex_get(A, i, j);
-          gsl_complex mij = gsl_matrix_complex_get(m, i, j);
-
-          gsl_test_rel(GSL_REAL(aij), GSL_REAL(mij), eps, "%s real (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, M, N, i,j, GSL_REAL(aij), GSL_REAL(mij));
-          gsl_test_rel(GSL_IMAG(aij), GSL_IMAG(mij), eps, "%s imag (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, M, N, i,j, GSL_IMAG(aij), GSL_IMAG(mij));
-        }
-    }
+  s += test_matrix_normwise_complex(A, m, eps, desc, "");
 
   if (M > N)
     {
@@ -284,19 +271,7 @@ test_QRc_decomp_r_eps(const gsl_matrix_complex * m, const double eps, const char
       /* test that Q2 was computed correctly by comparing with Level 2 algorithm */
       gsl_linalg_complex_QR_unpack(QR, &tau.vector, Q_alt, R_alt);
 
-      for (i = 0; i < M; i++)
-        {
-          for (j = 0; j < M; j++)
-            {
-              gsl_complex aij = gsl_matrix_complex_get(Q, i, j);
-              gsl_complex bij = gsl_matrix_complex_get(Q_alt, i, j);
-
-              gsl_test_rel(GSL_REAL(aij), GSL_REAL(bij), eps, "%s real Q (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_REAL(aij), GSL_REAL(bij));
-              gsl_test_rel(GSL_IMAG(aij), GSL_IMAG(bij), eps, "%s imag Q (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                           desc, M, N, i, j, GSL_IMAG(aij), GSL_IMAG(bij));
-            }
-        }
+      s += test_matrix_normwise_complex(Q, Q_alt, eps, desc, " Q");
 
       gsl_matrix_complex_free(R_alt);
       gsl_matrix_complex_free(Q_alt);

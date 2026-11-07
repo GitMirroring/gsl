@@ -34,7 +34,6 @@ test_QL_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
   int s = 0;
   const size_t M = m->size1;
   const size_t N = m->size2;
-  size_t i, j;
 
   gsl_matrix * QL = gsl_matrix_alloc(M, N);
   gsl_vector * tau = gsl_vector_alloc(N);
@@ -50,17 +49,7 @@ test_QL_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
   /* compute A = Q L */
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans, 1.0, Q, L, 0.0, A);
 
-  for (i = 0; i < M; i++)
-    {
-      for (j = 0; j < N; j++)
-        {
-          double aij = gsl_matrix_get(A, i, j);
-          double mij = gsl_matrix_get(m, i, j);
-
-          gsl_test_rel(aij, mij, eps, "%s (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, M, N, i,j, aij, mij);
-        }
-    }
+  s += test_matrix_normwise(A, m, eps, desc, "");
 
   gsl_matrix_free(QL);
   gsl_vector_free(tau);

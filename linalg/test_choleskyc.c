@@ -93,22 +93,7 @@ test_choleskyc_decomp_eps(const int scale, const gsl_matrix_complex * m, const d
                   GSL_COMPLEX_ZERO,
                   a);
 
-  for (i = 0; i < M; i++)
-    {
-      for (j = 0; j < N; j++)
-        {
-          gsl_complex aij = gsl_matrix_complex_get(a, i, j);
-          gsl_complex mij = gsl_matrix_complex_get(m, i, j);
-
-          gsl_test_rel(GSL_REAL(aij), GSL_REAL(mij), eps,
-                       "%s: real (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, N, i, j, GSL_REAL(aij), GSL_REAL(mij));
-
-          gsl_test_rel(GSL_IMAG(aij), GSL_IMAG(mij), eps,
-                       "%s: imag (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, N, i, j, GSL_IMAG(aij), GSL_IMAG(mij));
-        }
-    }
+  s += test_matrix_normwise_complex(a, m, eps, desc, "");
 
   gsl_matrix_complex_free(v);
   gsl_matrix_complex_free(a);
@@ -145,7 +130,7 @@ test_choleskyc_solve_eps(const int scale, const gsl_matrix_complex * m, const gs
                          const gsl_vector_complex * sol, const double eps, const char * desc)
 {
   int s = 0;
-  size_t i, N = m->size1;
+  size_t N = m->size1;
   gsl_matrix_complex * u  = gsl_matrix_complex_alloc(N, N);
   gsl_vector_complex * x = gsl_vector_complex_calloc(N);
   gsl_vector * S = gsl_vector_alloc(N);
@@ -163,18 +148,7 @@ test_choleskyc_solve_eps(const int scale, const gsl_matrix_complex * m, const gs
       s += gsl_linalg_complex_cholesky_solve(u, rhs, x);
     }
 
-  for (i = 0; i < N; i++)
-    {
-      gsl_complex xi = gsl_vector_complex_get(x, i);
-      gsl_complex yi = gsl_vector_complex_get(sol, i);
-
-      gsl_test_rel(GSL_REAL(xi), GSL_REAL(yi), eps,
-                   "%s: real %3lu[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-      gsl_test_rel(GSL_IMAG(xi), GSL_IMAG(yi), eps,
-                   "%s: imag %3lu[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise_complex(x, sol, eps, desc, "");
 
   gsl_vector_complex_free(x);
   gsl_vector_free(S);
@@ -200,8 +174,8 @@ test_choleskyc_solve(gsl_rng * r)
       create_random_complex_vector(sol, r);
       gsl_blas_zhemv(CblasLower, GSL_COMPLEX_ONE, m, sol, GSL_COMPLEX_ZERO, rhs);
 
-      test_choleskyc_solve_eps(0, m, rhs, sol, 64.0 * N * GSL_DBL_EPSILON, "cholesky_complex_solve unscaled random");
-      test_choleskyc_solve_eps(1, m, rhs, sol, 64.0 * N * GSL_DBL_EPSILON, "cholesky_complex_solve scaled random");
+      test_choleskyc_solve_eps(0, m, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond_complex(m), "cholesky_complex_solve unscaled random");
+      test_choleskyc_solve_eps(1, m, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond_complex(m), "cholesky_complex_solve scaled random");
 
       gsl_matrix_complex_free(m);
       gsl_vector_complex_free(rhs);
@@ -216,7 +190,6 @@ test_choleskyc_invert_eps(const gsl_matrix_complex * m, const double eps, const 
 {
   int s = 0;
   const size_t N = m->size1;
-  size_t i, j;
   gsl_matrix_complex * v  = gsl_matrix_complex_alloc(N, N);
   gsl_matrix_complex * c  = gsl_matrix_complex_alloc(N, N);
 
@@ -228,24 +201,7 @@ test_choleskyc_invert_eps(const gsl_matrix_complex * m, const double eps, const 
   gsl_blas_zhemm(CblasLeft, CblasUpper, GSL_COMPLEX_ONE, m, v, GSL_COMPLEX_ZERO, c);
 
   /* c should be the identity matrix */
-  for (i = 0; i < N; ++i)
-    {
-      for (j = 0; j < N; ++j)
-        {
-          gsl_complex cij = gsl_matrix_complex_get(c, i, j);
-          double expected = (i == j) ? 1.0 : 0.0;
-
-          /* check real part */
-          gsl_test_rel(GSL_REAL(cij), expected, eps,
-                       "%s: real (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, N, i, j, GSL_REAL(cij), expected);
-
-          /* check imaginary part */
-          gsl_test_rel(GSL_IMAG(cij), 0.0, eps,
-                       "%s: imag (%3lu,%3lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, N, N, i, j, GSL_IMAG(cij), 0.0);
-        }
-    }
+  s += test_matrix_identity_complex(c, eps, desc);
 
   gsl_matrix_complex_free(v);
   gsl_matrix_complex_free(c);
@@ -265,7 +221,7 @@ test_choleskyc_invert(gsl_rng * r)
       gsl_matrix_complex * m = gsl_matrix_complex_alloc(N, N);
 
       create_posdef_complex_matrix(m, r);
-      test_choleskyc_invert_eps(m, 32.0 * N * GSL_DBL_EPSILON, "cholesky_complex_invert random");
+      test_choleskyc_invert_eps(m, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond_complex(m), "cholesky_complex_invert random");
 
       gsl_matrix_complex_free(m);
     }

@@ -493,3 +493,301 @@ test_solution_normwise_complex(const gsl_vector_complex * x, const gsl_vector_co
 
   return s;
 }
+
+/*
+ * Normwise comparison of a computed matrix X with a reference R:
+ *
+ *   max_ij |X_ij - R_ij| <= tol max_ij |R_ij|
+ *
+ * Decompositions are backward stable in this normwise sense (the
+ * computed factors reproduce A up to c n eps ||A||, independent of the
+ * conditioning of A), while entries much smaller than ||A|| can have a
+ * large relative error; an entry-wise relative check with tolerance tol
+ * implies this one.
+ */
+static int
+test_matrix_normwise(const gsl_matrix * X, const gsl_matrix * R, const double tol,
+                     const char * desc, const char * what)
+{
+  const size_t M = R->size1;
+  const size_t N = R->size2;
+  double err = 0.0, nrm = 0.0;
+  size_t i, j;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      for (j = 0; j < N; ++j)
+        {
+          double d = fabs(gsl_matrix_get(X, i, j) - gsl_matrix_get(R, i, j));
+          double a = fabs(gsl_matrix_get(R, i, j));
+          if (!(d <= err))
+            err = d;              /* also propagates NaN */
+          if (a > nrm)
+            nrm = a;
+        }
+    }
+
+  s = !(err <= tol * (nrm > 0.0 ? nrm : 1.0));
+  gsl_test(s, "%s%s (%3lu,%3lu): normwise relative error %g, tolerance %g",
+           desc, what, M, N, err / (nrm > 0.0 ? nrm : 1.0), tol);
+
+  return s;
+}
+
+static int
+test_matrix_normwise_complex(const gsl_matrix_complex * X, const gsl_matrix_complex * R,
+                             const double tol, const char * desc, const char * what)
+{
+  const size_t M = R->size1;
+  const size_t N = R->size2;
+  double err = 0.0, nrm = 0.0;
+  size_t i, j;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      for (j = 0; j < N; ++j)
+        {
+          double d = gsl_complex_abs(gsl_complex_sub(gsl_matrix_complex_get(X, i, j),
+                                                     gsl_matrix_complex_get(R, i, j)));
+          double a = gsl_complex_abs(gsl_matrix_complex_get(R, i, j));
+          if (!(d <= err))
+            err = d;
+          if (a > nrm)
+            nrm = a;
+        }
+    }
+
+  s = !(err <= tol * (nrm > 0.0 ? nrm : 1.0));
+  gsl_test(s, "%s%s (%3lu,%3lu): normwise relative error %g, tolerance %g",
+           desc, what, M, N, err / (nrm > 0.0 ? nrm : 1.0), tol);
+
+  return s;
+}
+
+/* orthonormal columns: max_ij |(Q^T Q - I)_ij| <= tol */
+static int
+test_orthonormal(const gsl_matrix * Q, const double tol, const char * desc)
+{
+  const size_t N = Q->size2;
+  gsl_matrix * QTQ = gsl_matrix_alloc(N, N);
+  gsl_matrix * I = gsl_matrix_alloc(N, N);
+  int s;
+
+  gsl_blas_dgemm(CblasTrans, CblasNoTrans, 1.0, Q, Q, 0.0, QTQ);
+  gsl_matrix_set_identity(I);
+  s = test_matrix_normwise(QTQ, I, tol, desc, " Q^T Q = I");
+
+  gsl_matrix_free(QTQ);
+  gsl_matrix_free(I);
+
+  return s;
+}
+
+/* orthonormal columns: max_ij |(Q^H Q - I)_ij| <= tol */
+static int
+test_orthonormal_complex(const gsl_matrix_complex * Q, const double tol, const char * desc)
+{
+  const size_t N = Q->size2;
+  gsl_matrix_complex * QHQ = gsl_matrix_complex_alloc(N, N);
+  gsl_matrix_complex * I = gsl_matrix_complex_alloc(N, N);
+  int s;
+
+  gsl_blas_zgemm(CblasConjTrans, CblasNoTrans, GSL_COMPLEX_ONE, Q, Q, GSL_COMPLEX_ZERO, QHQ);
+  gsl_matrix_complex_set_identity(I);
+  s = test_matrix_normwise_complex(QHQ, I, tol, desc, " Q^H Q = I");
+
+  gsl_matrix_complex_free(QHQ);
+  gsl_matrix_complex_free(I);
+
+  return s;
+}
+
+/* max_ij |C_ij - delta_ij| <= tol, e.g. for C = A A^{-1}; for an inverse
+   computed by a stable algorithm tol = c N eps kappa(A) */
+static int
+test_matrix_identity(const gsl_matrix * C, const double tol, const char * desc)
+{
+  gsl_matrix * I = gsl_matrix_alloc(C->size1, C->size2);
+  int s;
+
+  gsl_matrix_set_identity(I);
+  s = test_matrix_normwise(C, I, tol, desc, " A A^{-1} = I");
+  gsl_matrix_free(I);
+
+  return s;
+}
+
+static int
+test_matrix_identity_complex(const gsl_matrix_complex * C, const double tol, const char * desc)
+{
+  gsl_matrix_complex * I = gsl_matrix_complex_alloc(C->size1, C->size2);
+  int s;
+
+  gsl_matrix_complex_set_identity(I);
+  s = test_matrix_normwise_complex(C, I, tol, desc, " A A^{-1} = I");
+  gsl_matrix_complex_free(I);
+
+  return s;
+}
+
+/*
+ * Least squares: x minimizes ||b - A x|| iff the residual is orthogonal
+ * to the columns of A.  For a backward stable solver
+ *
+ *   ||A^T (b - A x)||_inf <= tol ||A||_inf (||A||_inf ||x||_inf + ||b||_inf)
+ *
+ * with tol = c M eps, independent of the conditioning of A (a
+ * comparison of x with the solution of another method, such as the
+ * SVD, would have to allow for a sensitivity growing like kappa^2).
+ */
+static int
+test_lssolve_normal(const gsl_matrix * A, const gsl_vector * b, const gsl_vector * x,
+                    const double tol, const char * desc)
+{
+  const size_t M = A->size1;
+  const size_t N = A->size2;
+  gsl_vector * r = gsl_vector_alloc(M);
+  gsl_vector * g = gsl_vector_alloc(N);
+  double anorm = 0.0, scale, gnorm;
+  size_t i;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      gsl_vector_const_view row = gsl_matrix_const_row(A, i);
+      double rs = gsl_blas_dasum(&row.vector);
+      if (rs > anorm)
+        anorm = rs;
+    }
+
+  gsl_vector_memcpy(r, b);
+  gsl_blas_dgemv(CblasNoTrans, -1.0, A, x, 1.0, r);
+  gsl_blas_dgemv(CblasTrans, 1.0, A, r, 0.0, g);
+
+  gnorm = fabs(gsl_vector_get(g, gsl_blas_idamax(g)));
+  scale = anorm * (anorm * fabs(gsl_vector_get(x, gsl_blas_idamax(x)))
+                   + fabs(gsl_vector_get(b, gsl_blas_idamax(b))));
+
+  s = !(gnorm <= tol * scale);
+  gsl_test(s, "%s (%3lu,%3lu): ||A^T r|| / (||A|| (||A|| ||x|| + ||b||)) = %g, tolerance %g",
+           desc, M, N, gnorm / scale, tol);
+
+  gsl_vector_free(r);
+  gsl_vector_free(g);
+
+  return s;
+}
+
+/* a residual norm computed by a solver, against ||b - A x|| recomputed
+   here: both are accurate to about eps (||A|| ||x|| + ||b||) in absolute
+   terms, not relative to the residual, which may be tiny */
+static int
+test_rnorm(const double norm, const gsl_matrix * A, const gsl_vector * x, const gsl_vector * b,
+           const double tol, const char * desc)
+{
+  const size_t M = A->size1;
+  const size_t N = A->size2;
+  gsl_vector * r = gsl_vector_alloc(M);
+  double anorm = 0.0, scale, norm_expected;
+  size_t i;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      gsl_vector_const_view row = gsl_matrix_const_row(A, i);
+      double rs = gsl_blas_dasum(&row.vector);
+      if (rs > anorm)
+        anorm = rs;
+    }
+
+  gsl_vector_memcpy(r, b);
+  gsl_blas_dgemv(CblasNoTrans, -1.0, A, x, 1.0, r);
+  norm_expected = gsl_blas_dnrm2(r);
+
+  scale = anorm * fabs(gsl_vector_get(x, gsl_blas_idamax(x)))
+          + fabs(gsl_vector_get(b, gsl_blas_idamax(b)));
+
+  s = !(fabs(norm - norm_expected) <= tol * scale);
+  gsl_test(s, "%s rnorm (%3lu,%3lu): %.18g, expected %.18g, tolerance %g",
+           desc, M, N, norm, norm_expected, tol * scale);
+
+  gsl_vector_free(r);
+
+  return s;
+}
+
+/* as test_matrix_normwise() for the upper triangle (j >= i) only */
+static int
+test_matrix_normwise_upper(const gsl_matrix * X, const gsl_matrix * R, const double tol,
+                           const char * desc, const char * what)
+{
+  const size_t M = GSL_MIN(R->size1, R->size2);
+  const size_t N = R->size2;
+  double err = 0.0, nrm = 0.0;
+  size_t i, j;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      for (j = i; j < N; ++j)
+        {
+          double d = fabs(gsl_matrix_get(X, i, j) - gsl_matrix_get(R, i, j));
+          double a = fabs(gsl_matrix_get(R, i, j));
+          if (!(d <= err))
+            err = d;
+          if (a > nrm)
+            nrm = a;
+        }
+    }
+
+  s = !(err <= tol * (nrm > 0.0 ? nrm : 1.0));
+  gsl_test(s, "%s%s (%3lu,%3lu) upper triangle: normwise relative error %g, tolerance %g",
+           desc, what, M, N, err / (nrm > 0.0 ? nrm : 1.0), tol);
+
+  return s;
+}
+
+/* a residual vector computed by a solver, against b - A x recomputed
+   here, on the absolute scale of test_rnorm() */
+static int
+test_residual(const gsl_vector * res, const gsl_matrix * A, const gsl_vector * x, const gsl_vector * b,
+              const double tol, const char * desc)
+{
+  const size_t M = A->size1;
+  const size_t N = A->size2;
+  gsl_vector * r = gsl_vector_alloc(M);
+  double anorm = 0.0, scale, err = 0.0;
+  size_t i;
+  int s;
+
+  for (i = 0; i < M; ++i)
+    {
+      gsl_vector_const_view row = gsl_matrix_const_row(A, i);
+      double rs = gsl_blas_dasum(&row.vector);
+      if (rs > anorm)
+        anorm = rs;
+    }
+
+  gsl_vector_memcpy(r, b);
+  gsl_blas_dgemv(CblasNoTrans, -1.0, A, x, 1.0, r);
+
+  for (i = 0; i < M; ++i)
+    {
+      double d = fabs(gsl_vector_get(res, i) - gsl_vector_get(r, i));
+      if (!(d <= err))
+        err = d;
+    }
+
+  scale = anorm * fabs(gsl_vector_get(x, gsl_blas_idamax(x)))
+          + fabs(gsl_vector_get(b, gsl_blas_idamax(b)));
+
+  s = !(err <= tol * scale);
+  gsl_test(s, "%s residual (%3lu,%3lu): error %g, tolerance %g",
+           desc, M, N, err, tol * scale);
+
+  gsl_vector_free(r);
+
+  return s;
+}

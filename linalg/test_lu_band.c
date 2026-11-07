@@ -35,7 +35,6 @@ test_LU_band_decomp_eps(const size_t p, const size_t q, const gsl_matrix * A, co
   const size_t M = A->size1;
   const size_t N = A->size2;
   const size_t minMN = GSL_MIN(M, N);
-  size_t i, j;
 
   gsl_matrix * AB = gsl_matrix_alloc(N, 2*p + q + 1);
   gsl_vector_uint * piv = gsl_vector_uint_alloc(minMN);
@@ -52,17 +51,7 @@ test_LU_band_decomp_eps(const size_t p, const size_t q, const gsl_matrix * A, co
   /* compute B = L U */
   gsl_blas_dgemm (CblasNoTrans, CblasNoTrans, 1.0, L, U, 0.0, B);
 
-  for (i = 0; i < M; ++i)
-    {
-      for (j = 0; j < N; ++j)
-        {
-          double aij = gsl_matrix_get(A, i, j);
-          double bij = gsl_matrix_get(B, i, j);
-
-          gsl_test_rel(bij, aij, eps, "%s (M=%lu,N=%lu)(p=%lu,q=%lu)[%lu,%lu]: %22.18g   %22.18g\n",
-                       desc, M, N, p, q, i, j, aij, bij);
-        }
-    }
+  s += test_matrix_normwise(B, A, eps, desc, "");
 
   gsl_matrix_free(AB);
   gsl_vector_uint_free(piv);
@@ -110,7 +99,6 @@ test_LU_band_solve_eps(const size_t p, const size_t q, const gsl_matrix * A,
 {
   int s = 0;
   const size_t N = A->size2;
-  size_t i;
 
   gsl_matrix * AB = gsl_matrix_alloc(N, 2*p + q + 1);
   gsl_vector_uint * piv = gsl_vector_uint_alloc(N);
@@ -124,14 +112,7 @@ test_LU_band_solve_eps(const size_t p, const size_t q, const gsl_matrix * A,
   s += gsl_linalg_LU_band_decomp(N, p, q, AB, piv);
   s += gsl_linalg_LU_band_solve(p, q, AB, piv, rhs, x);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps, "%s: %3lu[%lu]: %22.18g    %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, "");
 
   gsl_matrix_free(AB);
   gsl_vector_uint_free(piv);
@@ -167,7 +148,8 @@ test_LU_band_solve(gsl_rng * r)
               gsl_blas_dgemv(CblasNoTrans, 1.0, &m.matrix, &sol.vector, 0.0, &rhs.vector);
 
               s += test_LU_band_solve_eps(p, q, &m.matrix, &rhs.vector, &sol.vector,
-                                          1.0e8 * N * GSL_DBL_EPSILON, "LU_band_solve random");
+                                          TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond(&m.matrix),
+                                          "LU_band_solve random");
             }
         }
     }
