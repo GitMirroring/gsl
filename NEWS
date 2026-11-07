@@ -3,6 +3,13 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #56843 (eigen tests failed on ppc64le, aarch64 and
+   other platforms): eigenvector norms and orthogonality were checked
+   with a tolerance of N eps, below what is achievable for small N, and
+   the residuals of the Hermitian and generalized problems entry by
+   entry; residuals are now checked against eps (||A|| + |lambda|
+   ||B||), and the tolerances have a floor; reported by J. Furmanek)
+
 ** fix for bugs #67445 and #49697 (linalg test failures with gcc 14,
    AVX/AVX-512 and other platforms): the linalg tests on random
    matrices compared results entry by entry, which backward stable

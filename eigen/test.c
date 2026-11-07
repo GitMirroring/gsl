@@ -260,6 +260,53 @@ test_eigenvalues_complex (const gsl_vector_complex * eval,
     }
 }
 
+/*
+ * The checks below are normwise, as appropriate for backward stable
+ * eigensolvers (bug #56843): a residual component of A v - lambda B v is
+ * compared with eps (||A|| + |lambda| ||B||) ||v||, not with the
+ * component itself, which may be tiny; and the norm of a computed unit
+ * eigenvector differs from 1, and the inner product of two of them from
+ * 0, by a few ulp also for small N (dnrm2, the normalization and the
+ * dot product each round), so these tolerances have a floor.
+ */
+
+#define TEST_EIGEN_NORM_TOL(N) (((N) + 32) * GSL_DBL_EPSILON)
+
+static double
+test_eigen_norm_inf(const gsl_matrix * A)
+{
+  double nrm = 0.0;
+  size_t i;
+
+  for (i = 0; i < A->size1; ++i)
+    {
+      gsl_vector_const_view r = gsl_matrix_const_row(A, i);
+      double ri = gsl_blas_dasum(&r.vector);
+      if (ri > nrm)
+        nrm = ri;
+    }
+
+  return nrm;
+}
+
+/* with |Re| + |Im| in place of |z|: within a factor sqrt(2) */
+static double
+test_eigen_norm_inf_complex(const gsl_matrix_complex * A)
+{
+  double nrm = 0.0;
+  size_t i;
+
+  for (i = 0; i < A->size1; ++i)
+    {
+      gsl_vector_complex_const_view r = gsl_matrix_complex_const_row(A, i);
+      double ri = gsl_blas_dzasum(&r.vector);
+      if (ri > nrm)
+        nrm = ri;
+    }
+
+  return nrm;
+}
+
 /******************************************
  * symm test code                         *
  ******************************************/
@@ -309,7 +356,7 @@ test_eigen_symm_results (const gsl_matrix * A,
     {
       gsl_vector_const_view vi = gsl_matrix_const_column(evec, i);
       double nrm_v = gsl_blas_dnrm2(&vi.vector);
-      gsl_test_rel (nrm_v, 1.0, N * GSL_DBL_EPSILON, "%s, normalized(%d), %s", 
+      gsl_test_rel (nrm_v, 1.0, TEST_EIGEN_NORM_TOL(N), "%s, normalized(%d), %s", 
                     desc, i, desc2);
     }
 
@@ -321,7 +368,7 @@ test_eigen_symm_results (const gsl_matrix * A,
           gsl_vector_const_view vj = gsl_matrix_const_column(evec, j);
           double vivj;
           gsl_blas_ddot (&vi.vector, &vj.vector, &vivj);
-          gsl_test_abs (vivj, 0.0, N * GSL_DBL_EPSILON, 
+          gsl_test_abs (vivj, 0.0, TEST_EIGEN_NORM_TOL(N),
                         "%s, orthogonal(%d,%d), %s", desc, i, j, desc2);
         }
     }
@@ -474,11 +521,17 @@ test_eigen_herm_results (const gsl_matrix_complex * A,
 {
   const size_t N = A->size1;
   size_t i, j;
+  double emax = 0;
 
   gsl_vector_complex * x = gsl_vector_complex_alloc(N);
   gsl_vector_complex * y = gsl_vector_complex_alloc(N);
 
   /* check eigenvalues */
+  for (i = 0; i < N; i++)
+    {
+      double ei = gsl_vector_get (eval, i);
+      if (fabs(ei) > emax) emax = fabs(ei);
+    }
 
   for (i = 0; i < N; i++)
     {
@@ -493,9 +546,9 @@ test_eigen_herm_results (const gsl_matrix_complex * A,
         {
           gsl_complex xj = gsl_vector_complex_get (x, j);
           gsl_complex yj = gsl_vector_complex_get (y, j);
-          gsl_test_rel(GSL_REAL(yj), ei * GSL_REAL(xj), 1e8*GSL_DBL_EPSILON, 
+          gsl_test_abs(GSL_REAL(yj), ei * GSL_REAL(xj), emax * 1e8 * GSL_DBL_EPSILON,
                        "%s, eigenvalue(%d,%d), real, %s", desc, i, j, desc2);
-          gsl_test_rel(GSL_IMAG(yj), ei * GSL_IMAG(xj), 1e8*GSL_DBL_EPSILON, 
+          gsl_test_abs(GSL_IMAG(yj), ei * GSL_IMAG(xj), emax * 1e8 * GSL_DBL_EPSILON,
                        "%s, eigenvalue(%d,%d), imag, %s", desc, i, j, desc2);
         }
     }
@@ -506,7 +559,7 @@ test_eigen_herm_results (const gsl_matrix_complex * A,
     {
       gsl_vector_complex_const_view vi = gsl_matrix_complex_const_column(evec, i);
       double nrm_v = gsl_blas_dznrm2(&vi.vector);
-      gsl_test_rel (nrm_v, 1.0, N * GSL_DBL_EPSILON, "%s, normalized(%d), %s", 
+      gsl_test_rel (nrm_v, 1.0, TEST_EIGEN_NORM_TOL(N), "%s, normalized(%d), %s", 
                     desc, i, desc2);
     }
 
@@ -658,7 +711,7 @@ test_eigen_nonsymm_results (const gsl_matrix * m,
       double norm = gsl_blas_dznrm2(&vi.vector);
 
       /* check that eigenvector is normalized */
-      gsl_test_rel(norm, 1.0, N * GSL_DBL_EPSILON,
+      gsl_test_rel(norm, 1.0, TEST_EIGEN_NORM_TOL(N),
                    "nonsymm(N=%u,cnt=%u), %s, normalized(%d), %s", N, count, desc, i, desc2);
 
       gsl_vector_complex_memcpy(x, &vi.vector);
@@ -825,6 +878,8 @@ test_eigen_gensymm_results (const gsl_matrix * A,
                             const char * desc2)
 {
   const size_t N = A->size1;
+  const double anorm = test_eigen_norm_inf(A);
+  const double bnorm = test_eigen_norm_inf(B);
   size_t i, j;
 
   gsl_vector * x = gsl_vector_alloc(N);
@@ -839,7 +894,7 @@ test_eigen_gensymm_results (const gsl_matrix * A,
       double norm = gsl_blas_dnrm2(&vi.vector);
 
       /* check that eigenvector is normalized */
-      gsl_test_rel(norm, 1.0, N * GSL_DBL_EPSILON,
+      gsl_test_rel(norm, 1.0, TEST_EIGEN_NORM_TOL(N),
                    "gensymm(N=%u,cnt=%u), %s, normalized(%d), %s", N, count,
                    desc, i, desc2);
 
@@ -860,7 +915,7 @@ test_eigen_gensymm_results (const gsl_matrix * A,
           double xj = gsl_vector_get (x, j);
           double yj = gsl_vector_get (y, j);
 
-          gsl_test_rel(yj, xj, 1e9 * GSL_DBL_EPSILON, 
+          gsl_test_abs(yj, xj, (anorm + fabs(ei) * bnorm) * 1e9 * GSL_DBL_EPSILON,
                        "gensymm(N=%u,cnt=%u), %s, eigenvalue(%d,%d), real, %s", N, count, desc, i, j, desc2);
         }
     }
@@ -956,6 +1011,8 @@ test_eigen_genherm_results (const gsl_matrix_complex * A,
                             const char * desc2)
 {
   const size_t N = A->size1;
+  const double anorm = test_eigen_norm_inf_complex(A);
+  const double bnorm = test_eigen_norm_inf_complex(B);
   size_t i, j;
 
   gsl_vector_complex * x = gsl_vector_complex_alloc(N);
@@ -970,7 +1027,7 @@ test_eigen_genherm_results (const gsl_matrix_complex * A,
       double norm = gsl_blas_dznrm2(&vi.vector);
 
       /* check that eigenvector is normalized */
-      gsl_test_rel(norm, 1.0, N * GSL_DBL_EPSILON,
+      gsl_test_rel(norm, 1.0, TEST_EIGEN_NORM_TOL(N),
                    "genherm(N=%u,cnt=%u), %s, normalized(%d), %s", N, count,
                    desc, i, desc2);
 
@@ -989,9 +1046,9 @@ test_eigen_genherm_results (const gsl_matrix_complex * A,
           gsl_complex xj = gsl_vector_complex_get (x, j);
           gsl_complex yj = gsl_vector_complex_get (y, j);
 
-          gsl_test_rel(GSL_REAL(yj), GSL_REAL(xj), 1e9 * GSL_DBL_EPSILON, 
+          gsl_test_abs(GSL_REAL(yj), GSL_REAL(xj), (anorm + fabs(ei) * bnorm) * 1e9 * GSL_DBL_EPSILON,
                        "genherm(N=%u,cnt=%u), %s, eigenvalue(%d,%d), real, %s", N, count, desc, i, j, desc2);
-          gsl_test_abs(GSL_IMAG(yj), GSL_IMAG(xj), 1e9 * GSL_DBL_EPSILON, 
+          gsl_test_abs(GSL_IMAG(yj), GSL_IMAG(xj), (anorm + fabs(ei) * bnorm) * 1e9 * GSL_DBL_EPSILON,
                        "genherm(N=%u,cnt=%u), %s, eigenvalue(%d,%d), imag, %s", N, count, desc, i, j, desc2);
         }
     }
