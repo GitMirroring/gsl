@@ -3,6 +3,9 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #67447 (spmatrix complex_float test failures;
+   reported by D. Jerius)
+
 ** fix for bug #56843 (eigen tests failed on ppc64le, aarch64 and
    other platforms): eigenvector norms and orthogonality were checked
    with a tolerance of N eps, below what is achievable for small N, and

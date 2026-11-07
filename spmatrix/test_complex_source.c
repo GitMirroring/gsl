@@ -490,11 +490,16 @@ FUNCTION (test, scale) (const size_t M, const size_t N, const int sptype,
                       GSL_REAL(aij)*GSL_REAL(xj) - GSL_IMAG(aij)*GSL_IMAG(xj),
                       GSL_IMAG(aij)*GSL_REAL(xj) + GSL_REAL(aij)*GSL_IMAG(xj));
 
-      gsl_test_rel(GSL_REAL(bij), GSL_REAL(cij), 10.0 * GSL_DBL_EPSILON,
+      /* the library may round the products differently (e.g. with FMA
+         contraction), and the sums may cancel: compare with the size of
+         the terms, in the precision of the type */
+      gsl_test_abs(GSL_REAL(bij), GSL_REAL(cij),
+                   4.0 * BASE_EPSILON * (fabs (GSL_REAL(aij)*GSL_REAL(xj)) + fabs (GSL_IMAG(aij)*GSL_IMAG(xj))),
                    NAME (gsl_spmatrix) "_scale_columns[%zu,%zu](%s) real",
                    M, N, FUNCTION (gsl_spmatrix, type) (B));
 
-      gsl_test_rel(GSL_IMAG(bij), GSL_IMAG(cij), 10.0 * GSL_DBL_EPSILON,
+      gsl_test_abs(GSL_IMAG(bij), GSL_IMAG(cij),
+                   4.0 * BASE_EPSILON * (fabs (GSL_IMAG(aij)*GSL_REAL(xj)) + fabs (GSL_REAL(aij)*GSL_IMAG(xj))),
                    NAME (gsl_spmatrix) "_scale_columns[%zu,%zu](%s) imag",
                    M, N, FUNCTION (gsl_spmatrix, type) (B));
     }
@@ -523,11 +528,16 @@ FUNCTION (test, scale) (const size_t M, const size_t N, const int sptype,
                       GSL_REAL(aij)*GSL_REAL(xi) - GSL_IMAG(aij)*GSL_IMAG(xi),
                       GSL_IMAG(aij)*GSL_REAL(xi) + GSL_REAL(aij)*GSL_IMAG(xi));
 
-      gsl_test_rel(GSL_REAL(bij), GSL_REAL(cij), 10.0 * GSL_DBL_EPSILON,
+      /* the library may round the products differently (e.g. with FMA
+         contraction), and the sums may cancel: compare with the size of
+         the terms, in the precision of the type */
+      gsl_test_abs(GSL_REAL(bij), GSL_REAL(cij),
+                   4.0 * BASE_EPSILON * (fabs (GSL_REAL(aij)*GSL_REAL(xi)) + fabs (GSL_IMAG(aij)*GSL_IMAG(xi))),
                    NAME (gsl_spmatrix) "_scale_rows[%zu,%zu](%s) real",
                    M, N, FUNCTION (gsl_spmatrix, type) (B));
 
-      gsl_test_rel(GSL_IMAG(bij), GSL_IMAG(cij), 10.0 * GSL_DBL_EPSILON,
+      gsl_test_abs(GSL_IMAG(bij), GSL_IMAG(cij),
+                   4.0 * BASE_EPSILON * (fabs (GSL_IMAG(aij)*GSL_REAL(xi)) + fabs (GSL_REAL(aij)*GSL_IMAG(xi))),
                    NAME (gsl_spmatrix) "_scale_rows[%zu,%zu](%s) imag",
                    M, N, FUNCTION (gsl_spmatrix, type) (B));
     }
