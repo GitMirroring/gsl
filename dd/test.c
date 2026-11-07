@@ -37,6 +37,24 @@
 typedef struct { gsl_dd a, b, ref; } dd_binary_case;
 typedef struct { gsl_dd a; double b; gsl_dd ref; } dd_mixed_case;
 typedef struct { gsl_dd a, ref; } dd_unary_case;
+typedef struct { double a, b; gsl_dd ref; } dd_eft_case;
+
+/* error-free transformations: references are exact */
+static const dd_eft_case two_sum_cases[] = {
+  { 1.0, 8.673617379884035e-19, {1.0, 8.673617379884035e-19} },
+  { 3.141592653589793, -2.7182818284590453e-17, {3.141592653589793, -2.7182818284590453e-17} },
+  { -3.0, 1e+20, {1e+20, -3.0} },
+  { 0.1, 0.2, {0.30000000000000004, -2.7755575615628914e-17} },
+  { 5e-324, 1.0, {1.0, 5e-324} },
+};
+
+static const dd_eft_case two_prod_cases[] = {
+  { 1.0000000009313226, 1.0000000009313226, {1.0000000018626451, 8.673617379884035e-19} },
+  { 1.0000000000000002, 0.9999999999999998, {1.0, -4.930380657631324e-32} },
+  { 3.141592653589793, 2.718281828459045, {8.539734222673566, 3.119184308355765e-16} },
+  { -1.0000000000009095e+300, 3.0000000000000013, {-3.00000000000273e+300, -1.4265410276917311e+284} },
+  { 0.1, -7e-200, {-7e-201, -6.786616106047606e-217} },
+};
 
 static const dd_binary_case add_cases[] = {
   { {1, 5.5511151231257827e-17}, {3.1415926535897931, 1.2246467991473532e-16}, {4.1415926535897931, 1.7797583114599315e-16} },
@@ -521,6 +539,19 @@ test_dd_normalized(const gsl_dd x, const char *name, const size_t i)
   } while (0)
 
 
+#define TEST_EFT(fn,cases)                                              \
+  do {                                                                  \
+    size_t i_;                                                          \
+    for (i_ = 0; i_ < NELEM(cases); ++i_)                               \
+      {                                                                 \
+        gsl_dd r_ = fn((cases)[i_].a, (cases)[i_].b);                   \
+        gsl_test(r_.hi != (cases)[i_].ref.hi ||                         \
+                 r_.lo != (cases)[i_].ref.lo,                           \
+                 "%s[%u] exact: got (%.17g, %.17g)", #fn,               \
+                 (unsigned int) i_, r_.hi, r_.lo);                      \
+      }                                                                 \
+  } while (0)
+
 #define TEST_UNARY(prefix,suffix,opname,cases,tol)                      \
   do {                                                                  \
     size_t i_;                                                          \
@@ -594,6 +625,13 @@ main(void)
 
   /* Operations common to all implementations. */
   TEST_COMMON(, );
+  TEST_EFT(two_sum, two_sum_cases);
+  TEST_EFT(two_prod_p, two_prod_cases);
+#ifdef HAVE_FMA
+  TEST_EFT(two_prod_fma, two_prod_cases);
+#endif
+  TEST_EFT(gsl_dd_two_sum, two_sum_cases);
+  TEST_EFT(gsl_dd_two_prod, two_prod_cases);
 
   /* Portable C89 backend is always tested. */
   TEST_BACKEND(, _p);

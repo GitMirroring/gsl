@@ -20,6 +20,7 @@
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_dd.h>
 #include <gsl/gsl_sf_erf.h>
 
 #include "constants.h"
@@ -30,7 +31,6 @@
 #include "erf_fallback.c"
 #endif
 
-static void square_twoprod(const double x, double * hi, double * lo);
 static double exp_half_residual(const double r);
 static double scaled_exp_half_square(const double h, const double r, const double erfcx);
 static int erf_Q_positive(const double x, gsl_sf_result * result);
@@ -77,6 +77,7 @@ gsl_sf_erf_Z_e(const double x, gsl_sf_result * result)
   const double zero_x = 3.8580157609028419e1;
   const int scale_K = 48;
   const double ax = fabs(x);
+  gsl_dd sq;
   double h, r;
 
   if (ax >= zero_x)
@@ -86,7 +87,9 @@ gsl_sf_erf_Z_e(const double x, gsl_sf_result * result)
       return GSL_SUCCESS;
     }
 
-  square_twoprod(ax, &h, &r);
+  sq = gsl_dd_two_prod(ax, ax);
+  h = sq.hi;
+  r = sq.lo;
 
   if (ax < 35.0)
     {
@@ -253,20 +256,6 @@ double gsl_sf_hazard(const double x) { EVAL_RESULT(gsl_sf_hazard_e(x, &result));
  * INTERNAL ROUTINES                             *
  *************************************************/
 
-/* product decomposition x*x = hi + lo. */
-static void
-square_twoprod(const double x, double * hi, double * lo)
-{
-  const double p = x * x;
-  const double c = 134217729.0 * x; /* 2^27 + 1 */
-  const double xh = c - (c - x);
-  const double xl = x - xh;
-  const double e = ((xh * xh - p) + 2.0 * xh * xl) + xl * xl;
-
-  *hi = p;
-  *lo = e;
-}
-
 /*
  * Compute exp(-r/2) for the small residual r in the decomposition
  * x*x = h + r, using a second-order Taylor expansion.
@@ -321,6 +310,7 @@ erf_Q_positive(const double x, gsl_sf_result * result)
   const double z = x * M_SQRT1_2;
   const double zero_x = 3.848540833556734e1;
   gsl_sf_result s;
+  gsl_dd sq;
   double h, r;
 
   if (x >= zero_x)
@@ -342,7 +332,9 @@ erf_Q_positive(const double x, gsl_sf_result * result)
       return GSL_SUCCESS;
     }
 
-  square_twoprod(x, &h, &r);
+  sq = gsl_dd_two_prod(x, x);
+  h = sq.hi;
+  r = sq.lo;
 
   if (x < 37.0)
     {

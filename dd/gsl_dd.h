@@ -38,6 +38,10 @@ typedef struct
   double lo;
 } gsl_dd;
 
+/* error-free transformations: hi + lo = a + b, a * b exactly */
+gsl_dd gsl_dd_two_sum(const double a, const double b);
+gsl_dd gsl_dd_two_prod(const double a, const double b);
+
 gsl_dd gsl_dd_add(const gsl_dd a, const gsl_dd b);
 gsl_dd gsl_dd_add_d(const gsl_dd a, const double b);
 gsl_dd gsl_dd_sub(const gsl_dd a, const gsl_dd b);

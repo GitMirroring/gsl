@@ -90,11 +90,13 @@ test_taylorcoeff(void)
           1.26797695348096246921e+25, TEST_TOL4, GSL_SUCCESS);
 
   /*
-   * Beyond the factorial table (n > 300): Stirling form with a
-   * double-double exponent.  Results near the maximum over x (x ~ n/e,
-   * value ~ 1/sqrt(2 pi n)) are the hardest case: there the exponent is
-   * nearly zero and its absolute error is the relative error of the result.
-   * Reference values from 400-bit arithmetic.
+   * Beyond the factorial table (n > 300): Stirling form, with the
+   * cancelling exponents n log(x/n) and n kept unrounded in double
+   * precision up to n = 2000 and in double-double beyond.  Results near
+   * the maximum over x (x ~ n/e, value ~ 1/sqrt(2 pi n)) are the hardest
+   * case: there the exponent is nearly zero and its absolute error is the
+   * relative error of the result.  Reference values from 400-bit
+   * arithmetic.
    */
   TEST_SF(s, gsl_sf_taylorcoeff_e, (500, 200.0, &r),
           2.68280617236282960000e+16, TEST_TOL1, GSL_SUCCESS);
@@ -107,6 +109,18 @@ test_taylorcoeff(void)
 
   TEST_SF(s, gsl_sf_taylorcoeff_e, (1000, 367.9, &r),
           1.33396246318206613407e-02, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (2000, 735.0, &r),
+          1.13247238146321913668e-03, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (2001, 736.0, &r),
+          6.31842524536138686196e-03, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (1999, 1041.4, &r),
+          9.95195841453651296726e+299, TEST_TOL1, GSL_SUCCESS);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (500, 44.4808, &r),
+          9.99738098349606097058e-311, TEST_TOL1, GSL_SUCCESS);
 
   TEST_SF(s, gsl_sf_taylorcoeff_e, (100000, 36788.0, &r),
           1.46852488288971416014e-03, TEST_TOL1, GSL_SUCCESS);
@@ -127,6 +141,12 @@ test_taylorcoeff(void)
           0.0, TEST_TOL0, GSL_EUNDRFLW);
 
   TEST_SF(s, gsl_sf_taylorcoeff_e, (350, 1000.0, &r),
+          GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (500, 30.0, &r),
+          0.0, TEST_TOL0, GSL_EUNDRFLW);
+
+  TEST_SF(s, gsl_sf_taylorcoeff_e, (1999, 3000.0, &r),
           GSL_POSINF, GSL_POSINF, GSL_EOVRFLW);
 
   return s;

@@ -28,6 +28,7 @@
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_dd.h>
 #include <gsl/gsl_sf_erf.h>
 
 #include "error.h"
@@ -194,8 +195,8 @@ static const double CHEB_COEFFS[64][10] = {
 /*
  * Compute exp(x^2) using a compensated evaluation of x^2.
  *
- * The argument is split into high and low parts so that the rounding error
- * in x^2 can be recovered as a correction r.  The result is then evaluated
+ * The rounding error in x^2 is recovered exactly by gsl_dd_two_prod() as a
+ * correction r.  The result is then evaluated
  * as
  *
  *   exp(x^2) = exp(h) exp(r) ~= exp(h) (1 + r),
@@ -207,11 +208,9 @@ static const double CHEB_COEFFS[64][10] = {
 static int
 exp_x2(const double x, gsl_sf_result * result)
 {
-  const double c = 134217729.0 * x;
-  const double hx = c - (c - x);
-  const double tx = x - hx;
-  const double h = x * x;
-  const double r = ((hx * hx - h) + 2.0 * hx * tx) + tx * tx;
+  const gsl_dd sq = gsl_dd_two_prod(x, x);
+  const double h = sq.hi;
+  const double r = sq.lo;
   const double e = exp(h);
 
   result->val = e + e * r;

@@ -20,6 +20,7 @@
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_dd.h>
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_sf_sincos_pi.h>
@@ -39,7 +40,6 @@ static int lngamma_reduce(const double x, const double lo,
 static int lngamma_recurrence(const double x, gsl_sf_result * result);
 static int lngamma_stirling(const double x, gsl_sf_result * result);
 
-static void lngamma_neg_mul_split(double *hi, double *lo, const double x, const double y);
 static double lngamma_product(const double t, const double x, const double x_eps, const int n);
 static double lngamma_neg_sinpi(const double x);
 static double lngamma_neg_cospi(const double x);
@@ -785,43 +785,13 @@ lngamma_neg_minus2_minus1(const double x, gsl_sf_result * result)
 }
 
 /*
- * Compute the product x*y as the unevaluated sum
- *
- *   x*y = hi + lo,
- *
- * where hi is the rounded binary64 product and lo contains its rounding
- * residual.  The operands are split into high and low parts using the
- * Dekker constant 2^27+1.
- */
-static void
-lngamma_neg_mul_split(double *hi, double *lo, const double x, const double y)
-{
-  const double split = 134217729.0;  /* 2^27 + 1 */
-  double tx, ty;
-  double xh, xl;
-  double yh, yl;
-
-  *hi = x * y;
-
-  tx = split * x;
-  xh = tx - (tx - x);
-  xl = x - xh;
-
-  ty = split * y;
-  yh = ty - (ty - y);
-  yl = y - yh;
-
-  *lo = ((xh*yh - *hi) + xh*yl + xl*yh) + xl*yl;
-}
-
-/*
  * Compute, with compensated arithmetic,
  *
  *   product_{i=0}^{n-1} (1 + t/(x+i)) - 1.
  *
  * The correction x_eps represents the low-order part of x.  Product
  * and quotient rounding errors are accumulated explicitly using
- * lngamma_neg_mul_split().  Returning the product minus one directly
+ * gsl_dd_two_prod().  Returning the product minus one directly
  * avoids loss of relative accuracy when the product is close to unity.
  *
  * This quantity is used by lngamma_neg() when recurrence is required
@@ -839,16 +809,13 @@ lngamma_product(const double t, const double x, const double x_eps,
     {
       const double xi = x + (double)i;
       const double quot = t / xi;
-      double mhi, mlo;
-      double quot_lo;
-      double rhi, rlo;
+      const gsl_dd m = gsl_dd_two_prod(quot, xi);
+      const gsl_dd rq = gsl_dd_two_prod(ret, quot);
+      const double rhi = rq.hi, rlo = rq.lo;
+      const double quot_lo = (t - m.hi - m.lo) / xi
+        - t * x_eps / (xi * xi);
       double rpq, rpq_eps, nret, nret_eps;
 
-      lngamma_neg_mul_split(&mhi, &mlo, quot, xi);
-      quot_lo = (t - mhi - mlo) / xi
-        - t * x_eps / (xi * xi);
-
-      lngamma_neg_mul_split(&rhi, &rlo, ret, quot);
       rpq = ret + quot;
       rpq_eps = (ret - rpq) + quot;
       nret = rpq + rhi;

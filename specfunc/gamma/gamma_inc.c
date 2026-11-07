@@ -33,9 +33,6 @@
 
 #define GAMMA_INC_MAXITER         10000
 
-/* Temme: largest a*phi for which phi in double precision suffices */
-#define GAMMA_INC_TEMME_APHI_DD   0.25
-
 typedef enum { TARGET_P = 0, TARGET_Q = 1 } gamma_inc_target_t;
 
 /* Taylor kernel functions */
@@ -71,6 +68,9 @@ static int gamma_inc_temme_eval(const double a, const double x, const int target
 /* rgammax primitive functions */
 static gsl_dd gamma_inc_log_ratio_m_ratio_p1(const double a, const double x);
 static gsl_dd gamma_inc_phi_dd(const double a, const double x);
+static double gamma_inc_div_rem(const double x, const double a, const double q);
+static int gamma_inc_exp_aphi(const double a, const double x, const double c,
+                              double * m_out, double * dm_out, int * k_out);
 static double gamma_inc_rgammax_large(const double a, const double x);
 static double gamma_inc_rgammax(const double a, const double x);
 
@@ -1026,8 +1026,9 @@ gamma_inc_use_temme(const double a, const double x)
  * recurrence and the coefficients gamma_inc_temme_d[].
  *
  * TARGET_P selects the lower ratio P(a,x), while TARGET_Q selects the
- * upper ratio Q(a,x).  a phi is formed in double-double only when it is
- * larger than GAMMA_INC_TEMME_APHI_DD (see below).
+ * upper ratio Q(a,x).  The small tail is evaluated as exp(-a phi) times
+ * an erfcx() term, with exp(-a phi) from gamma_inc_exp_aphi() (see
+ * below).
  *
  * The caller is responsible for ensuring that (a,x) lies in the
  * validated Temme region.
@@ -1050,31 +1051,18 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
                                                -5.1391118342425723e-16, -1.9752288294349442e-15 };
 
   const int N = 24;
-  const double phi = GSL_MAX(-gsl_sf_log1pmx((x - a) / a), 0.0);
+  const double d = x - a;  /* exact in the Temme region (Sterbenz) */
+  const double s = d / a;
+  const double s_lo = gamma_inc_div_rem(d, a, s) / a;
+  /* phi(s + s_lo) = phi(s) + s/(1+s) s_lo: keeps the rounding of s out of z */
+  const double phi = GSL_MAX(-gsl_sf_log1pmx(s) + s / (1.0 + s) * s_lo, 0.0);
   const double eta = (x < a) ? -sqrt(2.0 * phi) : sqrt(2.0 * phi);
-  gsl_dd aphi, z;
-  double beta[27], sum, scale, e, R, value, last;
+  const double aphi = a * phi;
+  const double z = sqrt(aphi);
+  const double c = 1.0 / sqrt(2.0 * M_PI * a);
+  const double sigma = (target == TARGET_Q) ? 1.0 : -1.0;
+  double beta[27], sum, last, value, err;
   int n;
-
-  /*
-   * The leading term erfc(z)/2, z^2 = a phi, has relative error ~ |d(a phi)|,
-   * so a phi is needed to absolute accuracy.  The double phi (relative
-   * error ~ 2 eps, from rounding s) suffices while a phi is small;
-   * otherwise form phi = s - log1p(s) in double-double from the exact
-   * difference x - a.
-   */
-  aphi.hi = a * phi;
-  aphi.lo = 0.0;
-
-  if (aphi.hi > GAMMA_INC_TEMME_APHI_DD)
-    aphi = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), a);
-
-  z = gsl_dd_sqrt(aphi);
-  if (x < a)
-    {
-      z.hi = -z.hi;
-      z.lo = -z.lo;
-    }
 
   for (n = N + 1; n <= N + 2; ++n)
     beta[n] = 0;
@@ -1087,27 +1075,59 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
     sum = sum * eta + beta[n];
 
   sum *= a / (a + beta[1]);
-
-  /* e = exp(-a phi) = exp(-z^2), shared by R and the erfc correction */
-  e = exp(-aphi.hi) * (1.0 - aphi.lo);
-  scale = e / sqrt(2.0 * M_PI * a);
-  R = scale * sum;
-
-  /*
-   * erfc(z.hi + z.lo)/2 = erfc(z.hi)/2 - exp(-z^2) z.lo / sqrt(pi) + O(z.lo^2);
-   * the correction matters in the tail, where erfc amplifies the rounding
-   * of its argument.
-   */
-  if (target == TARGET_Q)
-    value = 0.5 * gsl_sf_erfc(z.hi) - e * z.lo / M_SQRTPI + R;
-  else
-    value = 0.5 * gsl_sf_erfc(-z.hi) + e * z.lo / M_SQRTPI - R;
-
   last = fabs(beta[N] * pow(fabs(eta), (double) N));
 
+  /*
+   * With z = sqrt(a phi) >= 0 and R = exp(-a phi) sum / sqrt(2 pi a),
+   *
+   *   Q = erfc(sign(x-a) z)/2 + R,   P = erfc(-sign(x-a) z)/2 - R.
+   */
+  if ((target == TARGET_Q) == (x >= a))
+    {
+      /*
+       * Small tail: erfc(z)/2 = exp(-z^2) erfcx(z)/2, so
+       *
+       *   value = exp(-a phi) (erfcx(z)/2 +- sum / sqrt(2 pi a)).
+       *
+       * exp(-a phi) has relative error ~ |d(a phi)|, so a phi must be
+       * accurate to absolute precision; it is formed by
+       * gamma_inc_exp_aphi() or, outside its range, in double-double.
+       * erfcx(z) is insensitive to the rounding of z.
+       */
+      const double bracket = 0.5 * gsl_sf_erfcx(z) + sigma * c * sum;
+      const double errfac = c * (last + 64.0 * GSL_DBL_EPSILON * fabs(sum));
+      double m, dm;
+      int k;
+
+      if (gamma_inc_exp_aphi(a, x, 0.0, &m, &dm, &k))
+        {
+          const gsl_dd v = gsl_dd_two_prod(m, bracket);
+          value = ldexp(v.hi + (v.lo + v.hi * dm), k);
+          err = ldexp(m * errfac, k);
+        }
+      else
+        {
+          const gsl_dd w = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), a);
+          const double e = exp(-w.hi) * (1.0 - w.lo);
+
+          value = e * bracket;
+          err = e * errfac;
+        }
+    }
+  else
+    {
+      /*
+       * Large tail: value >= erfc(0)/2 - |R| is not small, so the
+       * rounding errors of z and exp(-a phi) are harmless.
+       */
+      const double e = exp(-aphi);
+
+      value = 0.5 * gsl_sf_erfc(-z) + sigma * e * c * sum;
+      err = e * c * (last + 64.0 * GSL_DBL_EPSILON * fabs(sum));
+    }
+
   result->val = value;
-  result->err = 4.0 * GSL_DBL_EPSILON * fabs(value) + fabs(scale) * last +
-                64.0 * GSL_DBL_EPSILON * fabs(R) + GSL_SF_TRUE_MIN;
+  result->err = 4.0 * GSL_DBL_EPSILON * fabs(value) + err + GSL_SF_TRUE_MIN;
 
   return GSL_SUCCESS;
 }
@@ -1147,57 +1167,163 @@ gamma_inc_phi_dd(const double a, const double x)
 }
 
 /*
+ * Compute x - q*a exactly, where q = fl(x/a).  The remainder of a
+ * rounded division is representable, and x - fl(q*a) is exact by
+ * Sterbenz's lemma.
+ */
+static double
+gamma_inc_div_rem(const double x, const double a, const double q)
+{
+  const gsl_dd p = gsl_dd_two_prod(q, a);
+  return (x - p.hi) - p.lo;
+}
+
+/*
+ * Compute
+ *
+ *   exp(c - a phi) = (x/a)^a exp(a-x) exp(c) = m 2^k,
+ *
+ * with phi = s - log(1+s), s = (x-a)/a, and |c| < 1.  The large
+ * exponents a log(x/a) and a - x nearly cancel, so neither may be
+ * rounded:
+ *
+ *   - q = fl(x/a) and the exact remainder rho = x - q a give
+ *     (x/a)^a = q^a exp(rho/q) to within rounding, and q^a is formed
+ *     by pow() with a single rounding error (or as the scaled square
+ *     of q^(a/2) when q^a itself is outside the double range);
+ *
+ *   - a - x = d + d_lo exactly (two-sum), and exp(d) = 2^k exp(r) with
+ *     the Cody-Waite reduction r = d - k log(2), |r| <= log(2)/2.
+ *
+ * The small terms and c are collected into one exponential, so m
+ * carries a few rounding errors independent of the size of a and x.
+ * The rounding errors of the products forming m are returned as the
+ * relative correction dm, exp(c - a phi) = m (1 + dm) 2^k, for the
+ * caller to apply after its own (compensated) product.  A result below
+ * exp(GSL_SF_LOG_TRUE_MIN - 50) is returned as m = 0.
+ *
+ * Returns 0 when a >= 1e20 or q^(a/2) is outside the double range, in
+ * which case the caller must form a phi in double-double.
+ */
+static int
+gamma_inc_exp_aphi(const double a, const double x, const double c,
+                   double * m_out, double * dm_out, int * k_out)
+{
+  double q, m, dm = 0.0;
+  int e = 0;
+
+  *m_out = 0.0;
+  *dm_out = 0.0;
+  *k_out = 0;
+
+  if (!(a < 1.0e20))
+    return 0;
+
+  q = x / a;
+  m = pow(q, a);
+
+  if (!(m > 1.0e-280 && m < 1.0e280))
+    {
+      /* q^a = 2^e (q^(a/2) 2^(-e/2))^2, at the cost of one rounding */
+      const double h = pow(q, 0.5 * a);
+
+      if (h > 1.0e-280 && h < 1.0e280)
+        {
+          const double f = frexp(h, &e);
+          const gsl_dd f2 = gsl_dd_two_prod(f, f);
+
+          m = f2.hi;
+          dm = f2.lo / m;
+          e *= 2;
+        }
+      else
+        {
+          /* a (log(q) - q + 1) in double is accurate to well within
+             the margin for a < 1e20: skip the slow path on underflow */
+          return (a * (log(q) - q + 1.0) < GSL_SF_LOG_TRUE_MIN - 50.0);
+        }
+    }
+
+  {
+    const double rho = gamma_inc_div_rem(x, a, q);
+    const gsl_dd d = gsl_dd_two_sum(a, -x);
+    gsl_dd p;
+    double k, t;
+
+    /* exponent below log(q^a) - 2200 < -800: underflow */
+    if (d.hi < -2200.0)
+      return 1;
+
+    k = floor(d.hi / M_LN2 + 0.5);
+    t = ((d.hi - k * GSL_SF_LN2_HI) - k * GSL_SF_LN2_LO) + (d.lo + rho / q) + c;
+    p = gsl_dd_two_prod(m, exp(t));
+
+    *m_out = p.hi;
+    *dm_out = dm + p.lo / p.hi;
+    *k_out = (int) k + e;
+  }
+
+  return 1;
+}
+
+/*
  * Compute
  *
  *   rgammax(a,x) = x^a exp(-x) / Gamma(a)
  *
- * for large a using the scaled representation
+ * for large a.  With Stirling's formula,
  *
- *   rgammax(a,x) = sqrt(a/(2*pi)) exp[a q - E(a)],
+ *   rgammax(a,x) = exp(-a phi - E(a)) sqrt(a/(2*pi)),
  *
- * where
+ * where E(a) is the Stirling correction returned by
+ * gamma_stirling_delta() (stirling.c) and exp(-a phi - E(a)) is
+ * formed by gamma_inc_exp_aphi().
  *
- *   q = log(x/a) - x/a + 1
- *
- * and E(a) is the Stirling correction returned by
- * gamma_stirling_delta() (stirling.c).
- *
- * The reduced logarithmic quantity q and the product a*q are retained
- * in double-double arithmetic.  Near x=a, q is formed from
- * s=(x-a)/a to preserve the accurately computed difference x-a.
- *
- * When exp(a*q-E) approaches underflow, the sqrt(a/(2*pi)) prefactor
- * is absorbed into the exponent before evaluation.
+ * Outside the range of gamma_inc_exp_aphi(), the exponent a q', with
+ * q' = log(x/a) - x/a + 1 = -phi, is formed in double-double instead.
+ * Near x=a, q' is computed from s=(x-a)/a to preserve the exact
+ * difference x-a.
  */
 static double
 gamma_inc_rgammax_large(const double a, const double x)
 {
   const double E = gamma_stirling_delta(a);
-  gsl_dd q, aq, w;
+  double m, dm;
+  int k;
 
-  /* Near x=a use the exact-difference representation.  Away from it,
-   * form the quotient x/a directly as a compensated pair. */
-  if (x >= 0.5 * a && x <= 2.0 * a)
-    q = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), -1.0);
-  else
-    q = gamma_inc_log_ratio_m_ratio_p1(a, x);
-
-  aq = gsl_dd_mul_d(q, a);
-  w = gsl_dd_sub_d(aq, E);
-
-  /* Keep exp(w) normal whenever possible.  If it would approach
-   * underflow, absorb sqrt(a/(2*pi)) into the exponent first. */
-  if (w.hi > log(GSL_DBL_MIN) + 8.0)
+  if (gamma_inc_exp_aphi(a, x, -E, &m, &dm, &k))
     {
-      const double ew = exp(w.hi) * exp(w.lo);
-      return sqrt(a / (2.0 * M_PI)) * ew;
+      const gsl_dd v = gsl_dd_two_prod(m, sqrt(a * (0.5 / M_PI)));
+      return ldexp(v.hi + (v.lo + v.hi * dm), k);
     }
-  else
-    {
-      const double base = 0.5 * log(a) - GSL_SF_LOG_SQRT_2PI;
-      gsl_dd z = gsl_dd_add_d(w, base);
-      return exp(z.hi) * exp(z.lo);
-    }
+
+  {
+    gsl_dd q, aq, w;
+
+    /* Near x=a use the exact-difference representation.  Away from it,
+     * form the quotient x/a directly as a compensated pair. */
+    if (x >= 0.5 * a && x <= 2.0 * a)
+      q = gsl_dd_mul_d(gamma_inc_phi_dd(a, x), -1.0);
+    else
+      q = gamma_inc_log_ratio_m_ratio_p1(a, x);
+
+    aq = gsl_dd_mul_d(q, a);
+    w = gsl_dd_sub_d(aq, E);
+
+    /* Keep exp(w) normal whenever possible.  If it would approach
+     * underflow, absorb sqrt(a/(2*pi)) into the exponent first. */
+    if (w.hi > log(GSL_DBL_MIN) + 8.0)
+      {
+        const double ew = exp(w.hi) * exp(w.lo);
+        return sqrt(a / (2.0 * M_PI)) * ew;
+      }
+    else
+      {
+        const double base = 0.5 * log(a) - GSL_SF_LOG_SQRT_2PI;
+        gsl_dd z = gsl_dd_add_d(w, base);
+        return exp(z.hi) * exp(z.lo);
+      }
+  }
 }
 
 /*

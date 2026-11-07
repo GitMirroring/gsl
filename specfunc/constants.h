@@ -30,6 +30,7 @@
 #define GSL_SF_LOG_SQRT_2PI_LO    -3.87829415806724144983e-17     /* log(sqrt(2*pi)) - GSL_SF_LOG_SQRT_2PI (double-double low part) */
 #define GSL_SF_SQRT_2PI            2.50662827463100050242e+00     /* sqrt(2*pi) */
 #define GSL_SF_INV_SQRT_2PI        3.98942280401432677940e-01     /* 1/sqrt(2*pi) */
+#define GSL_SF_INV_SQRT_2PI_LO    -2.49232720227773004439e-17     /* 1/sqrt(2*pi) - GSL_SF_INV_SQRT_2PI (double-double low part) */
 #define GSL_SF_SQRT2_PI            7.97884560802865355880e-01     /* sqrt(2/pi) */
 #define GSL_SF_1_MINUS_EULER       4.22784335098467139393e-01     /* 1 - M_EULER */
 #define GSL_SF_PI2_12              8.22467033424113218236e-01     /* pi^2 / 12 */
