@@ -341,5 +341,12 @@ test_gamma_inc_P(void)
   TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (200, 199.0, &r), 0.4811585880878718, TEST_TOL2, GSL_SUCCESS);
   /* Test for x86 cancellation problems */
   TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (5670, 4574, &r),  3.063972328743934e-55, TEST_TOL2, GSL_SUCCESS);
+
+  /* infinite and NaN arguments (bug #58064) */
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (2.533265554575144, GSL_POSINF, &r), 1.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (GSL_POSINF, 22.0, &r), 0.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (GSL_POSINF, GSL_POSINF, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (GSL_NAN, 1.0, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_P_e, (1.0, GSL_NAN, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
   return s;
 }

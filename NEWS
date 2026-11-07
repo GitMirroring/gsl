@@ -24,6 +24,26 @@
 ** fix for bug #68479 (gsl_ran_binomial computed (1-p)^n inaccurately
    in the small-mean branch for large n; reported by Fermé le Lundi)
 
+** fix for bugs #65760 and #53919 (gsl_sf_erf, gsl_sf_erfc,
+   gsl_sf_log_erfc, gsl_sf_erf_Q and gsl_sf_erf_Z returned NaN for
+   infinite or very large arguments; reported by L. Singer and
+   A. Henrie)
+
+** fix for bug #21836 (gsl_sf_gamma_inc_P and gsl_sf_gamma_inc_Q now
+   satisfy P+Q=1 to rounding error)
+
+** fix for bug #50459 (gsl_sf_gamma_inc did not terminate, or returned
+   NaN, for large negative a; reported by F. Maurica)
+
+** fix for bug #37209 (gsl_sf_bessel_jl returned NaN or a spurious
+   underflow error for large l; reported by J. Benda)
+
+** fix for bug #58066 (gsl_sf_psi returned finite values at the poles
+   x = -3, -4, ...; reported by J. Vanover)
+
+** removed the GAMMA_INC_A_0 macro in the incomplete gamma function
+   (bug #68663; suggested by Fermé le Lundi)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
@@ -32,7 +52,8 @@
    and Liberty, 2016) instead of the P^2 algorithm
 
 ** new or overhauled special functions:
-   - gsl_sf_erfc, gsl_sf_log_erfc, gsl_sf_hazard
+   - gsl_sf_erf, gsl_sf_erfc, gsl_sf_log_erfc, gsl_sf_erf_Z,
+     gsl_sf_erf_Q, gsl_sf_hazard
    - gsl_sf_erfcx (new)
    - gsl_sf_exp2 (new)
    - gsl_sf_expm1

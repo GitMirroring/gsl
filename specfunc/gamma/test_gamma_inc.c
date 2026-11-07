@@ -240,5 +240,13 @@ test_gamma_inc(void)
   TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (  1.0,   100.0, &r), 3.7200759760208359630e-44, TEST_TOL2, GSL_SUCCESS);
   TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, ( 10.0,   100.0, &r), 4.0836606309106112723e-26, TEST_TOL2, GSL_SUCCESS);
   TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (100.0,   100.0, &r), 4.5421981208626694294e+155, TEST_TOL1, GSL_SUCCESS);
+
+  /* infinite and NaN arguments (bug #58064) */
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (2.533265554575144, GSL_POSINF, &r), 0.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (-2.5, GSL_POSINF, &r), 0.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (0.0, GSL_POSINF, &r), 0.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (GSL_POSINF, 22.0, &r), GSL_POSINF, TEST_TOL0, GSL_EOVRFLW);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (GSL_NEGINF, 2.0, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF_RESULT(s, gsl_sf_gamma_inc_e, (GSL_NAN, 1.0, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
   return s;
 }

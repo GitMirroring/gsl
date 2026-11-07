@@ -115,7 +115,9 @@ static gsl_dd dd_div_diff(const double a, const double x);
  *
  * The limiting value at x = 0 is P(a,0) = 0.  Arguments with a <= 0
  * or x < 0 are outside the real-valued domain of this interface and
- * produce a domain error.
+ * produce a domain error, as do NaN arguments.  The limits
+ * P(a,+Inf) = 1 and P(+Inf,x) = 0 (x finite) are returned exactly;
+ * P(+Inf,+Inf) is indeterminate (domain error).
  */
 
 int
@@ -124,13 +126,20 @@ gsl_sf_gamma_inc_P_e(const double a, const double x,
 {
   int status;
 
-  if (a <= 0.0 || x < 0.0)
+  if (a <= 0.0 || x < 0.0 || gsl_isnan(a) || gsl_isnan(x)
+      || (a == GSL_POSINF && x == GSL_POSINF))
     {
       DOMAIN_ERROR(result);
     }
-  else if (x == 0.0)
+  else if (x == 0.0 || a == GSL_POSINF)
     {
       result->val = 0.0;
+      result->err = 0.0;
+      return GSL_SUCCESS;
+    }
+  else if (x == GSL_POSINF)
+    {
+      result->val = 1.0;
       result->err = 0.0;
       return GSL_SUCCESS;
     }
@@ -181,7 +190,9 @@ gsl_sf_gamma_inc_P_e(const double a, const double x,
  * The limiting value at x = 0 is Q(a,0) = 1, and Q(0,x) = 0 for x > 0
  * (the limit a -> 0, kept for compatibility).  Arguments with a < 0
  * or x < 0 are outside the real-valued domain of this interface and
- * produce a domain error.
+ * produce a domain error, as do NaN arguments.  The limits
+ * Q(a,+Inf) = 0 and Q(+Inf,x) = 1 (x finite) are returned exactly;
+ * Q(+Inf,+Inf) is indeterminate (domain error).
  */
 
 int
@@ -190,19 +201,20 @@ gsl_sf_gamma_inc_Q_e(const double a, const double x,
 {
   int status;
 
-  if (a < 0.0 || x < 0.0)
+  if (a < 0.0 || x < 0.0 || gsl_isnan(a) || gsl_isnan(x)
+      || (a == GSL_POSINF && x == GSL_POSINF))
     {
       DOMAIN_ERROR(result);
     }
-  else if (x == 0.0)
+  else if (x == 0.0 || a == GSL_POSINF)
     {
       result->val = 1.0;
       result->err = 0.0;
       return GSL_SUCCESS;
     }
-  else if (a == 0.0)
+  else if (a == 0.0 || x == GSL_POSINF)
     {
-      /* limit a -> 0 for x > 0 */
+      /* limit a -> 0 for x > 0, and x -> +Inf */
       result->val = 0.0;
       result->err = 0.0;
       return GSL_SUCCESS;
@@ -253,14 +265,29 @@ gsl_sf_gamma_inc_Q_e(const double a, const double x,
  * before Gamma(a,x) does.  For a > 0 otherwise use Gamma(a) Q(a,x),
  * and for a <= 0, x < 1/2 the scaled downward recurrence of
  * gamma_inc_upper_recur().
+ *
+ * Gamma(a,+Inf) = 0 for finite a; Gamma(+Inf,x) overflows for finite
+ * x > 0; Gamma(+Inf,+Inf), a = -Inf (whose limit depends on x) and NaN
+ * arguments give a domain error.
  */
 
 int
 gsl_sf_gamma_inc_e(const double a, const double x, gsl_sf_result * result)
 {
-  if (x < 0.0)
+  if (x < 0.0 || gsl_isnan(a) || gsl_isnan(x) || a == GSL_NEGINF
+      || (a == GSL_POSINF && x == GSL_POSINF))
     {
       DOMAIN_ERROR(result);
+    }
+  else if (x == GSL_POSINF)
+    {
+      result->val = 0.0;
+      result->err = 0.0;
+      return GSL_SUCCESS;
+    }
+  else if (a == GSL_POSINF)
+    {
+      OVERFLOW_ERROR(result);
     }
   else if (x == 0.0)
     {
