@@ -7,6 +7,7 @@ AM_CPPFLAGS = -I$(top_srcdir)
 include erf/sources.mk
 include exp/sources.mk
 include gamma/sources.mk
+include hyperg/sources.mk
 include log/sources.mk
 include trig/sources.mk
 
@@ -18,6 +19,7 @@ include log/headers.mk
 include erf/test_sources.mk
 include exp/test_sources.mk
 include gamma/test_sources.mk
+include hyperg/test_sources.mk
 include log/test_sources.mk
 include trig/test_sources.mk
 
@@ -25,6 +27,7 @@ libgslspecfunc_la_SOURCES = \
   ${ERF_SOURCES}            \
   ${EXP_SOURCES}            \
   ${GAMMA_SOURCES}          \
+  ${HYPERG_SOURCES}         \
   ${LOG_SOURCES}            \
   ${TRIG_SOURCES}           \
   airy.c                    \
@@ -81,7 +84,6 @@ libgslspecfunc_la_SOURCES = \
   hyperg_0F1.c              \
   hyperg_2F0.c              \
   hyperg_1F1.c              \
-  hyperg_2F1.c              \
   hyperg_U.c                \
   hyperg.c                  \
   inline.c                  \
@@ -117,6 +119,7 @@ test_SOURCES = test_sf.c test_sf.h test_airy.c test_alf.c test_bessel.c test_cou
   ${ERF_TEST_SOURCES}   \
   ${EXP_TEST_SOURCES}   \
   ${GAMMA_TEST_SOURCES} \
+  ${HYPERG_TEST_SOURCES} \
   ${LOG_TEST_SOURCES}   \
   ${TRIG_TEST_SOURCES}
 test_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la  ../sort/libgslsort.la ../matrix/libgslmatrix.la ../vector/libgslvector.la ../blas/libgslblas.la ../cblas/libgslcblas.la ../block/libgslblock.la ../complex/libgslcomplex.la ../poly/libgslpoly.la ../dd/libgsldd.la ../ieee-utils/libgslieeeutils.la  ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la

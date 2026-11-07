@@ -23,19 +23,19 @@ Exponential Function
    overflow the  numeric range of :code:`double`.
 .. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
 
-.. function:: double gsl_sf_exp_mult (double x, double y)
-              int gsl_sf_exp_mult_e (double x, double y, gsl_sf_result * result)
+.. function:: double gsl_sf_exp_mult (const double x, const double y)
+              int gsl_sf_exp_mult_e (const double x, const double y, gsl_sf_result * result)
 
    These routines exponentiate :data:`x` and multiply by the factor :data:`y`
    to return the product :math:`y \exp(x)`.
-.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
+.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM (NaN arguments)
 
 .. function:: int gsl_sf_exp_mult_e10_e (const double x, const double y, gsl_sf_result_e10 * result)
 
    This function computes the product :math:`y \exp(x)` using the
    :type:`gsl_sf_result_e10` type to return a result with extended numeric
    range.
-.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
+.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM (NaN arguments)
 
 .. index::
    single: exp2
@@ -121,15 +121,15 @@ Exponentiation With Error Estimate
    extended range.
 .. Exceptional Return Values: 
 
-.. function:: int gsl_sf_exp_mult_err_e (double x, double dx, double y, double dy, gsl_sf_result * result)
+.. function:: int gsl_sf_exp_mult_err_e (const double x, const double dx, const double y, const double dy, gsl_sf_result * result)
 
    This routine computes the product :math:`y \exp(x)` for the quantities
    :data:`x`, :data:`y` with associated absolute errors :data:`dx`, :data:`dy`.
-.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
+.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM (NaN arguments)
 
-.. function:: int gsl_sf_exp_mult_err_e10_e (double x, double dx, double y, double dy, gsl_sf_result_e10 * result)
+.. function:: int gsl_sf_exp_mult_err_e10_e (const double x, const double dx, const double y, const double dy, gsl_sf_result_e10 * result)
 
    This routine computes the product :math:`y \exp(x)` for the quantities
    :data:`x`, :data:`y` with associated absolute errors :data:`dx`, :data:`dy` using the
    :type:`gsl_sf_result_e10` type to return a result with extended range.
-.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW
+.. Exceptional Return Values: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM (NaN arguments)

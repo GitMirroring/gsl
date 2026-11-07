@@ -22,6 +22,7 @@
 
 int test_exp_all(void);
 int test_exp2(void);
+int test_exp_mult(void);
 int test_expm1(void);
 
 #endif /* TEST_EXP_ALL_H */

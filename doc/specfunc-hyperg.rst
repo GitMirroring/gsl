@@ -83,8 +83,8 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
    result with extended range. 
 .. exceptions:
 
-.. function:: double gsl_sf_hyperg_2F1 (double a, double b, double c, double x)
-              int gsl_sf_hyperg_2F1_e (double a, double b, double c, double x, gsl_sf_result * result)
+.. function:: double gsl_sf_hyperg_2F1 (const double a, const double b, const double c, const double x)
+              int gsl_sf_hyperg_2F1_e (const double a, const double b, const double c, const double x, gsl_sf_result * result)
 
    These routines compute the Gauss hypergeometric function
 
@@ -96,14 +96,30 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 
       .. math:: 2F1(a,b,c,x) = F(a,b,c,x)
          
-   for :math:`|x| < 1`. If the arguments :math:`(a,b,c,x)` are too close to a singularity then
-   the function can return the error code :macro:`GSL_EMAXITER` when the
-   series approximation converges too slowly.  This occurs in the region of
-   :math:`x = 1`, :math:`c - a - b = m` for integer m.
-.. exceptions:
+   for real :math:`x < 1`.  At :math:`x = 1` the value
+   :math:`\Gamma(c)\Gamma(c-a-b)/(\Gamma(c-a)\Gamma(c-b))` is returned when
+   :math:`c - a - b > 0`.  When :math:`a` or :math:`b` is a non-positive
+   integer the series terminates and the function, a polynomial in :math:`x`,
+   is computed for all real :math:`x`; similarly when :math:`c-a` or
+   :math:`c-b` is a non-positive integer, where
+   :math:`F = (1-x)^{c-a-b}` times a polynomial.  For :math:`x > 1` the
+   function is otherwise complex and a domain error is returned, as it is
+   when :math:`c` is a non-positive integer and the series does not
+   terminate before the pole.
 
-.. function:: double gsl_sf_hyperg_2F1_conj (double aR, double aI, double c, double x)
-              int gsl_sf_hyperg_2F1_conj_e (double aR, double aI, double c, double x, gsl_sf_result * result)
+   The function is evaluated with the transformation of :math:`x` that gives
+   the smallest variable (:math:`x`, :math:`x/(x-1)`, :math:`1-x` or
+   :math:`1/(1-x)`); the connection formulas are evaluated uniformly in
+   the distance of :math:`c-a-b` (or :math:`b-a`) from an integer, so that
+   there is no loss of accuracy near the degenerate cases.  The error
+   estimate accounts for cancellation between terms.  For very large
+   parameters the cancellation can exceed what is recoverable in double
+   precision (with double-double summation as a fallback); if no
+   significant digit is left the error code :macro:`GSL_ELOSS` is returned.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW
+
+.. function:: double gsl_sf_hyperg_2F1_conj (const double aR, const double aI, const double c, const double x)
+              int gsl_sf_hyperg_2F1_conj_e (const double aR, const double aI, const double c, const double x, gsl_sf_result * result)
 
    These routines compute the Gauss hypergeometric function
 
@@ -115,10 +131,12 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 
       .. math:: 2F1(a_R + i a_I, aR - i aI, c, x)
 
-   with complex parameters for :math:`|x| < 1`.
+   with complex parameters for real :math:`x < 1`, and for :math:`x = 1`
+   when :math:`c - 2 a_R > 0`.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW
 
-.. function:: double gsl_sf_hyperg_2F1_renorm (double a, double b, double c, double x)
-              int gsl_sf_hyperg_2F1_renorm_e (double a, double b, double c, double x, gsl_sf_result * result)
+.. function:: double gsl_sf_hyperg_2F1_renorm (const double a, const double b, const double c, const double x)
+              int gsl_sf_hyperg_2F1_renorm_e (const double a, const double b, const double c, const double x, gsl_sf_result * result)
 
    These routines compute the renormalized Gauss hypergeometric function
 
@@ -130,11 +148,16 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 
       .. math:: 2F1(a,b,c,x) / \Gamma(c)
 
-   for :math:`|x| < 1`.
-.. exceptions:
+   on the domain of :func:`gsl_sf_hyperg_2F1`.  For :math:`c = -n` a
+   non-positive integer the limit
 
-.. function:: double gsl_sf_hyperg_2F1_conj_renorm (double aR, double aI, double c, double x)
-              int gsl_sf_hyperg_2F1_conj_renorm_e (double aR, double aI, double c, double x, gsl_sf_result * result)
+   .. math:: {(a)_{n+1} (b)_{n+1} \over (n+1)!} x^{n+1} F(a+n+1, b+n+1; n+2; x)
+
+   is returned.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW
+
+.. function:: double gsl_sf_hyperg_2F1_conj_renorm (const double aR, const double aI, const double c, const double x)
+              int gsl_sf_hyperg_2F1_conj_renorm_e (const double aR, const double aI, const double c, const double x, gsl_sf_result * result)
 
    These routines compute the renormalized Gauss hypergeometric function
 
@@ -146,7 +169,8 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 
       .. math:: 2F1(a_R + i a_I, a_R - i a_I, c, x) / \Gamma(c)
 
-   for :math:`|x| < 1`.
+   on the domain of :func:`gsl_sf_hyperg_2F1_conj`, with the limit for
+   non-positive integer :math:`c` as for :func:`gsl_sf_hyperg_2F1_renorm`.
 .. exceptions:
 
 .. function:: double gsl_sf_hyperg_2F0 (double a, double b, double x)

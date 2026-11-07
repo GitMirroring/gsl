@@ -33,6 +33,7 @@
 #include "erf/test_all.h"
 #include "exp/test_all.h"
 #include "gamma/test_all.h"
+#include "hyperg/test_all.h"
 #include "log/test_all.h"
 #include "trig/test_all.h"
 
@@ -1015,58 +1016,8 @@ int test_exp(void)
   sa += ( re.e10 != 868 );
   gsl_test(sa, "  gsl_sf_exp_err_e10_e(2000.0, 1.0e-10, &re)");
 
-  x = 0.8*GSL_LOG_DBL_MAX;
-  TEST_SF(s, gsl_sf_exp_mult_e, (-10.0,  1.0e-06, &r), 1.0e-06*exp(-10.0), TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (-10.0,  2.0, &r),     2.0*exp(-10.0),     TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (-10.0, -2.0, &r),    -2.0*exp(-10.0),     TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, ( 10.0,  1.0e-06, &r), 1.0e-06*exp( 10.0), TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, ( 10.0, -2.0, &r),    -2.0*exp( 10.0),     TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, 1.00001, &r),      1.00001*exp(x),     TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, 1.000001, &r),     1.000001*exp(x),    TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, 1.000000001, &r),  1.000000001*exp(x), TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, 100.0, &r),        100.0*exp(x),       TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, 1.0e+20, &r),      1.0e+20*exp(x),     TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_e, (x, exp(-x)*exp(M_LN2), &r),  2.0, TEST_TOL4, GSL_SUCCESS );
+  /* Test cases from Szymon Jaroszewicz (gsl_sf_exp_mult*: exp/test_exp_mult.c) */
 
-  TEST_SF(s, gsl_sf_exp_mult_err_e, (-10.0, TEST_SQRT_TOL0, 2.0, TEST_SQRT_TOL0, &r), 2.0*exp(-10.0), TEST_SQRT_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_exp_mult_err_e, (x, TEST_SQRT_TOL0*x, exp(-x)*exp(M_LN2), TEST_SQRT_TOL0*exp(-x)*exp(M_LN2), &r),  2.0, TEST_SQRT_TOL0, GSL_SUCCESS );
-
-  sa = 0;
-  sa += gsl_sf_exp_mult_e10_e(1.0, 1.0, &re);
-  sa += ( test_sf_frac_diff(re.val, M_E ) > TEST_TOL0 );
-  sa += ( re.err > TEST_TOL2 );
-  sa += ( re.e10 != 0 );
-  gsl_test(sa, "gsl_sf_exp_mult_e10_e(1.0, 1.0, &re)");
-  TEST_SF_E10(s,  gsl_sf_exp_mult_e10_e, (1.0, 1.0, &re), M_E, 0, TEST_TOL0, GSL_SUCCESS);
-
-  sa = 0;
-  sa += gsl_sf_exp_mult_e10_e(1000.0, 1.0e+200, &re);
-  sa += ( test_sf_frac_diff(re.val, 1.970071114017046993888879352) > TEST_TOL3 );
-  sa += ( re.err > 1.0e-11 );
-  sa += ( re.e10 != 634 );
-  gsl_test(sa, "gsl_sf_exp_mult_e10_e(1000.0, 1.0e+200, &re)");
-  TEST_SF_E10(s,  gsl_sf_exp_mult_e10_e, (1000.0, 1.0e+200, &re), 1.970071114017046993888879352, 634, TEST_TOL3, GSL_SUCCESS);
-
-  sa = 0;
-  sa += gsl_sf_exp_mult_err_e10_e(1.0, TEST_TOL0, 1.0, TEST_TOL0, &re);
-  sa += ( test_sf_frac_diff(re.val, M_E ) > TEST_TOL0 );
-  sa += ( re.err > TEST_TOL2 );
-  sa += ( re.e10 != 0 );
-  gsl_test(sa, "gsl_sf_exp_mult_err_e10_e(1.0, TEST_TOL0, 1.0, TEST_TOL0, &re)");
-  TEST_SF_E10(s,  gsl_sf_exp_mult_err_e10_e, (1.0, TEST_TOL0, 1.0, TEST_TOL0, &re), M_E, 0, TEST_TOL0, GSL_SUCCESS);
-
-  sa = 0;
-  sa += gsl_sf_exp_mult_err_e10_e(1000.0, 1.0e-12, 1.0e+200, 1.0e+190, &re);
-  sa += ( test_sf_frac_diff(re.val, 1.9700711140165661 ) > TEST_TOL3 );
-  sa += ( re.err > 1.0e-09 );
-  sa += ( re.e10 != 634 );
-  gsl_test(sa, "gsl_sf_exp_mult_err_e10_e(1.0e-12, 1.0e+200, &re)");
-  TEST_SF_E10(s,  gsl_sf_exp_mult_err_e10_e, (1000.0, 1.0e-12, 1.0e+200, 1.0e+190, &re), 1.9700711140165661,634, TEST_TOL3, GSL_SUCCESS);
-
-  /* Test cases from Szymon Jaroszewicz */
-
-  TEST_SF_E10(s,  gsl_sf_exp_mult_e10_e, (10000.0, 1.0, &re), 8.806818225662921587261496007, 4342, TEST_TOL5, GSL_SUCCESS);
-  TEST_SF_E10(s,  gsl_sf_exp_mult_e10_e, (100.0, 1.0, &re), 2.688117141816135448412625551e43, 0, TEST_TOL2, GSL_SUCCESS);
   TEST_SF_E10(s,  gsl_sf_exp_e10_e, (100.0, &re), 2.688117141816135448412625551e43, 0, TEST_TOL2, GSL_SUCCESS);
   TEST_SF_E10(s,  gsl_sf_exp_e10_e, (1000.0, &re), 1.970071114017046993888879352, 434, TEST_TOL3, GSL_SUCCESS);
   TEST_SF_E10(s,  gsl_sf_exp_e10_e, (-100.0, &re), 3.720075976020835962959695803e-44, 0, TEST_TOL2, GSL_SUCCESS);
@@ -2659,7 +2610,7 @@ int main(int argc, char * argv[])
   gsl_test(test_jac(),         "Elliptic Functions (Jacobi)");
   gsl_test(test_erf_all(),     "Error Functions");
   gsl_test(test_exp(),         "Exponential Functions");
-  gsl_test(test_exp_all(),     "Exponential Functions (expm1, exp2)");
+  gsl_test(test_exp_all(),     "Exponential Functions (expm1, exp2, exp_mult)");
   gsl_test(test_expint(),      "Exponential/Sine/Cosine Integrals");
   gsl_test(test_fermidirac(),  "Fermi-Dirac Functions");
   gsl_test(test_gamma_all(),   "Gamma, Beta and Psi Functions");
@@ -2667,6 +2618,7 @@ int main(int argc, char * argv[])
   gsl_test(test_gegen(),       "Gegenbauer Polynomials");
   gsl_test(test_hermite(),     "Hermite Functions");
   gsl_test(test_hyperg(),      "Hypergeometric Functions");
+  gsl_test(test_hyperg_all(),  "Hypergeometric Function 2F1");
   gsl_test(test_laguerre(),    "Laguerre Polynomials");
   gsl_test(test_lambert(),     "Lambert W Functions");
   gsl_test(test_legendre(),    "Legendre Functions");

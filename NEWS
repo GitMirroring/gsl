@@ -44,6 +44,28 @@
 ** removed the GAMMA_INC_A_0 macro in the incomplete gamma function
    (bug #68663; suggested by Fermé le Lundi)
 
+** fix for bugs #21835, #54998, #32306 and #39056 (gsl_sf_hyperg_2F1
+   returned wrong values, in some cases with the wrong sign, when c-a-b
+   is an integer and x > 1/2, and failed to converge near x = 1;
+   reported by L. Warren, L. af Klinteberg and H. Monajemi)
+
+** fix for bugs #53905 and #50711 (gsl_sf_hyperg_2F1 gave up with
+   GSL_EUNIMPL for terminating series such as 2F1(-10,2;0.5;0.5);
+   reported by K. Salehivaziri and M. Alaggan)
+
+** fix for bug #53876 (gsl_sf_hyperg_2F1_renorm and
+   gsl_sf_hyperg_2F1_conj_renorm were wrong for non-positive integer c;
+   reported by C. Hussong)
+
+** gsl_sf_hyperg_2F1 now covers x < -1 (bug #30324; requested by
+   H. Bauke), x = 1 for c-a-b > 0, and terminating series for all real
+   x; it returns GSL_ELOSS instead of an inaccurate value when no
+   significant digit can be obtained (very large parameters)
+
+** gsl_sf_hyperg_2F1 is now accurate for the special cases
+   2F1(a+1,b;a;x) and 2F1(a,b+1;b;x) and the other cases listed in
+   bug #66850 (suggested by Fermé le Lundi)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
@@ -57,6 +79,10 @@
    - gsl_sf_erfcx (new)
    - gsl_sf_exp2 (new)
    - gsl_sf_expm1
+   - gsl_sf_exp_mult, gsl_sf_exp_mult_err, gsl_sf_exp_mult_e10 and
+     gsl_sf_exp_mult_err_e10 (accurate to a few ulp for all arguments;
+     previously eps |log|y|| was lost for large |x| or |log|y||, and
+     the _err variants did not include it in the error estimate)
    - gsl_sf_gamma*, including gsl_sf_gammastar, gsl_sf_gammainv
      and the incomplete gamma functions gsl_sf_gamma_inc{,_P,_Q}
    - gsl_sf_lngamma, gsl_sf_lngamma_sgn
@@ -67,6 +93,8 @@
      handle negative arguments)
    - gsl_sf_psi, gsl_sf_psi_int, gsl_sf_psi_1, gsl_sf_psi_1_int,
      gsl_sf_psi_1piy
+   - gsl_sf_hyperg_2F1, gsl_sf_hyperg_2F1_conj,
+     gsl_sf_hyperg_2F1_renorm, gsl_sf_hyperg_2F1_conj_renorm
    - gsl_sf_sinc
    - gsl_sf_log1p (new)
    - gsl_sf_log1pmx (new)

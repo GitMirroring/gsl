@@ -25,6 +25,7 @@
 #define GSL_SF_LN2_HI              6.93147180369123816490e-01     /* high part of log(2) */
 #define GSL_SF_LN2_LO              1.90821492927058770002e-10     /* low part of log(2) */
 #define GSL_SF_LN2_DD_LO           2.31904681384629955842e-17     /* log(2) - M_LN2 (double-double low part) */
+#define GSL_SF_LN10_DD_LO         -2.17075622338224935076e-16     /* log(10) - M_LN10 (double-double low part) */
 #define GSL_SF_DBL_EPSILON_4       5.55111512312578270212e-17     /* GSL_DBL_EPSILON / 4 = 2^{-54} */
 #define GSL_SF_LOG_SQRT_2PI        9.18938533204672741780e-01     /* log(sqrt(2*pi)) */
 #define GSL_SF_LOG_SQRT_2PI_LO    -3.87829415806724144983e-17     /* log(sqrt(2*pi)) - GSL_SF_LOG_SQRT_2PI (double-double low part) */

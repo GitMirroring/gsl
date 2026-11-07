@@ -105,8 +105,8 @@ int gsl_sf_hyperg_U_e10_e(const double a, const double b, const double x, gsl_sf
  *
  * exceptions:
  */
-int gsl_sf_hyperg_2F1_e(double a, double b, const double c, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_2F1(double a, double b, double c, double x);
+int gsl_sf_hyperg_2F1_e(const double a, const double b, const double c, const double x, gsl_sf_result * result);
+double gsl_sf_hyperg_2F1(const double a, const double b, const double c, const double x);
 
 
 /* Gauss hypergeometric function
@@ -116,7 +116,7 @@ double gsl_sf_hyperg_2F1(double a, double b, double c, double x);
  * exceptions:
  */
 int gsl_sf_hyperg_2F1_conj_e(const double aR, const double aI, const double c, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_2F1_conj(double aR, double aI, double c, double x);
+double gsl_sf_hyperg_2F1_conj(const double aR, const double aI, const double c, const double x);
 
 
 /* Renormalized Gauss hypergeometric function
@@ -126,7 +126,7 @@ double gsl_sf_hyperg_2F1_conj(double aR, double aI, double c, double x);
  * exceptions:
  */
 int gsl_sf_hyperg_2F1_renorm_e(const double a, const double b, const double c, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_2F1_renorm(double a, double b, double c, double x);
+double gsl_sf_hyperg_2F1_renorm(const double a, const double b, const double c, const double x);
 
 
 /* Renormalized Gauss hypergeometric function
@@ -136,7 +136,7 @@ double gsl_sf_hyperg_2F1_renorm(double a, double b, double c, double x);
  * exceptions:
  */
 int gsl_sf_hyperg_2F1_conj_renorm_e(const double aR, const double aI, const double c, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_2F1_conj_renorm(double aR, double aI, double c, double x);
+double gsl_sf_hyperg_2F1_conj_renorm(const double aR, const double aI, const double c, const double x);
 
 
 /* Mysterious hypergeometric function. The series representation
