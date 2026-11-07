@@ -20,6 +20,7 @@
 #include <config.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_test.h>
 #include <gsl/gsl_sf_exp.h>
 
 #include "../test_sf.h"
@@ -189,6 +190,15 @@ do { \
  \
 } while (0)
 
+static int expm1_handler_calls = 0;
+
+static void
+expm1_count_handler(const char * reason, const char * file, int line, int gsl_errno)
+{
+  (void) reason; (void) file; (void) line; (void) gsl_errno;
+  ++expm1_handler_calls;
+}
+
 int
 test_expm1(void)
 {
@@ -205,5 +215,23 @@ test_expm1(void)
   TEST_SF_RESULT(s,  gsl_sf_expm1_e, ( 1.0e-8, &r), 1.0e-08 + 0.5e-16, TEST_TOL0, GSL_SUCCESS);
   TEST_SF_RESULT(s,  gsl_sf_expm1_e, ( 0.001, &r), 0.0010005001667083417, TEST_TOL0, GSL_SUCCESS);
   TEST_SF_RESULT(s,  gsl_sf_expm1_e, ( 10.0, &r), exp(10.0)-1.0, TEST_TOL0, GSL_SUCCESS);
+
+  /* gsl_expm1 (gsl_sys.h): same values, no error handler */
+  TEST_SF_VAL(s, gsl_expm1, (0.0), 0.0, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (1e-10), 1.000000000050000000002e-10, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (-1e-10), -9.999999999500000000017e-11, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (0.1), 0.1051709180756476248117078264902, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (-0.1), -0.09516258196404042683575094055356, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (10.0), 22025.465794806716516957900645284, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_expm1, (-10.0), -0.99995460007023751514846440848444, TEST_TOL0);
+  {
+    gsl_error_handler_t * old_handler = gsl_set_error_handler(&expm1_count_handler);
+    const double y = gsl_expm1(1000.0);
+    gsl_set_error_handler(old_handler);
+    gsl_test(expm1_handler_calls != 0, "gsl_expm1(1000) does not call the error handler");
+    s += (expm1_handler_calls != 0);
+    gsl_test(!(gsl_isinf(y) == 1), "gsl_expm1(1000) is +Inf");
+    s += !(gsl_isinf(y) == 1);
+  }
   return s;
 }

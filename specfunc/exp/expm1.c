@@ -54,3 +54,21 @@ gsl_sf_expm1_e(const double x, gsl_sf_result * result)
 }
 
 double gsl_sf_expm1(const double x) { EVAL_RESULT(gsl_sf_expm1_e(x, &result)); }
+
+/*
+ * gsl_expm1 (gsl_sys.h): same value as gsl_sf_expm1(), but like the
+ * original gsl_expm1 it does not call the error handler; overflow gives
+ * +Inf.
+ */
+double
+gsl_expm1(const double x)
+{
+  gsl_sf_result result;
+
+  if (x > GSL_LOG_DBL_MAX)
+    return GSL_POSINF;
+
+  gsl_sf_expm1_e(x, &result);
+
+  return result.val;
+}

@@ -20,6 +20,7 @@
 #include <config.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_test.h>
 #include <gsl/gsl_sf_log.h>
 
 #include "../test_sf.h"
@@ -159,6 +160,15 @@ do { \
  \
 } while (0)
 
+static int log1p_handler_calls = 0;
+
+static void
+log1p_count_handler(const char * reason, const char * file, int line, int gsl_errno)
+{
+  (void) reason; (void) file; (void) line; (void) gsl_errno;
+  ++log1p_handler_calls;
+}
+
 int
 test_log1p(void)
 {
@@ -174,5 +184,20 @@ test_log1p(void)
   TEST_SF_RESULT(s, gsl_sf_log1p_e, (-1.0000000000000002, &r),
           GSL_NAN, TEST_TOL0, GSL_EDOM);
 
+
+  /* gsl_log1p (gsl_sys.h): same values, no error handler */
+  TEST_SF_VAL(s, gsl_log1p, (0.0), 0.0, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_log1p, (1e-10), 9.9999999995000000000333333333308e-11, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_log1p, (0.1), 0.095310179804324860043952123280765, TEST_TOL0);
+  TEST_SF_VAL(s, gsl_log1p, (10.0), 2.3978952727983705440619435779651, TEST_TOL0);
+  {
+    gsl_error_handler_t * old_handler = gsl_set_error_handler(&log1p_count_handler);
+    const double y = gsl_log1p(-2.0);
+    gsl_set_error_handler(old_handler);
+    gsl_test(log1p_handler_calls != 0, "gsl_log1p(-2) does not call the error handler");
+    s += (log1p_handler_calls != 0);
+    gsl_test(!gsl_isnan(y), "gsl_log1p(-2) is NaN");
+    s += !gsl_isnan(y);
+  }
   return s;
 }

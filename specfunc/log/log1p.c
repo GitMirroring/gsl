@@ -68,3 +68,21 @@ gsl_sf_log1p_e(const double x, gsl_sf_result * result)
 }
 
 double gsl_sf_log1p(const double x) { EVAL_RESULT(gsl_sf_log1p_e(x, &result)); }
+
+/*
+ * gsl_log1p (gsl_sys.h): same value as gsl_sf_log1p(), but like the
+ * original gsl_log1p it does not call the error handler; x < -1 gives
+ * NaN.
+ */
+double
+gsl_log1p(const double x)
+{
+  gsl_sf_result result;
+
+  if (x < -1.0)
+    return GSL_NAN;
+
+  gsl_sf_log1p_e(x, &result);
+
+  return result.val;
+}

@@ -103,6 +103,30 @@ be made automatically if you use :code:`autoconf` to compile your
 application (see :ref:`portability-functions`).
 
 .. index::
+   single: log1p
+   single: logarithm, computed accurately near 1
+
+.. function:: double gsl_log1p (const double x)
+
+   This function computes the value of :math:`\log(1+x)` in a way that is
+   accurate for small :data:`x`. It provides an alternative to the BSD math
+   function :code:`log1p(x)`. It returns the same value as
+   :func:`gsl_sf_log1p`, without calling the error handler (:math:`x < -1`
+   gives NaN).
+
+.. index::
+   single: expm1
+   single: exponential, difference from 1 computed accurately
+
+.. function:: double gsl_expm1 (const double x)
+
+   This function computes the value of :math:`\exp(x)-1` in a way that is
+   accurate for small :data:`x`. It provides an alternative to the BSD math
+   function :code:`expm1(x)`. It returns the same value as
+   :func:`gsl_sf_expm1`, without calling the error handler (overflow
+   gives :math:`+\infty`).
+
+.. index::
    single: hypot
    single: euclidean distance function, hypot
    single: length, computed accurately using hypot

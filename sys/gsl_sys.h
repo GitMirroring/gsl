@@ -32,9 +32,8 @@
 
 __BEGIN_DECLS
 
-/* backward compatibility */
-#define gsl_log1p gsl_sf_log1p
-#define gsl_expm1 gsl_sf_expm1
+double gsl_log1p (const double x);
+double gsl_expm1 (const double x);
 
 double gsl_hypot (const double x, const double y);
 double gsl_hypot3 (const double x, const double y, const double z);
