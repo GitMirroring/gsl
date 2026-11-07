@@ -86,8 +86,17 @@ double
 gsl_ran_poisson_pdf (const unsigned int k, const double mu)
 {
   double p;
-  double lf = gsl_sf_lnfact (k); 
 
-  p = exp (log (mu) * k - lf - mu);
+  if (mu == 0.0)
+    {
+      /* all mass at k = 0 (the general formula gives 0 * log(0)) */
+      p = (k == 0) ? 1.0 : 0.0;
+    }
+  else
+    {
+      double lf = gsl_sf_lnfact (k);
+      p = exp (log (mu) * k - lf - mu);
+    }
+
   return p;
 }

@@ -49,6 +49,7 @@ void testDiscretePDF (double (*f) (void), double (*pdf) (unsigned int),
 void test_shuffle (void);
 void test_choose (void);
 void test_binomial_small_mean_f0 (void);
+void test_degenerate_pdf (void);
 double test_beta (void);
 double test_beta_pdf (double x);
 double test_bernoulli (void);
@@ -226,12 +227,18 @@ double test_multinomial_large_pdf (unsigned int n);
 void test_multinomial_moments (void);
 double test_negative_binomial (void);
 double test_negative_binomial_pdf (unsigned int n);
+double test_negative_binomial1 (void);
+double test_negative_binomial1_pdf (unsigned int n);
+double test_pascal1 (void);
+double test_pascal1_pdf (unsigned int n);
 double test_pascal (void);
 double test_pascal_pdf (unsigned int n);
 double test_pareto (void);
 double test_pareto_pdf (double x);
 double test_poisson (void);
 double test_poisson_pdf (unsigned int x);
+double test_poisson0 (void);
+double test_poisson0_pdf (unsigned int x);
 double test_poisson_large (void);
 double test_poisson_large_pdf (unsigned int x);
 double test_dir2d (void);
@@ -279,6 +286,7 @@ main (void)
   test_shuffle ();
   test_choose ();
   test_binomial_small_mean_f0 ();
+  test_degenerate_pdf ();
 
   testMoments (FUNC (ugaussian), 0.0, 100.0, 0.5);
   testMoments (FUNC (ugaussian), -1.0, 1.0, 0.6826895);
@@ -389,6 +397,7 @@ main (void)
   testDiscretePDF (FUNC2 (discrete2));
   testDiscretePDF (FUNC2 (discrete3));
   testDiscretePDF (FUNC2 (poisson));
+  testDiscretePDF (FUNC2 (poisson0));
   testDiscretePDF (FUNC2 (poisson_large));
   testDiscretePDF (FUNC2 (bernoulli));
   testDiscretePDF (FUNC2 (binomial));
@@ -413,6 +422,8 @@ main (void)
   testDiscretePDF (FUNC2 (multinomial_large));
   testDiscretePDF (FUNC2 (negative_binomial));
   testDiscretePDF (FUNC2 (pascal));
+  testDiscretePDF (FUNC2 (negative_binomial1));
+  testDiscretePDF (FUNC2 (pascal1));
 
   gsl_rng_free (r_global);
   gsl_ran_discrete_free (g1);
@@ -420,6 +431,30 @@ main (void)
   gsl_ran_discrete_free (g3);
 
   exit (gsl_test_summary ());
+}
+
+/* distributions with all their mass at k = 0, where the general
+   formulas give 0 * log(0) (bugs #43326, #66800); the sampling tests
+   would not detect a NaN pdf */
+void
+test_degenerate_pdf (void)
+{
+  unsigned int k;
+
+  for (k = 0; k <= 5; k++)
+    {
+      const double expected = (k == 0) ? 1.0 : 0.0;
+      double P;
+
+      P = gsl_ran_poisson_pdf (k, 0.0);
+      gsl_test (P != expected, "gsl_ran_poisson_pdf(%u, 0) = %g", k, P);
+
+      P = gsl_ran_negative_binomial_pdf (k, 1.0, 2.5);
+      gsl_test (P != expected, "gsl_ran_negative_binomial_pdf(%u, 1, 2.5) = %g", k, P);
+
+      P = gsl_ran_pascal_pdf (k, 1.0, 3);
+      gsl_test (P != expected, "gsl_ran_pascal_pdf(%u, 1, 3) = %g", k, P);
+    }
 }
 
 void
@@ -2412,6 +2447,31 @@ test_pascal_pdf (unsigned int n)
   return gsl_ran_pascal_pdf (n, 0.8, 3);
 }
 
+/* p = 1: all mass at k = 0 (bug #66800) */
+double
+test_negative_binomial1 (void)
+{
+  return gsl_ran_negative_binomial (r_global, 1.0, 20.0);
+}
+
+double
+test_negative_binomial1_pdf (unsigned int n)
+{
+  return gsl_ran_negative_binomial_pdf (n, 1.0, 20.0);
+}
+
+double
+test_pascal1 (void)
+{
+  return gsl_ran_pascal (r_global, 1.0, 3);
+}
+
+double
+test_pascal1_pdf (unsigned int n)
+{
+  return gsl_ran_pascal_pdf (n, 1.0, 3);
+}
+
 
 double
 test_pareto (void)
@@ -2460,6 +2520,19 @@ double
 test_poisson_pdf (unsigned int n)
 {
   return gsl_ran_poisson_pdf (n, 5.0);
+}
+
+/* mu = 0: all mass at k = 0 (bug #43326) */
+double
+test_poisson0 (void)
+{
+  return gsl_ran_poisson (r_global, 0.0);
+}
+
+double
+test_poisson0_pdf (unsigned int n)
+{
+  return gsl_ran_poisson_pdf (n, 0.0);
 }
 
 double

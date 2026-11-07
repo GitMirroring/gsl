@@ -3,6 +3,13 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #66800 (gsl_ran_negative_binomial_pdf and
+   gsl_ran_pascal_pdf returned NaN at k = 0 for p = 1; reported by
+   Fermé le Lundi)
+
+** fix for bug #43326 (gsl_ran_poisson_pdf returned NaN at k = 0 for
+   mu = 0; reported by K. Wassmuss)
+
 ** fix for bug #68625 (gsl_sf_hermite_func_der with m = 1 was wrong
    for n = 0 and n = 1, and its error estimate was zero for n = 0 and
    did not account for cancellation; reported by Fermé le Lundi)
