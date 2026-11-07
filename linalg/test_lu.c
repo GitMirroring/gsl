@@ -114,6 +114,47 @@ test_LU_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
   return s;
 }
 
+/*
+ * LU of a matrix whose column k is zero: column k stays exactly zero
+ * during the elimination, so the first zero pivot is U(k,k).  The
+ * factorization must still be completed (P A = L U) with a valid
+ * permutation, and the status must be k + 1 (bug #66026: the recursive
+ * Level 3 algorithm stopped at the zero pivot, leaving part of the
+ * pivot array unset, which could crash gsl_linalg_LU_decomp).
+ */
+static int
+test_LU_decomp_singular(const gsl_matrix * m0, const size_t k)
+{
+  int s = 0;
+  const size_t M = m0->size1;
+  const size_t N = m0->size2;
+  gsl_matrix * m = gsl_matrix_alloc(M, N);
+  gsl_matrix * A = gsl_matrix_alloc(M, N);
+  gsl_permutation * p = gsl_permutation_alloc(M);
+  gsl_vector_view c;
+  int signum, status;
+
+  gsl_matrix_memcpy(m, m0);
+  c = gsl_matrix_column(m, k);
+  gsl_vector_set_zero(&c.vector);
+  gsl_matrix_memcpy(A, m);
+
+  status = gsl_linalg_LU_decomp(A, p, &signum);
+  gsl_test(status != (int) k + 1, "LU_decomp singular (%lu,%lu) zero column %lu: status %d, expected %lu",
+           M, N, k, status, k + 1);
+  gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS,
+           "LU_decomp singular (%lu,%lu) zero column %lu: valid permutation", M, N, k);
+  s += (status != (int) k + 1);
+
+  test_LU_decomp_eps(m, 4096.0 * N * GSL_DBL_EPSILON, "LU_decomp singular");
+
+  gsl_matrix_free(m);
+  gsl_matrix_free(A);
+  gsl_permutation_free(p);
+
+  return s;
+}
+
 static int
 test_LU_decomp(gsl_rng * r)
 {
@@ -172,6 +213,35 @@ test_LU_decomp(gsl_rng * r)
     create_random_matrix(m, r);
     test_LU_decomp_eps(m, 1.0e4 * n * GSL_DBL_EPSILON, "LU_decomp rect3");
     gsl_matrix_free(m);
+  }
+
+  /* bug #66026: singular matrices beyond the Level 2 crossover, with the
+     zero pivot in either half of the recursion */
+  {
+    const size_t sizes[3][2] = { { 127, 127 }, { 300, 300 }, { 200, 120 } };
+    /* own generator, so that the matrices of the other tests are unchanged */
+    gsl_rng * r2 = gsl_rng_alloc(gsl_rng_default);
+    size_t t;
+
+    for (t = 0; t < 3; ++t)
+      {
+        const size_t M = sizes[t][0], N = sizes[t][1];
+        size_t ks[4];
+        gsl_matrix * m = gsl_matrix_alloc(M, N);
+        size_t i;
+
+        ks[0] = 0;
+        ks[1] = 5;
+        ks[2] = N / 2;
+        ks[3] = N - 1;
+
+        create_random_matrix(m, r2);
+        for (i = 0; i < 4; ++i)
+          s += test_LU_decomp_singular(m, ks[i]);
+
+        gsl_matrix_free(m);
+      }
+    gsl_rng_free(r2);
   }
 
   return s;

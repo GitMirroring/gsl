@@ -3,6 +3,13 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #66026 (gsl_linalg_LU_decomp and
+   gsl_linalg_complex_LU_decomp could crash for singular matrices
+   larger than 24 x 24: the recursive algorithm stopped at the first
+   zero pivot and left part of the pivot array unset; the factorization
+   is now completed, as for smaller matrices, and the index of the
+   first zero pivot returned; reported by A. Davison)
+
 ** fix for bug #61342 (C11 programs including <complex.h> got wrong
    results or crashes from functions taking or returning complex
    numbers by value, because the library is built with the struct

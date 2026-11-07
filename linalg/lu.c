@@ -246,7 +246,7 @@ LU_decomp_L3 (gsl_matrix * A, gsl_vector_uint * ipiv)
        *      N1  N2
        * M  [ AL  AR  ]
        */
-      int status;
+      int status, status2;
       const size_t N1 = GSL_LINALG_SPLIT(N);
       const size_t N2 = N - N1;
       const size_t M2 = M - N1;
@@ -267,10 +267,15 @@ LU_decomp_L3 (gsl_matrix * A, gsl_vector_uint * ipiv)
 
       size_t i;
 
+      /*
+       * A zero pivot does not stop the factorization (as in LAPACK
+       * DGETRF): it is completed, so that all of ipiv is set, and the
+       * index of the first zero pivot is returned at the end.  (Only
+       * U is singular; the unit lower triangular A11 used below is not.)
+       */
+
       /* recursion on (AL, ipiv1) */
       status = LU_decomp_L3(&AL.matrix, &ipiv1.vector);
-      if (status)
-        return status;
 
       /* apply ipiv1 to AR */
       apply_pivots(&AR.matrix, &ipiv1.vector);
@@ -282,9 +287,9 @@ LU_decomp_L3 (gsl_matrix * A, gsl_vector_uint * ipiv)
       gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, -1.0, &A21.matrix, &A12.matrix, 1.0, &A22.matrix);
 
       /* recursion on (A22, ipiv2) */
-      status = LU_decomp_L3(&A22.matrix, &ipiv2.vector);
-      if (status)
-        return status;
+      status2 = LU_decomp_L3(&A22.matrix, &ipiv2.vector);
+      if (status == GSL_SUCCESS && status2 > 0)
+        status = status2 + (int) N1;
 
       /* apply pivots to A21 */
       apply_pivots(&A21.matrix, &ipiv2.vector);
@@ -296,7 +301,7 @@ LU_decomp_L3 (gsl_matrix * A, gsl_vector_uint * ipiv)
           *ptr += N1;
         }
 
-      return GSL_SUCCESS;
+      return status;
     }
 }
 

@@ -127,6 +127,40 @@ test_LUc_decomp_eps(const gsl_matrix_complex * m, const double eps, const char *
   return s;
 }
 
+/* as test_LU_decomp_singular() (bug #66026) */
+static int
+test_LUc_decomp_singular(const gsl_matrix_complex * m0, const size_t k)
+{
+  int s = 0;
+  const size_t M = m0->size1;
+  const size_t N = m0->size2;
+  gsl_matrix_complex * m = gsl_matrix_complex_alloc(M, N);
+  gsl_matrix_complex * A = gsl_matrix_complex_alloc(M, N);
+  gsl_permutation * p = gsl_permutation_alloc(M);
+  gsl_vector_complex_view c;
+  int signum, status;
+
+  gsl_matrix_complex_memcpy(m, m0);
+  c = gsl_matrix_complex_column(m, k);
+  gsl_vector_complex_set_zero(&c.vector);
+  gsl_matrix_complex_memcpy(A, m);
+
+  status = gsl_linalg_complex_LU_decomp(A, p, &signum);
+  gsl_test(status != (int) k + 1, "complex_LU_decomp singular (%lu,%lu) zero column %lu: status %d, expected %lu",
+           M, N, k, status, k + 1);
+  gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS,
+           "complex_LU_decomp singular (%lu,%lu) zero column %lu: valid permutation", M, N, k);
+  s += (status != (int) k + 1);
+
+  test_LUc_decomp_eps(m, 1.0e5 * N * GSL_DBL_EPSILON, "complex_LU_decomp singular");
+
+  gsl_matrix_complex_free(m);
+  gsl_matrix_complex_free(A);
+  gsl_permutation_free(p);
+
+  return s;
+}
+
 static int
 test_LUc_decomp(gsl_rng * r)
 {
@@ -182,6 +216,34 @@ test_LUc_decomp(gsl_rng * r)
     create_random_complex_matrix(m, r);
     test_LUc_decomp_eps(m, 1.0e3 * n * GSL_DBL_EPSILON, "complex_LU_decomp rect3");
     gsl_matrix_complex_free(m);
+  }
+
+  /* bug #66026 */
+  {
+    const size_t sizes[3][2] = { { 127, 127 }, { 200, 200 }, { 150, 90 } };
+    /* own generator, so that the matrices of the other tests are unchanged */
+    gsl_rng * r2 = gsl_rng_alloc(gsl_rng_default);
+    size_t t;
+
+    for (t = 0; t < 3; ++t)
+      {
+        const size_t M = sizes[t][0], N = sizes[t][1];
+        size_t ks[4];
+        gsl_matrix_complex * m = gsl_matrix_complex_alloc(M, N);
+        size_t i;
+
+        ks[0] = 0;
+        ks[1] = 5;
+        ks[2] = N / 2;
+        ks[3] = N - 1;
+
+        create_random_complex_matrix(m, r2);
+        for (i = 0; i < 4; ++i)
+          s += test_LUc_decomp_singular(m, ks[i]);
+
+        gsl_matrix_complex_free(m);
+      }
+    gsl_rng_free(r2);
   }
 
   return s;

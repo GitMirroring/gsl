@@ -64,6 +64,12 @@ Note that the :math:`LU` decomposition is valid for singular matrices.
    Algorithm 3.4.1), combined with a recursive algorithm based on
    Level 3 BLAS (Peise and Bientinesi, 2016).
 
+   If :math:`U` has a zero diagonal element (the matrix is singular),
+   the decomposition is still completed, and the function returns the
+   positive integer :math:`k` such that :math:`U_{kk}`, counting from
+   1, is the first zero diagonal element. Otherwise it returns
+   :macro:`GSL_SUCCESS`.
+
    The functions return :macro:`GSL_SUCCESS` for non-singular matrices.
    If the matrix is singular, the factorization is still completed, and
    the functions return an integer :math:`k \in [1, MIN(M,N)]` such that
