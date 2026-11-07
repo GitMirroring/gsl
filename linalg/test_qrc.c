@@ -104,7 +104,6 @@ test_QRc_solve_eps(const gsl_matrix_complex * A, const gsl_vector_complex * rhs,
   int s = 0;
   const size_t M = A->size1;
   const size_t N = A->size2;
-  size_t i;
 
   gsl_matrix_complex * QR = gsl_matrix_complex_alloc(M, N);
   gsl_vector_complex * tau = gsl_vector_complex_alloc(N);
@@ -115,16 +114,7 @@ test_QRc_solve_eps(const gsl_matrix_complex * A, const gsl_vector_complex * rhs,
   s += gsl_linalg_complex_QR_decomp(QR, tau);
   s += gsl_linalg_complex_QR_solve(QR, tau, rhs, x);
 
-  for (i = 0; i < M; i++)
-    {
-      gsl_complex xi = gsl_vector_complex_get(x, i);
-      gsl_complex yi = gsl_vector_complex_get(sol, i);
-
-      gsl_test_rel(GSL_REAL(xi), GSL_REAL(yi), eps, "%s real (%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-      gsl_test_rel(GSL_IMAG(xi), GSL_IMAG(yi), eps, "%s imag (%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise_complex(x, sol, eps, desc, "");
 
   gsl_matrix_complex_free(QR);
   gsl_vector_complex_free(tau);
@@ -149,7 +139,8 @@ test_QRc_solve(gsl_rng * r)
       create_random_complex_vector(sol, r);
       gsl_blas_zgemv(CblasNoTrans, GSL_COMPLEX_ONE, A, sol, GSL_COMPLEX_ZERO, rhs);
 
-      s += test_QRc_solve_eps(A, rhs, sol, 1.0e5 * N * GSL_DBL_EPSILON, "complex QR_solve_r random");
+      s += test_QRc_solve_eps(A, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond_complex(A),
+                              "complex_QR_solve random");
 
       gsl_matrix_complex_free(A);
       gsl_vector_complex_free(sol);
@@ -349,7 +340,6 @@ test_QRc_solve_r_eps(const gsl_matrix_complex * A, const gsl_vector_complex * rh
   int s = 0;
   const size_t M = A->size1;
   const size_t N = A->size2;
-  size_t i;
 
   gsl_matrix_complex * QR = gsl_matrix_complex_alloc(M, N);
   gsl_matrix_complex * T = gsl_matrix_complex_alloc(N, N);
@@ -360,16 +350,7 @@ test_QRc_solve_r_eps(const gsl_matrix_complex * A, const gsl_vector_complex * rh
   s += gsl_linalg_complex_QR_decomp_r(QR, T);
   s += gsl_linalg_complex_QR_solve_r(QR, T, rhs, x);
 
-  for (i = 0; i < M; i++)
-    {
-      gsl_complex xi = gsl_vector_complex_get(x, i);
-      gsl_complex yi = gsl_vector_complex_get(sol, i);
-
-      gsl_test_rel(GSL_REAL(xi), GSL_REAL(yi), eps, "%s real (%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, GSL_REAL(xi), GSL_REAL(yi));
-      gsl_test_rel(GSL_IMAG(xi), GSL_IMAG(yi), eps, "%s imag (%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, GSL_IMAG(xi), GSL_IMAG(yi));
-    }
+  s += test_solution_normwise_complex(x, sol, eps, desc, "");
 
   gsl_matrix_complex_free(QR);
   gsl_matrix_complex_free(T);
@@ -394,7 +375,8 @@ test_QRc_solve_r(gsl_rng * r)
       create_random_complex_vector(sol, r);
       gsl_blas_zgemv(CblasNoTrans, GSL_COMPLEX_ONE, A, sol, GSL_COMPLEX_ZERO, rhs);
 
-      s += test_QRc_solve_r_eps(A, rhs, sol, 1.0e6 * N * GSL_DBL_EPSILON, "complex_QR_solve_r random");
+      s += test_QRc_solve_r_eps(A, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond_complex(A),
+                                "complex_QR_solve_r random");
 
       gsl_matrix_complex_free(A);
       gsl_vector_complex_free(sol);

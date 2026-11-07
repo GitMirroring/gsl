@@ -266,7 +266,6 @@ test_LU_solve_eps(const gsl_matrix * m, const gsl_vector * rhs, const gsl_vector
   int s = 0;
   const size_t N = m->size1;
   int signum;
-  size_t i;
 
   gsl_permutation * perm = gsl_permutation_alloc(N);
   gsl_matrix * lu  = gsl_matrix_alloc(N, N);
@@ -278,25 +277,11 @@ test_LU_solve_eps(const gsl_matrix * m, const gsl_vector * rhs, const gsl_vector
   s += gsl_linalg_LU_decomp(lu, perm, &signum);
   s += gsl_linalg_LU_solve(lu, perm, rhs, x);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps, "%s: %3lu[%lu]: %22.18g    %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, "");
 
   s += gsl_linalg_LU_refine(m, lu, perm, rhs, x, residual);
 
-  for (i = 0; i < N; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps, "%s: improved %3lu[%lu]: %22.18g    %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, " refined");
 
   gsl_vector_free(residual);
   gsl_vector_free(x);
@@ -322,13 +307,13 @@ test_LU_solve(gsl_rng * r)
       create_random_matrix(m, r);
       create_random_vector(sol, r);
       gsl_blas_dgemv(CblasNoTrans, 1.0, m, sol, 0.0, rhs);
-      test_LU_solve_eps(m, rhs, sol, 1.0e5 * n * GSL_DBL_EPSILON, "LU_solve random");
+      test_LU_solve_eps(m, rhs, sol, TEST_SOLVE_C * n * GSL_DBL_EPSILON * test_cond(m), "LU_solve random");
 
       if (n <= 4)
         {
           create_hilbert_matrix2(m);
           gsl_blas_dsymv(CblasLower, 1.0, m, sol, 0.0, rhs);
-          test_LU_solve_eps(m, rhs, sol, 4096.0 * n * GSL_DBL_EPSILON, "LU_solve hilbert");
+          test_LU_solve_eps(m, rhs, sol, TEST_SOLVE_C * n * GSL_DBL_EPSILON * test_cond(m), "LU_solve hilbert");
         }
 
       gsl_matrix_free(m);

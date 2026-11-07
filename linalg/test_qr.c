@@ -301,7 +301,6 @@ test_QR_solve_r_eps(const gsl_matrix * A, const gsl_vector * rhs, const gsl_vect
   int s = 0;
   const size_t M = A->size1;
   const size_t N = A->size2;
-  size_t i;
 
   gsl_matrix * QR = gsl_matrix_alloc(M, N);
   gsl_matrix * T = gsl_matrix_alloc(N, N);
@@ -312,14 +311,7 @@ test_QR_solve_r_eps(const gsl_matrix * A, const gsl_vector * rhs, const gsl_vect
   s += gsl_linalg_QR_decomp_r(QR, T);
   s += gsl_linalg_QR_solve_r(QR, T, rhs, x);
 
-  for (i = 0; i < M; i++)
-    {
-      double xi = gsl_vector_get(x, i);
-      double yi = gsl_vector_get(sol, i);
-
-      gsl_test_rel(xi, yi, eps, "%s (%3lu)[%lu]: %22.18g   %22.18g\n",
-                   desc, N, i, xi, yi);
-    }
+  s += test_solution_normwise(x, sol, eps, desc, "");
 
   gsl_matrix_free(QR);
   gsl_matrix_free(T);
@@ -344,7 +336,8 @@ test_QR_solve_r(gsl_rng * r)
       create_random_vector(sol, r);
       gsl_blas_dgemv(CblasNoTrans, 1.0, A, sol, 0.0, rhs);
 
-      s += test_QR_solve_r_eps(A, rhs, sol, 1.0e5 * N * GSL_DBL_EPSILON, "QR_solve_r random");
+      s += test_QR_solve_r_eps(A, rhs, sol, TEST_SOLVE_C * N * GSL_DBL_EPSILON * test_cond(A),
+                               "QR_solve_r random");
 
       gsl_matrix_free(A);
       gsl_vector_free(sol);

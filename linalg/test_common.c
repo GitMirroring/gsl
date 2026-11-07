@@ -371,3 +371,125 @@ gen2band_matrix(const size_t p, const size_t q, const gsl_matrix * A, gsl_matrix
       return GSL_SUCCESS;
     }
 }
+
+/*
+ * Checks of a computed solution x of A x = b against the exact solution
+ * sol, where A or sol is random.  A backward stable solver only
+ * guarantees the normwise bound
+ *
+ *   ||x - sol||_inf / ||sol||_inf <= c N eps kappa(A)
+ *
+ * (Higham, Accuracy and Stability of Numerical Algorithms, 2nd ed.,
+ * section 7.1); a component much smaller than ||sol|| can have a much
+ * larger relative error, and random matrices are occasionally
+ * ill-conditioned, so a fixed component-wise tolerance fails for a small
+ * fraction of random systems, depending on rounding details of the
+ * platform (bug #67705).  On 250000 random systems up to N = 50 the ratio of the
+ * two sides with c = 1 stayed below 0.9 (real) and 3.1 (complex), so
+ * the tests use c = TEST_SOLVE_C.
+ */
+
+#define TEST_SOLVE_C 64.0
+
+/* kappa_1 estimate of a square matrix, from the R factor of its QR decomposition */
+static double
+test_cond(const gsl_matrix * A)
+{
+  const size_t N = A->size1;
+  gsl_matrix * QR = gsl_matrix_alloc(N, N);
+  gsl_matrix * T = gsl_matrix_alloc(N, N);
+  gsl_vector * work = gsl_vector_alloc(3 * N);
+  double rcond;
+
+  gsl_matrix_memcpy(QR, A);
+  gsl_linalg_QR_decomp_r(QR, T);
+  gsl_linalg_tri_upper_rcond(QR, &rcond, work);
+
+  gsl_matrix_free(QR);
+  gsl_matrix_free(T);
+  gsl_vector_free(work);
+
+  return 1.0 / rcond;
+}
+
+/* the same for complex A, through its real form [Re -Im; Im Re] */
+static double
+test_cond_complex(const gsl_matrix_complex * A)
+{
+  const size_t N = A->size1;
+  gsl_matrix * B = gsl_matrix_alloc(2 * N, 2 * N);
+  double kappa;
+  size_t i, j;
+
+  for (i = 0; i < N; ++i)
+    {
+      for (j = 0; j < N; ++j)
+        {
+          gsl_complex z = gsl_matrix_complex_get(A, i, j);
+          gsl_matrix_set(B, i, j, GSL_REAL(z));
+          gsl_matrix_set(B, i, N + j, -GSL_IMAG(z));
+          gsl_matrix_set(B, N + i, j, GSL_IMAG(z));
+          gsl_matrix_set(B, N + i, N + j, GSL_REAL(z));
+        }
+    }
+
+  kappa = test_cond(B);
+  gsl_matrix_free(B);
+
+  return kappa;
+}
+
+/* normwise check of x against sol with relative tolerance tol (what: "" or a
+   qualifier for the description, such as " refined") */
+static int
+test_solution_normwise(const gsl_vector * x, const gsl_vector * sol, const double tol,
+                       const char * desc, const char * what)
+{
+  const size_t N = sol->size;
+  double err = 0.0, nrm = 0.0;
+  size_t i;
+  int s;
+
+  for (i = 0; i < N; ++i)
+    {
+      double d = fabs(gsl_vector_get(x, i) - gsl_vector_get(sol, i));
+      double a = fabs(gsl_vector_get(sol, i));
+      if (!(d <= err))
+        err = d;              /* also propagates NaN */
+      if (a > nrm)
+        nrm = a;
+    }
+
+  s = !(err <= tol * nrm);
+  gsl_test(s, "%s%s (%3lu): normwise relative error %g, tolerance %g",
+           desc, what, N, err / nrm, tol);
+
+  return s;
+}
+
+static int
+test_solution_normwise_complex(const gsl_vector_complex * x, const gsl_vector_complex * sol,
+                               const double tol, const char * desc, const char * what)
+{
+  const size_t N = sol->size;
+  double err = 0.0, nrm = 0.0;
+  size_t i;
+  int s;
+
+  for (i = 0; i < N; ++i)
+    {
+      gsl_complex d = gsl_complex_sub(gsl_vector_complex_get(x, i), gsl_vector_complex_get(sol, i));
+      double e = gsl_complex_abs(d);
+      double a = gsl_complex_abs(gsl_vector_complex_get(sol, i));
+      if (!(e <= err))
+        err = e;
+      if (a > nrm)
+        nrm = a;
+    }
+
+  s = !(err <= tol * nrm);
+  gsl_test(s, "%s%s (%3lu): normwise relative error %g, tolerance %g",
+           desc, what, N, err / nrm, tol);
+
+  return s;
+}

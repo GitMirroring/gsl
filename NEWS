@@ -3,6 +3,12 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #67705 (linalg tests "QR_solve_r random" and similar
+   failed on some platforms: the solutions of random linear systems
+   were checked component-wise, which a backward stable solver does
+   not guarantee; they are now checked in norm, scaled by the
+   condition number; reported by D. Jerius)
+
 ** gsl_linalg_LU_decomp and gsl_linalg_complex_LU_decomp no longer
    allocate a workspace (the row interchanges are kept in the output
    permutation), and for a singular matrix with several zero pivots
