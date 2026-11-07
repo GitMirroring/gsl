@@ -3,6 +3,21 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #57978 (gsl_sf_sin_pi and gsl_sf_cos_pi returned 0 and 1
+   for infinite arguments; they now return NaN with GSL_EDOM, also for
+   NaN; reported by J. Vanover)
+
+** fix for bug #57979 (gsl_sf_hypot(NaN, y) returned sqrt(2) |y|; NaN
+   arguments now give NaN with GSL_EDOM, and an infinite argument gives
+   +Inf, also if the other is NaN, as C99 hypot; reported by J. Vanover)
+
+** fix for bug #67774 (gsl_sf_atanint returned a negative error
+   estimate for -1 <= x < 0; reported by Fermé le Lundi)
+
+** fix for bug #60741 (gsl_sf_lambert_W0 lost relative accuracy for
+   small |x| and returned 0 for |x| below about 1e-50; reported by
+   D. Zou)
+
 ** fix for bug #66800 (gsl_ran_negative_binomial_pdf and
    gsl_ran_pascal_pdf returned NaN at k = 0 for p = 1; reported by
    Fermé le Lundi)

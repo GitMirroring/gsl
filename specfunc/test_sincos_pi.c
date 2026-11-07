@@ -41,6 +41,17 @@ test_sincos_pi(void)
   int k = 0, kmax = 12;
   double x = 0.0, ix = 0.0, fx = 0.0, exact = 0.0;
 
+  /* non-finite arguments (bug #57978) */
+  TEST_SF(s, gsl_sf_sin_pi_e, (GSL_POSINF, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_sin_pi_e, (GSL_NEGINF, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_sin_pi_e, (GSL_NAN, &r),    GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_cos_pi_e, (GSL_POSINF, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_cos_pi_e, (GSL_NEGINF, &r), GSL_NAN, TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_cos_pi_e, (GSL_NAN, &r),    GSL_NAN, TEST_TOL0, GSL_EDOM);
+  /* large finite arguments are even integers */
+  TEST_SF(s, gsl_sf_sin_pi_e, (1.0e300, &r), 0.0, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_cos_pi_e, (1.0e300, &r), 1.0, TEST_TOL0, GSL_SUCCESS);
+
   /* sin_pi tests */
 
   fx = 0.5;

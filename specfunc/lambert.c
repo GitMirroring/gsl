@@ -117,6 +117,17 @@ gsl_sf_lambert_W0_e(double x, gsl_sf_result * result)
     result->err = 0.0;
     return GSL_SUCCESS;
   }
+  else if(fabs(x) < 1.0e-05) {
+    /* Maclaurin series W0(x) = sum_n (-n)^(n-1)/n! x^n; the Halley
+     * iteration below loses relative accuracy near 0 (and returns 0
+     * for |x| < ~1e-50).  The first omitted term, 16807/720 x^7, is
+     * below 2.3e-29 |x| here.
+     */
+    result->val = x * (1.0 + x * (-1.0 + x * (1.5 + x * (-8.0/3.0
+                  + x * (125.0/24.0 + x * (-54.0/5.0))))));
+    result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+    return GSL_SUCCESS;
+  }
   else if(q < 0.0) {
     /* Strictly speaking this is an error. But because of the
      * arithmetic operation connecting x and q, I am a little

@@ -1289,6 +1289,12 @@ int test_expint(void)
   TEST_SF(s,  gsl_sf_Ci_e, (4294967296.0, &r), -1.0756463261957757485e-10, TEST_SQRT_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_Ci_e, (1099511627776.0, &r), -3.689865584710764214e-13, 1024.0*TEST_SQRT_TOL0, GSL_SUCCESS);
 
+  /* negative x: the error estimate was negative (bug #67774) */
+  TEST_SF(s,  gsl_sf_atanint_e, (-1.0e-5, &r), -9.999999999888888888892889e-06, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_atanint_e, (-0.1, &r), -0.09988928686033618404838235, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_atanint_e, (-0.5, &r), -0.4872223582945223571102345,  TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_atanint_e, (-1.0, &r), -0.9159655941772190150546035,  TEST_TOL0, GSL_SUCCESS);
+
   TEST_SF(s,  gsl_sf_atanint_e, (1.0e-10, &r), 1.0e-10, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_atanint_e, (1.0e-05, &r), 9.99999999988888888889e-06, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_atanint_e, (0.1, &r), 0.09988928686033618404, TEST_TOL0, GSL_SUCCESS);
@@ -1925,6 +1931,17 @@ int test_lambert(void)
   gsl_sf_result r;
   int s = 0;
 
+  /* small |x| (bug #60741) */
+  TEST_SF(s, gsl_sf_lambert_W0_e, (1.0e-300, &r),  1.0e-300,  TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (1.0e-50, &r),   1.0e-50,   TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (1.0e-30, &r),   1.0e-30,   TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (-1.0e-30, &r), -1.0e-30,   TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (1.0e-6, &r),    9.999990000014999973333385e-07, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (-1.0e-6, &r),  -1.000001000001500002666672e-06, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (9.99e-6, &r),   9.98990020139547793885833e-06,  TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (-9.99e-6, &r), -9.990099801595531059178138e-06, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_lambert_W0_e, (2.0e-5, &r),    1.999960001199957334999931e-05, TEST_TOL0, GSL_SUCCESS);
+
   TEST_SF(s, gsl_sf_lambert_W0_e, (0.0, &r),  0.0,  TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_lambert_W0_e, (1.0, &r),  0.567143290409783872999969,  TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_lambert_W0_e, (2.0, &r),  0.852605502013725491346472,  TEST_TOL0, GSL_SUCCESS);
@@ -2175,6 +2192,16 @@ int test_trig(void)
   double theta;
   int s = 0;
   int sa;
+
+  /* hypot with NaN and Inf arguments (bug #57979) */
+  TEST_SF(s, gsl_sf_hypot_e, (3.0, 4.0, &r),         5.0,       TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hypot_e, (1.0e300, 1.0e300, &r), 1.414213562373095048801689e+300, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hypot_e, (GSL_NAN, 1.0, &r),     GSL_NAN,    TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_hypot_e, (1.0, GSL_NAN, &r),     GSL_NAN,    TEST_TOL0, GSL_EDOM);
+  TEST_SF(s, gsl_sf_hypot_e, (GSL_POSINF, 1.0, &r),  GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hypot_e, (1.0, GSL_NEGINF, &r),  GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hypot_e, (GSL_POSINF, GSL_NAN, &r), GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hypot_e, (GSL_NAN, GSL_NEGINF, &r), GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
 
   TEST_SF(s, gsl_sf_sin_e, (-10.0, &r),       0.5440211108893698134,    TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_sin_e, (1.0, &r),         0.8414709848078965067,    TEST_TOL0, GSL_SUCCESS);

@@ -25,6 +25,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_sincos_pi.h>
 
+#include "error.h"
+
 /* Any double precision number bigger than this is automatically an even integer. */
 #define TWOBIG (2.0 / GSL_DBL_EPSILON)
 
@@ -145,6 +147,12 @@ gsl_sf_sin_pi_e(const double x, gsl_sf_result *result)
   long q;
   int sign = 1, status;
 
+  /* sin(pi x) is undefined for infinite x (and NaN propagates); the
+     test below would treat +-Inf as an even integer */
+  if (!gsl_finite(x)) {
+    DOMAIN_ERROR(result);
+  }
+
   result->val = 0.0;
   result->err = 0.0;
   fracx = modf(x,&intx);
@@ -186,6 +194,12 @@ gsl_sf_cos_pi_e(const double x, gsl_sf_result *result)
   double intx = 0.0, fracx = 0.0;
   long q;
   int sign = 1, status;
+
+  /* cos(pi x) is undefined for infinite x (and NaN propagates); the
+     test below would treat +-Inf as an even integer */
+  if (!gsl_finite(x)) {
+    DOMAIN_ERROR(result);
+  }
 
   result->val = 0.0;
   result->err = 0.0;

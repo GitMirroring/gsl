@@ -284,7 +284,17 @@ gsl_sf_hypot_e(const double x, const double y, gsl_sf_result * result)
 {
   /* CHECK_POINTER(result) */
 
-  if(x == 0.0 && y == 0.0) {
+  if(gsl_isinf(x) || gsl_isinf(y)) {
+    /* +Inf even if the other argument is NaN (C99 hypot) */
+    result->val = GSL_POSINF;
+    result->err = 0.0;
+    return GSL_SUCCESS;
+  }
+  else if(gsl_isnan(x) || gsl_isnan(y)) {
+    /* the comparisons below would discard a NaN argument */
+    DOMAIN_ERROR(result);
+  }
+  else if(x == 0.0 && y == 0.0) {
     result->val = 0.0;
     result->err = 0.0;
     return GSL_SUCCESS;

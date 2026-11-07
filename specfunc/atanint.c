@@ -85,7 +85,7 @@ gsl_sf_atanint_e(const double x, gsl_sf_result * result)
     gsl_sf_result result_c;
     cheb_eval_e(&atanint_cs, t, &result_c);
     result->val  = x * result_c.val;
-    result->err  = x * result_c.err;
+    result->err  = ax * result_c.err;
     result->err += GSL_DBL_EPSILON * fabs(result->val);
     return GSL_SUCCESS;
   }
