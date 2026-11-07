@@ -2110,16 +2110,23 @@ Householder solver for linear systems
 .. function:: int gsl_linalg_HH_solve (gsl_matrix * A, const gsl_vector * b, gsl_vector * x)
 
    This function solves the system :math:`A x = b` directly using
-   Householder transformations. On output the solution is stored in :data:`x`
-   and :data:`b` is not modified. The matrix :data:`A` is destroyed by the
-   Householder transformations.
+   Householder transformations, where :data:`A` is :math:`M`-by-:math:`N`
+   with :math:`M \ge N`, :data:`b` has length :math:`M` and :data:`x` has
+   length :math:`N`.  For :math:`M > N` the least squares solution, which
+   minimizes :math:`||b - A x||_2`, is computed.  On output the solution is
+   stored in :data:`x` and :data:`b` is not modified. The matrix :data:`A`
+   is destroyed by the Householder transformations.  If :math:`M < N` the
+   error code :macro:`GSL_EINVAL` is returned.
 
 .. function:: int gsl_linalg_HH_svx (gsl_matrix * A, gsl_vector * x)
 
    This function solves the system :math:`A x = b` in-place using
-   Householder transformations.  On input :data:`x` should contain the
-   right-hand side :math:`b`, which is replaced by the solution on output.  The
-   matrix :data:`A` is destroyed by the Householder transformations.
+   Householder transformations, where :data:`A` is :math:`M`-by-:math:`N`
+   with :math:`M \ge N`.  On input :data:`x`, of length :math:`M`, should
+   contain the right-hand side :math:`b`; on output its first :math:`N`
+   elements contain the solution (the least squares solution for
+   :math:`M > N`).  The matrix :data:`A` is destroyed by the Householder
+   transformations.
 
 .. index:: tridiagonal systems
 

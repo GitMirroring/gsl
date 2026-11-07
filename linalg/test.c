@@ -2628,6 +2628,89 @@ int test_HH_solve(void)
 }
 
 
+/* M x N least squares (M >= N) by HH_solve and HH_svx (bug #42472) */
+static int
+test_HH_lssolve(gsl_rng * r)
+{
+  int s = 0;
+  size_t M, N;
+
+  for (M = 1; M <= 30; ++M)
+    {
+      for (N = 1; N <= M; ++N)
+        {
+          gsl_matrix * A = gsl_matrix_alloc(M, N);
+          gsl_matrix * HH = gsl_matrix_alloc(M, N);
+          gsl_vector * b = gsl_vector_alloc(M);
+          gsl_vector * x = gsl_vector_alloc(N);
+          gsl_vector * xm = gsl_vector_alloc(M);
+
+          create_random_matrix(A, r);
+          create_random_vector(b, r);
+
+          gsl_matrix_memcpy(HH, A);
+          s += gsl_linalg_HH_solve(HH, b, x);
+          s += test_lssolve_normal(A, b, x, 1.0e5 * M * GSL_DBL_EPSILON, "HH_solve random");
+
+          /* in place: x(1:N) of the length-M vector */
+          gsl_matrix_memcpy(HH, A);
+          gsl_vector_memcpy(xm, b);
+          s += gsl_linalg_HH_svx(HH, xm);
+          {
+            gsl_vector_const_view x1 = gsl_vector_const_subvector(xm, 0, N);
+            s += test_lssolve_normal(A, b, &x1.vector, 1.0e5 * M * GSL_DBL_EPSILON, "HH_svx random");
+          }
+
+          gsl_matrix_free(A);
+          gsl_matrix_free(HH);
+          gsl_vector_free(b);
+          gsl_vector_free(x);
+          gsl_vector_free(xm);
+        }
+    }
+
+  /* underdetermined systems and mismatched lengths are rejected */
+  {
+    gsl_matrix * A23 = gsl_matrix_alloc(2, 3);
+    gsl_matrix * A32 = gsl_matrix_alloc(3, 2);
+    gsl_vector * v2 = gsl_vector_alloc(2);
+    gsl_vector * v3 = gsl_vector_alloc(3);
+    int status;
+
+    create_random_matrix(A23, r);
+    create_random_matrix(A32, r);
+    create_random_vector(v2, r);
+    create_random_vector(v3, r);
+
+    status = gsl_linalg_HH_solve(A23, v2, v3);
+    gsl_test(status != GSL_EINVAL, "  HH_solve 2x3 underdetermined: status %d", status);
+    s += (status != GSL_EINVAL);
+
+    status = gsl_linalg_HH_svx(A23, v2);
+    gsl_test(status != GSL_EINVAL, "  HH_svx 2x3 underdetermined: status %d", status);
+    s += (status != GSL_EINVAL);
+
+    status = gsl_linalg_HH_solve(A32, v2, v2);     /* b must have length 3 */
+    gsl_test(status != GSL_EBADLEN, "  HH_solve 3x2 bad b length: status %d", status);
+    s += (status != GSL_EBADLEN);
+
+    status = gsl_linalg_HH_solve(A32, v3, v3);     /* x must have length 2 */
+    gsl_test(status != GSL_EBADLEN, "  HH_solve 3x2 bad x length: status %d", status);
+    s += (status != GSL_EBADLEN);
+
+    status = gsl_linalg_HH_svx(A32, v2);           /* x must have length 3 */
+    gsl_test(status != GSL_EBADLEN, "  HH_svx 3x2 bad x length: status %d", status);
+    s += (status != GSL_EBADLEN);
+
+    gsl_matrix_free(A23);
+    gsl_matrix_free(A32);
+    gsl_vector_free(v2);
+    gsl_vector_free(v3);
+  }
+
+  return s;
+}
+
 int
 test_TDS_solve_dim(unsigned long dim, double d, double od, const double * actual, double eps)
 {
@@ -3304,6 +3387,7 @@ main(void)
   gsl_test(test_hermtd_decomp(r),        "Hermitian Tridiagonal Decomposition");
 
   gsl_test(test_HH_solve(),              "Householder solve");
+  gsl_test(test_HH_lssolve(r),           "Householder least squares");
   gsl_test(test_TDS_solve(),             "Tridiagonal symmetric solve");
   gsl_test(test_TDS_cyc_solve(),         "Tridiagonal symmetric cyclic solve");
   gsl_test(test_TDN_solve(),             "Tridiagonal nonsymmetric solve");

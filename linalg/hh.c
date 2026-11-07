@@ -31,48 +31,79 @@
 /* [Engeln-Mullges + Uhlig, Alg. 4.42]
  */
 
+/*
+ * A is M x N with M >= N: for M = N the solution of A x = b, for M > N
+ * the least squares solution (Householder QR).  b has length M, x
+ * length N.
+ */
 int
 gsl_linalg_HH_solve (gsl_matrix * A, const gsl_vector * b, gsl_vector * x)
 {
-  if (A->size1 > A->size2)
-    {
-      /* System is underdetermined. */
+  const size_t M = A->size1;
+  const size_t N = A->size2;
 
+  if (M < N)
+    {
       GSL_ERROR ("System is underdetermined", GSL_EINVAL);
     }
-  else if (A->size2 != x->size)
+  else if (b->size != M)
     {
-      GSL_ERROR ("matrix and vector sizes must be equal", GSL_EBADLEN);
+      GSL_ERROR ("matrix size1 must match vector b size", GSL_EBADLEN);
+    }
+  else if (x->size != N)
+    {
+      GSL_ERROR ("matrix size2 must match solution vector x size", GSL_EBADLEN);
+    }
+  else if (M == N)
+    {
+      gsl_vector_memcpy (x, b);
+      return gsl_linalg_HH_svx (A, x);
     }
   else
     {
-      int status ;
+      /* the right-hand side is transformed in a length-M workspace */
+      gsl_vector * work = gsl_vector_alloc (M);
+      int status;
 
-      gsl_vector_memcpy (x, b);
+      if (work == 0)
+        {
+          GSL_ERROR ("could not allocate memory for workspace", GSL_ENOMEM);
+        }
 
-      status = gsl_linalg_HH_svx (A, x);
-      
-      return status ;
+      gsl_vector_memcpy (work, b);
+      status = gsl_linalg_HH_svx (A, work);
+
+      if (status == GSL_SUCCESS)
+        {
+          gsl_vector_const_view w = gsl_vector_const_subvector (work, 0, N);
+          gsl_vector_memcpy (x, &w.vector);
+        }
+
+      gsl_vector_free (work);
+      return status;
     }
 }
 
+/*
+ * In place: A is M x N with M >= N, x has length M and holds b on input;
+ * on output its first N entries are the solution (least squares for
+ * M > N).
+ */
 int
 gsl_linalg_HH_svx (gsl_matrix * A, gsl_vector * x)
 {
-  if (A->size1 > A->size2)
+  if (A->size1 < A->size2)
     {
-      /* System is underdetermined. */
-
       GSL_ERROR ("System is underdetermined", GSL_EINVAL);
     }
-  else if (A->size2 != x->size)
+  else if (A->size1 != x->size)
     {
-      GSL_ERROR ("matrix and vector sizes must be equal", GSL_EBADLEN);
+      GSL_ERROR ("matrix size1 must match vector size", GSL_EBADLEN);
     }
   else
     {
-      const size_t N = A->size1;
-      const size_t M = A->size2;
+      const size_t M = A->size1;     /* rows */
+      const size_t N = A->size2;     /* columns */
       size_t i, j, k;
       REAL *d = (REAL *) malloc (N * sizeof (REAL));
 
@@ -100,7 +131,7 @@ gsl_linalg_HH_svx (gsl_matrix * A, gsl_vector * x)
 
           if (r == 0.0)
             {
-              /* Rank of matrix is less than size1. */
+              /* Rank of matrix is less than size2. */
               free (d);
               GSL_ERROR ("matrix is rank deficient", GSL_ESING);
             }
