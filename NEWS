@@ -3,6 +3,19 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #61342 (C11 programs including <complex.h> got wrong
+   results or crashes from functions taking or returning complex
+   numbers by value, because the library is built with the struct
+   definition of gsl_complex, which is passed differently from the
+   native complex type on some platforms, e.g. ppc64 and sparc, and
+   for long double on x86_64): the native types are now used only on
+   x86_64, aarch64 and ppc64le, and gsl_complex_long_double is always
+   the struct; reported by S. James)
+
+** fix for bug #65912 (GSL_SET_COMPLEX with native C11 complex types
+   computed x + I*y, losing signed zeros and mixing infinities and NaNs
+   between the parts; reported by S. Kirpichev)
+
 ** fix for bug #65868 (gsl_bspline_eval_nonzero and
    gsl_bspline_deriv_eval_nonzero were no longer declared in
    gsl_bspline.h since 2.8; reported by A. Bhattacharya)

@@ -46,14 +46,28 @@ be mapped correctly onto packed complex arrays.
 
 If a C compiler is available which supports the C11 standard,
 and the :file:`<complex.h>` header file is included *prior* to :file:`gsl_complex.h`,
-then :code:`gsl_complex` will be defined to be the native C complex type::
+then on supported platforms (see below) :code:`gsl_complex` will be defined
+to be the native C complex type::
 
     typedef double complex gsl_complex
 
+and likewise :code:`gsl_complex_float` as :code:`float complex`.
 This allows users to use :code:`gsl_complex` in ordinary operations such as::
 
     gsl_complex x = 2 + 5 * I;
     gsl_complex y = x + (3 - 4*I);
+
+The library itself is always compiled with the struct definition. The
+native type has the same memory layout, but functions which take or
+return a complex number by value (such as :func:`gsl_complex_add`) can
+only be called with it if the platform passes both types in the same
+way. The native types are therefore used only on platforms where this
+is known to hold: x86_64 (other than Windows), aarch64 (other than
+Windows), and 64-bit PowerPC with the ELFv2 ABI (ppc64le). On other
+platforms, and for :code:`gsl_complex_long_double` on all platforms
+(x86_64 returns :code:`long double complex` and the struct of two
+:code:`long double` values differently), the struct definition is used
+even when :file:`<complex.h>` is included.
 
 .. important::
 

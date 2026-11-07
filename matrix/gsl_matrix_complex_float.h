@@ -275,7 +275,7 @@ gsl_matrix_complex_float_get(const gsl_matrix_complex_float * m,
 #if GSL_RANGE_CHECK
   if (GSL_RANGE_COND(1)) 
     {
-      gsl_complex_float zero = {{0,0}};
+      gsl_complex_float zero = {0};
 
       if (i >= m->size1)
         {

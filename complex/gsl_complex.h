@@ -68,9 +68,25 @@ typedef const float *        gsl_const_complex_packed_float_ptr  ;
 typedef const long double *  gsl_const_complex_packed_long_double_ptr ;
 
 /*
- * If <complex.h> is included, use the C99 complex type.  Otherwise
- * define a type bit-compatible with C99 complex. The GSL_REAL and GSL_IMAG
- * macros require C11 functionality also (_Generic)
+ * gsl_complex and gsl_complex_float are the C99 complex types if the
+ * including translation unit is C11 and has included <complex.h>, on
+ * platforms where those types are passed and returned exactly like the
+ * legacy struct of two reals; otherwise they are that struct, which
+ * has the same representation (C17 6.2.5p13).
+ *
+ * The library itself is always built with the struct.  Functions that
+ * take or return a complex number by value (gsl_complex_add,
+ * gsl_vector_complex_get, ...) therefore only work from C11 code if
+ * both types follow the same calling convention.  This is true for
+ * x86_64 (System V), aarch64 and 64-bit PowerPC ELFv2 (ppc64le), but
+ * not, for example, for ppc64 ELFv1 or sparc (bug #61342); and on
+ * x86_64, long double _Complex is returned in x87 registers but the
+ * struct of two long doubles in memory, so gsl_complex_long_double is
+ * always the struct.  On other platforms the C99 types are not used.
+ * Defining GSL_COMPLEX_LEGACY forces the struct everywhere.
+ *
+ * The GSL_REAL and GSL_IMAG macros require C11 functionality also
+ * (_Generic).
  */
 
 /* older gcc compilers claim to be C11 compliant but do not support _Generic */
@@ -78,33 +94,44 @@ typedef const long double *  gsl_const_complex_packed_long_double_ptr ;
 #  define GSL_COMPLEX_LEGACY 1
 #endif
 
-#if !defined(GSL_COMPLEX_LEGACY) &&          \
-     defined(_Complex_I) &&                  \
-     defined(complex) &&                     \
-     defined(I) &&                           \
-     defined(__STDC__) && (__STDC__ == 1) && \
-     defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */
+#if !defined(GSL_COMPLEX_LEGACY) &&                                    \
+     defined(_Complex_I) &&                                            \
+     defined(complex) &&                                               \
+     defined(I) &&                                                     \
+     defined(__STDC__) && (__STDC__ == 1) &&                           \
+     defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) &&     \
+     ((defined(__x86_64__) && !defined(_WIN32)) ||                     \
+      (defined(__aarch64__) && !defined(_WIN32)) ||                    \
+      (defined(__powerpc64__) && defined(_CALL_ELF) && (_CALL_ELF == 2)))
 
 #  define GSL_COMPLEX_DEFINE(R, C) typedef R _Complex C ;
 
+#  define GSL_REAL(z)              (_Generic((z),                                      \
+                                     complex float           : ((float *) &(z)),       \
+                                     complex double          : ((double *) &(z)),      \
+                                     complex long double     : ((long double *) &(z)), \
+                                     gsl_complex_long_double : ((long double *) &(z)))[0])
+
+#  define GSL_IMAG(z)              (_Generic((z),                                      \
+                                     complex float           : ((float *) &(z)),       \
+                                     complex double          : ((double *) &(z)),      \
+                                     complex long double     : ((long double *) &(z)), \
+                                     gsl_complex_long_double : ((long double *) &(z)))[1])
+
 #  define GSL_COMPLEX_P(zp)        (&(zp))
-#  define GSL_COMPLEX_EQ(z1,z2)    ((z1) == (z2))
-#  define GSL_SET_COMPLEX(zp,x,y)  (*(zp) = (x) + I * (y))
-
-#  define GSL_REAL(z)              (_Generic((z),                             \
-                                     complex float       : ((float *) &(z)),  \
-                                     complex double      : ((double *) &(z)), \
-                                     complex long double : ((long double *) &(z)))[0])
-
-#  define GSL_IMAG(z)              (_Generic((z),                             \
-                                     complex float       : ((float *) &(z)),  \
-                                     complex double      : ((double *) &(z)), \
-                                     complex long double : ((long double *) &(z)))[1])
-
 #  define GSL_COMPLEX_P_REAL(zp)   GSL_REAL(*(zp))
 #  define GSL_COMPLEX_P_IMAG(zp)   GSL_IMAG(*(zp))
+#  define GSL_COMPLEX_EQ(z1,z2)    ((GSL_REAL(z1) == GSL_REAL(z2)) && (GSL_IMAG(z1) == GSL_IMAG(z2)))
+
+/* parts set directly: x + I*y would lose signed zeros and mix infinities
+   and NaNs between the parts (bug #65912) */
+#  define GSL_SET_COMPLEX(zp,x,y)  do { GSL_REAL(*(zp)) = (x); GSL_IMAG(*(zp)) = (y); } while(0)
 #  define GSL_SET_REAL(zp,x)       do { GSL_REAL(*(zp)) = (x); } while(0)
 #  define GSL_SET_IMAG(zp,x)       do { GSL_IMAG(*(zp)) = (x); } while(0)
+
+GSL_COMPLEX_DEFINE(double, gsl_complex)
+GSL_COMPLEX_DEFINE(float, gsl_complex_float)
+typedef struct { long double dat[2]; } gsl_complex_long_double ;
 
 #else /* legacy complex definitions */
 
@@ -131,11 +158,11 @@ typedef const long double *  gsl_const_complex_packed_long_double_ptr ;
 #  define GSL_SET_REAL(zp,x)       do {(zp)->dat[0]=(x);} while(0)
 #  define GSL_SET_IMAG(zp,y)       do {(zp)->dat[1]=(y);} while(0)
 
-#endif
-
 GSL_COMPLEX_DEFINE(double, gsl_complex)
 GSL_COMPLEX_DEFINE(long double, gsl_complex_long_double)
 GSL_COMPLEX_DEFINE(float, gsl_complex_float)
+
+#endif
 
 #define GSL_SET_COMPLEX_PACKED(zp,n,x,y) do {*((zp)+2*(n))=(x); *((zp)+(2*(n)+1))=(y);} while(0)
 

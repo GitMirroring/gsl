@@ -198,7 +198,7 @@ gsl_vector_complex_float_get (const gsl_vector_complex_float * v,
 #if GSL_RANGE_CHECK
   if (GSL_RANGE_COND(i >= v->size))
     {
-      gsl_complex_float zero = {{0, 0}};
+      gsl_complex_float zero = {0};
       GSL_ERROR_VAL ("index out of range", GSL_EINVAL, zero);
     }
 #endif
