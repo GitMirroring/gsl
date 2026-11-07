@@ -100,7 +100,6 @@ libgslspecfunc_la_SOURCES = \
   mathieu_workspace.c       \
   poch.c                    \
   pow_int.c                 \
-  psi.c                     \
   recurse.h result.c        \
   shint.c                   \
   sincos_pi.c               \

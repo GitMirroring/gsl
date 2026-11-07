@@ -45,6 +45,7 @@ gsl_dd gsl_dd_log(const gsl_dd x)                      { return dd_log_fma(x); }
 gsl_dd gsl_dd_log1p(const gsl_dd x)                    { return dd_log1p_fma(x); }
 gsl_dd gsl_dd_log1pmx(const gsl_dd x)                  { return dd_log1pmx_fma(x); }
 gsl_dd gsl_dd_sqrt(const gsl_dd x)                     { return dd_sqrt_fma(x); }
+void gsl_dd_sincos_pi(const gsl_dd x, gsl_dd * s, gsl_dd * c) { dd_sincos_pi_fma(x, s, c); }
 
 #else
 
@@ -61,5 +62,9 @@ gsl_dd gsl_dd_log(const gsl_dd x)                      { return dd_log_p(x); }
 gsl_dd gsl_dd_log1p(const gsl_dd x)                    { return dd_log1p_p(x); }
 gsl_dd gsl_dd_log1pmx(const gsl_dd x)                  { return dd_log1pmx_p(x); }
 gsl_dd gsl_dd_sqrt(const gsl_dd x)                     { return dd_sqrt_p(x); }
+void gsl_dd_sincos_pi(const gsl_dd x, gsl_dd * s, gsl_dd * c) { dd_sincos_pi_p(x, s, c); }
 
 #endif
+
+gsl_dd gsl_dd_sin_pi(const gsl_dd x) { gsl_dd s; gsl_dd_sincos_pi(x, &s, NULL); return s; }
+gsl_dd gsl_dd_cos_pi(const gsl_dd x) { gsl_dd c; gsl_dd_sincos_pi(x, NULL, &c); return c; }

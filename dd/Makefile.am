@@ -23,4 +23,6 @@ noinst_HEADERS =         \
   internal_log_source.c  \
   internal_p.c           \
   internal_sqrt.c        \
-  internal_sqrt_source.c
+  internal_sqrt_source.c \
+  internal_trig.c        \
+  internal_trig_source.c

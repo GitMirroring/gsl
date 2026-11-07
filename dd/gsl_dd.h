@@ -42,6 +42,10 @@ typedef struct
 gsl_dd gsl_dd_two_sum(const double a, const double b);
 gsl_dd gsl_dd_two_prod(const double a, const double b);
 
+/*
+ * Arithmetic: relative error below about 4 * 2^-106 (add/sub below
+ * 2 * 2^-106).  Results are normalized: |lo| <= ulp(hi)/2.
+ */
 gsl_dd gsl_dd_add(const gsl_dd a, const gsl_dd b);
 gsl_dd gsl_dd_add_d(const gsl_dd a, const double b);
 gsl_dd gsl_dd_sub(const gsl_dd a, const gsl_dd b);
@@ -50,12 +54,31 @@ gsl_dd gsl_dd_mul(const gsl_dd a, const gsl_dd b);
 gsl_dd gsl_dd_mul_d(const gsl_dd a, const double b);
 gsl_dd gsl_dd_div(const gsl_dd a, const gsl_dd b);
 gsl_dd gsl_dd_div_d(const gsl_dd a, const double b);
+/*
+ * Elementary functions: relative error below 2^-106 for results of
+ * magnitude above about 1e-290 (smaller results lose the low word to
+ * underflow).  Special arguments follow the C library conventions:
+ * log(0) = log1p(-1) = -Inf, log(x<0) = log1p(x<-1) = sqrt(x<0) = NaN,
+ * log(+Inf) = sqrt(+Inf) = exp(+Inf) = +Inf, exp(-Inf) = 0,
+ * expm1(-Inf) = -1, log1pmx(-1) = log1pmx(+Inf) = -Inf, and NaN
+ * arguments give NaN.
+ */
 gsl_dd gsl_dd_exp(const gsl_dd x);
 gsl_dd gsl_dd_expm1(const gsl_dd x);
 gsl_dd gsl_dd_log(const gsl_dd x);
 gsl_dd gsl_dd_log1p(const gsl_dd x);
 gsl_dd gsl_dd_log1pmx(const gsl_dd x);
 gsl_dd gsl_dd_sqrt(const gsl_dd x);
+
+/*
+ * sin(pi x) and cos(pi x): the argument reduction is exact, so the
+ * relative error stays below about 2^-106 also near the zeros; exact
+ * zeros at integers (sin) and half-integers (cos).  In gsl_dd_sincos_pi
+ * either output pointer may be NULL.  Inf and NaN arguments give NaN.
+ */
+gsl_dd gsl_dd_sin_pi(const gsl_dd x);
+gsl_dd gsl_dd_cos_pi(const gsl_dd x);
+void gsl_dd_sincos_pi(const gsl_dd x, gsl_dd * s, gsl_dd * c);
 
 __END_DECLS
 

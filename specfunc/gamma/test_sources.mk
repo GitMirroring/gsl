@@ -15,4 +15,5 @@ GAMMA_TEST_SOURCES =        \
   gamma/test_lnfact.c       \
   gamma/test_lngamma.c      \
   gamma/test_lngamma1p.c    \
+  gamma/test_psi.c          \
   gamma/test_taylorcoeff.c

@@ -17,214 +17,196 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define DD_EXP_REDUCTION_FACTOR      (128.0)
 #define DD_EXP_ARG_MIN_GUARD         (-746.0)
 #define DD_EXP_ARG_MAX_GUARD         (710.0)
 #define DD_EXP_MIN_SCALE             (-1075)
 #define DD_EXP_MAX_SCALE             (1024)
 #define DD_HALF_ULP_ONE              (0.5 * GSL_DBL_EPSILON)
 #define DD_QUARTER_ULP_ONE           (0.25 * GSL_DBL_EPSILON)
-
-#define DD_EXPM1_TAYLOR_D10          0
-#define DD_EXPM1_TAYLOR_D32          1
+#define DD_EXP_64_OVER_LN2           (92.332482616893656768)  /* 64/log(2) */
+#define DD_EXPM1_TINY                (-76.0)   /* exp(x) < 2^-109 */
 
 /*
- * Evaluate expm1(x) by Taylor expansion with compensated accumulation.
+ * Add
  *
- * The expansion
+ *   expm1(r) = r + r^2/2 + r^3/3! + ...
  *
- *   exp(x) - 1 = x + x^2/2! + x^3/3! + ...
+ * to the expansion sum, for a small double-double argument
+ * |r| <= log(2)/128 + tiny.
  *
- * is evaluated by forming the powers in double-double arithmetic and
- * accumulating each complete double-double term into a three-component
- * floating-point expansion.  The expansion is compressed to double-double
- * only once, after all terms have been accumulated.
+ * Write expm1(r) = r + r^2/2 + r^3 Q(r) with
  *
- * Two evaluation modes are provided because this kernel is shared by exp()
- * and expm1():
+ *   Q(r) = sum_{n=3}^{12} r^(n-3) / n!.
  *
- *   flag == DD_EXPM1_TAYLOR_D10:
- *     Evaluate through degree 10.  This mode is used by dd_exp() after
- *     128-fold argument reduction.  The x^2/2 term is formed by exact
- *     power-of-two scaling
- *
- *   flag == DD_EXPM1_TAYLOR_D32:
- *     Evaluate through degree 32.  This mode is used directly by dd_expm1()
- *     on its central interval, avoiding both cancellation in exp(x)-1 and
- *     the rounding errors associated with repeated expm1 reconstruction.
- *
- * The coefficients 1/n!, n = 2,...,32, are stored as double-double
- * constants.
+ * The terms r and r^2/2 are added exactly (r^2 is split by TwoProd).
+ * The term r^3 Q(r) has relative weight below r^2/6 < 2^-17 and is
+ * evaluated in double-double, by Horner for n = 3,...,6 and in double
+ * precision from r.hi for n >= 7.  Since |r c_(n+1)| < |c_n| in every
+ * Horner step, the steps use an addition without the cancellation
+ * handling of dd_add().  The truncation error is below 2^-111 relative
+ * to expm1(r).
  */
-static gsl_dd
-DD_WRAP(kernel_expm1_taylor)(const gsl_dd x, const int flag)
+static void
+DD_WRAP(expm1_small_add)(dd_ex4 * sum, const gsl_dd r)
 {
-  /* 1/n! table, n = 2,...,32. */
-  static const gsl_dd inv_fact_table[31] = {
-    { 5.00000000000000000000e-01,  0.00000000000000000000e+00 },
+  static const gsl_dd coef[4] = {
     { 1.66666666666666657415e-01,  9.25185853854297065662e-18 },
     { 4.16666666666666643537e-02,  2.31296463463574266415e-18 },
-    { 8.33333333333333321769e-03,  1.15648231731787138000e-19 },
-    { 1.38888888888888894189e-03, -5.30054395437357705906e-20 },
-    { 1.98412698412698412526e-04,  1.72095582934207052868e-22 },
-    { 2.48015873015873015658e-05,  2.15119478667758816085e-23 },
-    { 2.75573192239858925110e-06, -1.85839327404647208104e-22 },
-    { 2.75573192239858882758e-07,  2.37677146222502973185e-23 },
-    { 2.50521083854417202239e-08, -1.44881407093591196603e-24 },
-    { 2.08767569878681001866e-09, -1.20734505911325997169e-25 },
-    { 1.60590438368216133409e-10,  1.25852945887520980521e-26 },
-    { 1.14707455977297245073e-11,  2.06555127528307454245e-28 },
-    { 7.64716373181981640551e-13,  7.03872877733453001061e-30 },
-    { 4.77947733238738525345e-14,  4.39920548583408125663e-31 },
-    { 2.81145725434552059811e-15,  1.65088427308614325994e-31 },
-    { 1.56192069685862252711e-16,  1.19106796602737540024e-32 },
-    { 8.22063524662432949554e-18,  2.21418941196042653637e-34 },
-    { 4.11031762331216484407e-19,  1.44129733786595271498e-36 },
-    { 1.95729410633912625952e-20, -1.36435038300879084872e-36 },
-    { 8.89679139245057407789e-22, -7.91140261487237621703e-38 },
-    { 3.86817017063068412615e-23, -8.84317765548234384789e-40 },
-    { 1.61173757109611838590e-24, -3.68465735645097660329e-41 },
-    { 6.44695028438447358950e-26, -1.93304042337034648242e-42 },
-    { 2.47959626322479758961e-27, -1.29537309647652287758e-43 },
-    { 9.18368986379554600539e-29,  1.43031503967873220242e-45 },
-    { 3.27988923706983775898e-30,  1.51175427440298786897e-46 },
-    { 1.13099628864477158818e-31,  1.04980154129595060239e-47 },
-    { 3.76998762881590538515e-33,  2.58703478327503238348e-49 },
-    { 1.21612504155351789377e-34,  5.58629056788880576964e-51 },
-    { 3.80039075485474341802e-36,  1.74571580246525180301e-52 } };
-  gsl_dd p, t;
-  dd_ex3 s;
-  int i;
+    { 8.33333333333333321769e-03,  1.15648231731787138023e-19 },
+    { 1.38888888888888894189e-03, -5.30054395437357705906e-20 } };
+  const double y = r.hi;
+  gsl_dd q, p, r2;
+  double s;
+  int n;
 
-  s.a = 0.0;
-  s.b = 0.0;
-  s.c = 0.0;
+  /* sum_{n=7}^{12} y^(n-7) / n! */
+  q.hi = 2.08767569878681001866e-09;
+  q.hi = 2.50521083854417202239e-08 + y * q.hi;
+  q.hi = 2.75573192239858882758e-07 + y * q.hi;
+  q.hi = 2.75573192239858925110e-06 + y * q.hi;
+  q.hi = 2.48015873015873015658e-05 + y * q.hi;
+  q.hi = 1.98412698412698412526e-04 + y * q.hi;
+  q.lo = 0.0;
 
-  ex3_add_d(&s, x.hi);
-  ex3_add_d(&s, x.lo);
-
-  p = DD_WRAP(dd_mul)(x, x);
-
-  if (flag == DD_EXPM1_TAYLOR_D10)
+  for (n = 3; n >= 0; --n)
     {
-      t = mul_pwr2_extred(p, 0.5);
-      ex3_add_d(&s, t.hi);
-      ex3_add_d(&s, t.lo);
-
-      for (i = 0; i < 8; ++i)
-        {
-          p = DD_WRAP(dd_mul)(p, x);
-          t = DD_WRAP(dd_mul)(p, inv_fact_table[i + 1]);
-          ex3_add_d(&s, t.hi);
-          ex3_add_d(&s, t.lo);
-        }
-    }
-  else
-    {
-      for (i = 0; i < 31; ++i)
-        {
-          t = DD_WRAP(dd_mul)(p, inv_fact_table[i]);
-          ex3_add_d(&s, t.hi);
-          ex3_add_d(&s, t.lo);
-
-          if (i != 30)
-            p = DD_WRAP(dd_mul)(p, x);
-        }
+      p = DD_WRAP(dd_mul)(r, q);
+      s = coef[n].hi + p.hi;
+      q = fast_two_sum(s, ((coef[n].hi - s) + p.hi) + (coef[n].lo + p.lo));
     }
 
-  return ex3_to_dd(s);
+  ex4_add_d(sum, r.hi);
+  ex4_add_d(sum, r.lo);
+
+  /* r^2/2, exactly */
+  r2 = DD_WRAP(two_prod)(r.hi, r.hi);
+  ex4_add_d(sum, 0.5 * r2.hi);
+  ex4_add_d(sum, 0.5 * r2.lo);
+  p = DD_WRAP(two_prod)(r.hi, r.lo);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo + 0.5 * r.lo * r.lo);
+
+  /* r^3 Q(r) */
+  r2 = fast_two_sum(r2.hi, r2.lo + 2.0 * p.hi);
+  p = DD_WRAP(dd_mul)(DD_WRAP(dd_mul)(r2, r), q);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
 }
 
 /*
- * Reduce a double-double argument by an integral multiple of log(2).
+ * Range reduction and kernel shared by dd_exp() and dd_expm1().
  *
- * Compute
+ * Write
  *
- *   r = a - m*log(2)
+ *   a = (64 m + j) log(2)/64 + r,    0 <= j < 64,  |r| <= log(2)/128,
  *
- * using the three-component expansion
+ * so that exp(a) = 2^m T_j (1 + E) with T_j = 2^(j/64) and
+ * E = expm1(r).  The reduction r = (64 a - N log(2))/64, N = 64 m + j,
+ * uses the three-limb log(2).  If triple is nonzero, r and E are kept
+ * to triple precision (their double-double rounding errors r3 and E3
+ * are recovered from the expansions): expm1() needs this because for
+ * small m its result is of the order of r, so those errors would not be
+ * damped; for exp() they are weighted by |E| < 2^-7 and are dropped.
  *
- *   log(2) = DD_LN2_HI + DD_LN2_LO + DD_LN2_XTRA.
- *
- * Each product m*DD_LN2_* is formed with an error-free TwoProd operation.
- * Both components of all three products are then accumulated together with
- * the two components of a in an EX3 expansion.  The expansion is
- * renormalized and compressed only after the complete subtraction has been
- * accumulated.
- *
- * This delayed compression reduces the range-reduction error that would
- * result from performing the three subtractions successively in
- * double-double arithmetic.
+ * On return, *m holds the binary exponent and sum holds T_j + T_j E
+ * (without the factor 2^m), with T_j from the triple-double table and
+ * the product T_j E formed from TwoProd terms.  If N = 0, sum holds E
+ * itself instead, so that expm1() can use it without cancellation, and
+ * the return value is 1; otherwise it is 0.
  */
-static gsl_dd
-DD_WRAP(reduce_extred)(const gsl_dd a, const double m)
+static int
+DD_WRAP(exp_core)(dd_ex4 * sum, const gsl_dd a, double * m, const int triple)
 {
-  gsl_dd p0, p1, p2;
-  dd_ex3 x;
+  const double N = floor(a.hi * DD_EXP_64_OVER_LN2 + 0.5);
+  gsl_dd r, E, p;
+  double r3, E3;
+  const double * T;
+  int j;
 
-  p0 = DD_WRAP(two_prod)(DD_LN2_HI, m);
-  p1 = DD_WRAP(two_prod)(DD_LN2_LO, m);
-  p2 = DD_WRAP(two_prod)(DD_LN2_XTRA, m);
+  /*
+   * r + r3 = (64 a - N log(2)) / 64, with the rounding error r3 of the
+   * double-double r recovered from the expansion
+   */
+  ex4_zero(sum);
+  ex4_add_d(sum, 64.0 * a.hi);
+  p = DD_WRAP(two_prod)(N, DD_LN2_HI);
+  ex4_add_d(sum, -p.hi);
+  ex4_add_d(sum, 64.0 * a.lo);
+  ex4_add_d(sum, -p.lo);
+  p = DD_WRAP(two_prod)(N, DD_LN2_LO);
+  ex4_add_d(sum, -p.hi);
+  ex4_add_d(sum, -p.lo - N * DD_LN2_XTRA);
+  r = ex4_to_dd(*sum);
+  r3 = 0.0;
+  if (triple)
+    {
+      ex4_add_d(sum, -r.hi);
+      ex4_add_d(sum, -r.lo);
+      r3 = ex4_to_dd(*sum).hi / 64.0;
+    }
+  r = mul_pwr2_extred(r, 1.0 / 64.0);
 
-  x.a = a.hi;
-  x.b = a.lo;
-  x.c = 0.0;
+  *m = floor(N / 64.0);
+  j = (int) (N - 64.0 * (*m));
 
-  ex3_add_d(&x, -p0.hi);
-  ex3_add_d(&x, -p0.lo);
-  ex3_add_d(&x, -p1.hi);
-  ex3_add_d(&x, -p1.lo);
-  ex3_add_d(&x, -p2.hi);
-  ex3_add_d(&x, -p2.lo);
-  ex3_renorm(&x);
+  /* E = expm1(r + r3) = expm1(r) + exp(r) r3 */
+  ex4_zero(sum);
+  DD_WRAP(expm1_small_add)(sum, r);
+  if (triple)
+    ex4_add_d(sum, r3 + r.hi * r3);
 
-  return ex3_to_dd(x);
+  if (N == 0.0)
+    return 1;
+
+  /* E rounded to double-double, and its rounding error E3 */
+  E = ex4_to_dd(*sum);
+  E3 = 0.0;
+  if (triple)
+    {
+      ex4_add_d(sum, -E.hi);
+      ex4_add_d(sum, -E.lo);
+      E3 = ex4_to_dd(*sum).hi;
+    }
+  T = exp_table[j];
+
+  ex4_zero(sum);
+  ex4_add_d(sum, T[0]);
+  ex4_add_d(sum, T[1]);
+
+  p = DD_WRAP(two_prod)(T[0], E.hi);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+  p = DD_WRAP(two_prod)(T[0], E.lo);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+  p = DD_WRAP(two_prod)(T[1], E.hi);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
+  ex4_add_d(sum, T[2] + (T[0] * E3 + T[1] * E.lo + T[2] * E.hi));
+
+  return 0;
 }
 
 /*
  * Compute exp(a) in double-double arithmetic.
  *
- * The argument is first reduced as
- *
- *   a = m*log(2) + r,
- *
- * where m is an integer chosen so that |r| <= log(2)/2.  The remainder is
- * then scaled by 1/128:
- *
- *   y = r/128.
- *
- * On this small interval, expm1(y) is evaluated with the degree-10 mode of
- * kernel_expm1_taylor().  Seven applications of
- *
- *   s <- 2*s + s*s
- *
- * use the identity
- *
- *   expm1(2x) = 2*expm1(x) + expm1(x)^2
- *
- * to undo the factor-of-128 reduction.  Thus, after reconstruction,
- *
- *   s = expm1(r).
- *
- * The reduced exponential is then formed as 1+s and the original binary
- * scale is restored exactly by multiplication by 2^m.
- *
- * Special handling near the binary64 underflow and overflow boundaries
- * avoids premature overflow/underflow during the final scaling and returns
- * the appropriate double-double representation at the ends of the
+ * Using exp_core(), exp(a) = 2^m s with s = T_j (1 + E) in
+ * [2^(-1/128), 2^(1+1/128)], rounded to double-double once.  The
+ * binary scale is restored exactly by dd_ldexp(), with special handling
+ * near the binary64 underflow and overflow boundaries which avoids
+ * premature overflow/underflow during the final scaling and returns the
+ * appropriate double-double representation at the ends of the
  * representable range.
- *
- * The logarithmic range reduction uses the three-limb log(2) expansion and
- * EX3 accumulation in reduce_extred().
  */
 static gsl_dd
 DD_WRAP(dd_exp)(const gsl_dd a)
 {
-  const double k = DD_EXP_REDUCTION_FACTOR;
-  const double inv_k = 1.0 / k;
   double m;
-  gsl_dd r, s, one;
-  int i;
+  gsl_dd s;
+  dd_ex4 sum;
+
+  if (a.hi != a.hi)
+    return a;
 
   if (a.hi < DD_EXP_ARG_MIN_GUARD)
     {
@@ -238,44 +220,19 @@ DD_WRAP(dd_exp)(const gsl_dd a)
     {
       gsl_dd z;
       z.hi = GSL_POSINF;
-      z.lo = GSL_POSINF;
-      return z;
-    }
-
-  if (a.hi == 0.0 && a.lo == 0.0)
-    {
-      gsl_dd z;
-      z.hi = 1.0;
       z.lo = 0.0;
       return z;
     }
 
-  if (a.hi == 1.0 && a.lo == 0.0)
-    {
-      gsl_dd z;
-      z.hi = DD_E_HI;
-      z.lo = DD_E_LO;
-      return z;
-    }
-
-  m = floor(a.hi / DD_LN2_HI + 0.5);
-
-  r = DD_WRAP(reduce_extred)(a, m);
-  r = mul_pwr2_extred(r, inv_k);
-  s = DD_WRAP(kernel_expm1_taylor)(r, DD_EXPM1_TAYLOR_D10);
-
-  for (i = 0; i < 7; ++i)
-    s = dd_add(mul_pwr2_extred(s, 2.0), DD_WRAP(dd_mul)(s, s));
-
-  one.hi = 1.0;
-  one.lo = 0.0;
-  s = dd_add(s, one);
+  if (DD_WRAP(exp_core)(&sum, a, &m, 0))
+    ex4_add_d(&sum, 1.0);       /* sum holds E */
+  s = ex4_to_dd(sum);
 
   if (m > DD_EXP_MAX_SCALE)
     {
       gsl_dd z;
       z.hi = GSL_POSINF;
-      z.lo = GSL_POSINF;
+      z.lo = 0.0;
       return z;
     }
 
@@ -315,7 +272,7 @@ DD_WRAP(dd_exp)(const gsl_dd a)
         {
           gsl_dd z;
           z.hi = GSL_POSINF;
-          z.lo = GSL_POSINF;
+          z.lo = 0.0;
           return z;
         }
     }
@@ -323,66 +280,46 @@ DD_WRAP(dd_exp)(const gsl_dd a)
   return dd_ldexp(s, (int) m);
 }
 
-#define DD_EXPM1_XMIN (-5.75000000000000000e-01)
-#define DD_EXPM1_XMAX ( 1.13600000000000000e+00)
-
 /*
  * Compute expm1(x) = exp(x) - 1 in double-double arithmetic.
  *
- * Direct subtraction of one from dd_exp(x) is poorly conditioned near zero,
- * so a dedicated direct Taylor evaluation is used on the asymmetric central
- * interval
+ * With exp_core(), expm1(x) = 2^m (T_j (1 + E) - 2^-m), where -2^-m is
+ * added exactly to the unrounded expansion before the single rounding
+ * to double-double, so the cancellation for x near 0 costs no accuracy.
+ * For |x| <= log(2)/128, m = j = 0 and the expansion is E itself.
  *
- *   -0.575 <= x <= 1.136.
- *
- * There,
- *
- *   expm1(x) = x + x^2/2! + ... + x^32/32!
- *
- * is evaluated by the degree-32 mode of kernel_expm1_taylor().  Complete
- * double-double terms are accumulated in EX3 and compressed only once.
- * This avoids both exp(x)-1 cancellation and the repeated reconstruction
- * roundings of the logarithmically reduced exp algorithm.
- *
- * Outside the central interval, subtraction is sufficiently well
- * conditioned and the result is formed as
- *
- *   dd_exp(x) - 1.
- *
- * The central interval is intentionally asymmetric because cancellation in
- * exp(x)-1 persists to larger positive arguments than negative arguments.
- *
- * Comparisons at the two transition points use both components of the
- * normalized double-double input.  Thus a nonzero low component at an exact
- * high-word threshold selects the branch according to the actual represented
- * double-double value rather than x.hi alone.
+ * For x < -76, exp(x) < 2^-109 and the result is -1 + exp(x); for
+ * x > 700 the subtraction of 1 is harmless and exp(x) - 1 is used, which
+ * also handles the overflow boundary.
  */
 static gsl_dd
 DD_WRAP(dd_expm1)(const gsl_dd x)
 {
-  gsl_dd one;
-  int central;
+  double m;
+  gsl_dd s;
+  dd_ex4 sum;
 
-  if (x.hi == 0.0 && x.lo == 0.0)
-    return x;
+  if (x.hi == 0.0 || x.hi != x.hi)
+    return x;                   /* +-0 or NaN */
 
-  central = 1;
+  if (x.hi < DD_EXPM1_TINY)
+    {
+      s.hi = -1.0;
+      s.lo = DD_WRAP(dd_exp)(x).hi;
+      return s;
+    }
 
-  if (x.hi < DD_EXPM1_XMIN)
-    central = 0;
-  else if (x.hi == DD_EXPM1_XMIN && x.lo < 0.0)
-    central = 0;
+  if (x.hi > 700.0)
+    {
+      s = DD_WRAP(dd_exp)(x);
+      return (s.hi < GSL_POSINF) ? dd_sub_d(s, 1.0) : s;
+    }
 
-  if (x.hi > DD_EXPM1_XMAX)
-    central = 0;
-  else if (x.hi == DD_EXPM1_XMAX && x.lo > 0.0)
-    central = 0;
+  if (DD_WRAP(exp_core)(&sum, x, &m, 1))
+    return ex4_to_dd(sum);      /* sum holds E */
 
-  if (central)
-    return DD_WRAP(kernel_expm1_taylor)(x, DD_EXPM1_TAYLOR_D32);
+  ex4_add_d(&sum, -ldexp(1.0, (int) -m));
+  s = ex4_to_dd(sum);
 
-  one.hi = 1.0;
-  one.lo = 0.0;
-
-  return dd_sub(DD_WRAP(dd_exp)(x), one);
+  return dd_ldexp(s, (int) m);
 }

@@ -17,385 +17,111 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-static const gsl_dd DD_WRAP(log_centers)[128] = {
-  { 3.89864041565732288852e-03, 1.25416590383049727660e-19 },
-  { 1.16506172199752743718e-02, -2.36187885155090345471e-19 },
-  { 1.93429628431309348635e-02, -2.27605893037846234790e-19 },
-  { 2.69765876982020758046e-02, -5.65184148131067605914e-20 },
-  { 3.45523815066597350665e-02, -1.65910637812787264759e-18 },
-  { 4.20712139206870575081e-02, -3.13290383650700744867e-18 },
-  { 4.95339351222766274829e-02, 3.39916720764042021254e-18 },
-  { 5.69413764001384242741e-02, 4.84902041809664283049e-19 },
-  { 6.42943507053972546084e-02, 2.60786422882576914461e-18 },
-  { 7.15936531870088183060e-02, -3.80442157971900818630e-19 },
-  { 7.88400617077760212936e-02, 3.23791508764312557576e-18 },
-  { 8.60343373418031576172e-02, -4.23539488322745390277e-18 },
-  { 9.31772248541832964763e-02, -6.70754738199740395899e-18 },
-  { 1.00269453163675151264e-01, -1.95563712936946935091e-18 },
-  { 1.07311735789088050219e-01, 4.48032840681562617681e-19 },
-  { 1.14304771280058628524e-01, 5.11003589277201754741e-18 },
-  { 1.21249243632869679876e-01, 5.28480518774538683631e-18 },
-  { 1.28145822691930033610e-01, 4.56414602987248781117e-18 },
-  { 1.34995164537504819258e-01, 1.13443204885907884999e-17 },
-  { 1.41797911860257336292e-01, 1.35872286623729445317e-17 },
-  { 1.48554694323137143064e-01, -1.53995371858770997578e-19 },
-  { 1.55266128911123957312e-01, -5.79002905636818820167e-18 },
-  { 1.61932820269313243466e-01, 9.77392467522909782068e-18 },
-  { 1.68555361029806671791e-01, -4.84937832380245900248e-18 },
-  { 1.75134332127849151606e-01, -3.59146702814679017846e-18 },
-  { 1.81670303107634684148e-01, -5.88709201677150342503e-18 },
-  { 1.88163832418182991324e-01, -4.49798327133894436392e-18 },
-  { 1.94615467699671668145e-01, -9.28660664640259869175e-18 },
-  { 2.01025746060590732034e-01, 9.30700691988383141100e-18 },
-  { 2.07395194346070593783e-01, -6.62398150842408164915e-18 },
-  { 2.13724329397718126877e-01, 1.19846682427362546429e-17 },
-  { 2.20013658305282105987e-01, -1.00795744224419991965e-17 },
-  { 2.26263678650453381458e-01, 7.90387942889578038622e-18 },
-  { 2.32474878743094054423e-01, 1.04977365806757793122e-17 },
-  { 2.38647737850175012397e-01, -2.48020879570681315069e-18 },
-  { 2.44782726417690915666e-01, 7.69045527085194385185e-19 },
-  { 2.50880306285809429045e-01, -1.24570393439866436830e-17 },
-  { 2.56940930897500419139e-01, 6.30788074376329025769e-18 },
-  { 2.62965045500881344775e-01, 7.04525020826310650413e-18 },
-  { 2.68953087345503938366e-01, 2.05672648847783722955e-17 },
-  { 2.74905485872799226765e-01, 2.24017144943571576049e-17 },
-  { 2.80822662900887809467e-01, -2.48278009626505862022e-17 },
-  { 2.86705032803954318332e-01, -3.67902255677076410539e-18 },
-  { 2.92553002686377461306e-01, -2.13273101018145764337e-17 },
-  { 2.98366972551797282609e-01, -1.14408698580358243272e-18 },
-  { 3.04147335467296719980e-01, -2.96383750756186517995e-18 },
-  { 3.09894477722864714053e-01, -2.61916057220056191218e-17 },
-  { 3.15608778986303351033e-01, -1.61315498174081389294e-17 },
-  { 3.21290612453734303333e-01, -1.12753006343029968763e-17 },
-  { 3.26940344995853338084e-01, -1.74913342478726633670e-17 },
-  { 3.32558337300076611864e-01, -1.04520655762443208432e-17 },
-  { 3.38144944008716419326e-01, -2.16155858753042250396e-17 },
-  { 3.43700513853318456725e-01, -1.20449076420227409521e-17 },
-  { 3.49225389785288331534e-01, -2.73531986610309948552e-17 },
-  { 3.54719909102929054079e-01, -2.57238453332241245294e-17 },
-  { 3.60184403575007805465e-01, -9.18316109842160487029e-18 },
-  { 3.65619199560964724949e-01, -1.36293781534618920673e-17 },
-  { 3.71024618127872685136e-01, -2.12240612099378208694e-17 },
-  { 3.76400975164253082106e-01, -1.61079809054165197679e-17 },
-  { 3.81748581490848337694e-01, 2.16573327485779319603e-18 },
-  { 3.87067742968448313956e-01, -2.60571288679913685246e-17 },
-  { 3.92358760602863898548e-01, -2.60684300281611385842e-17 },
-  { 3.97621930647138466242e-01, 2.28632432982769726311e-17 },
-  { 4.02857544701083536420e-01, -2.17651298256827917351e-17 },
-  { 4.08065889808221726742e-01, 2.16879664336615208885e-17 },
-  { 4.13247248550219326013e-01, 4.91229843680964573162e-18 },
-  { 4.18401899138883814899e-01, 2.61150421153183907492e-18 },
-  { 4.23530115505803272935e-01, 2.27834045620050897653e-17 },
-  { 4.28632167389698781612e-01, -2.14053272789370425425e-17 },
-  { 4.33708320421559379021e-01, 1.44148997035742199037e-17 },
-  { 4.38758836207627955783e-01, -1.80377196790458518811e-17 },
-  { 4.43783972410300986411e-01, -5.23913418331392836730e-18 },
-  { 4.48783982827006711069e-01, -5.56550952628478676604e-19 },
-  { 4.53759117467120498546e-01, 8.09899861330878007711e-18 },
-  { 4.58709622626976676329e-01, -1.14856077468435337382e-17 },
-  { 4.63635740963032505491e-01, 7.60162253471979630152e-18 },
-  { 4.68537711563239256396e-01, 1.39796911846695116129e-17 },
-  { 4.73415770016672121656e-01, 9.71643565779064124522e-18 },
-  { 4.78270148481470258606e-01, 2.17778494461919096279e-17 },
-  { 4.83101075751135811132e-01, 1.16067987924645527513e-17 },
-  { 4.87908777319238984305e-01, -1.10584880599631121969e-17 },
-  { 4.92693475442575246070e-01, 9.62460123594260360093e-18 },
-  { 4.97455389202818953898e-01, -1.16467742348470599244e-17 },
-  { 5.02194734566715483837e-01, 1.04369100332228169682e-17 },
-  { 5.06911724444854328020e-01, 2.60932248226664667422e-17 },
-  { 5.11606568749062073920e-01, 4.59915375567217491778e-18 },
-  { 5.16279474448454456237e-01, 3.99359737403063778892e-17 },
-  { 5.20930645624185340026e-01, -2.76159370473603922512e-17 },
-  { 5.25560283522927385036e-01, -1.36535001252785263818e-17 },
-  { 5.30168586609121583741e-01, 3.40999644338310667693e-17 },
-  { 5.34755750616027647482e-01, 2.79963359549354830116e-17 },
-  { 5.39321968595608880470e-01, -5.81478288872584439147e-18 },
-  { 5.43867430967283516097e-01, 1.56663927539488402486e-18 },
-  { 5.48392325565573157675e-01, 5.07294706648344946204e-18 },
-  { 5.52896837686677744550e-01, -6.96924998112785264019e-18 },
-  { 5.57381150134006353447e-01, 3.60272509843957675337e-18 },
-  { 5.61845443262691812691e-01, 5.22426419120583478238e-18 },
-  { 5.66289895023115885664e-01, -1.30730058270052022699e-17 },
-  { 5.70714681003471557830e-01, -1.29760736482852701530e-17 },
-  { 5.75119974471387962467e-01, -2.20451636275167604095e-17 },
-  { 5.79505946414642258979e-01, -3.51239251865814491895e-17 },
-  { 5.83872765580982666656e-01, 1.24418838009651398079e-17 },
-  { 5.88220598517086079582e-01, -3.65470043603026220363e-17 },
-  { 5.92549609606671578987e-01, 1.97545877828740978861e-17 },
-  { 5.96859961107793823842e-01, 1.27449406838733868090e-17 },
-  { 6.01151813189334860432e-01, -2.42405370544481859925e-17 },
-  { 6.05425323966716888435e-01, 1.00231005296842426634e-18 },
-  { 6.09680649536855301385e-01, -2.79028855397192788736e-17 },
-  { 6.13917944012370542239e-01, -5.00424804679914907218e-17 },
-  { 6.18137359555078758078e-01, -2.42049950156609670327e-17 },
-  { 6.22339046408778795438e-01, -5.38412630639861856986e-17 },
-  { 6.26523152931352744766e-01, 1.50132734463261473572e-17 },
-  { 6.30689825626198685704e-01, 1.93796437047993420248e-17 },
-  { 6.34839209173010177167e-01, 3.48021094136442948260e-17 },
-  { 6.38971446457920699835e-01, 2.15444815969733277526e-17 },
-  { 6.43086678603027261936e-01, 5.34563887220140814202e-17 },
-  { 6.47185044995309599614e-01, -4.94912992350538301593e-17 },
-  { 6.51266683314958072515e-01, 3.08814780504793989051e-17 },
-  { 6.55331729563127685090e-01, -5.29948464808759168084e-17 },
-  { 6.59380318089127781533e-01, 4.45819158108709830804e-17 },
-  { 6.63412581617066288153e-01, -3.70562890796826117813e-17 },
-  { 6.67428651271956163704e-01, 2.62430876189304613298e-17 },
-  { 6.71428656605302376370e-01, -5.30529089810890374371e-17 },
-  { 6.75412725620176734864e-01, -3.78332649480717430560e-18 },
-  { 6.79380984795797338016e-01, 1.21309572432983809389e-17 },
-  { 6.83333559111620636450e-01, 5.17139949103859205309e-17 },
-  { 6.87270572070960317212e-01, -4.97154888538095244236e-17 },
-  { 6.91192145724142004148e-01, -4.52888001650340698623e-17 }
-};
-
-static const double DD_WRAP(log_center_extra)[128] = {
-  -3.23099314372743819627e-36,
-   9.97559799309037827955e-36,
-   9.61117925163212330284e-36,
-   4.88995124727799529457e-36,
-  -9.45426000355070075291e-35,
-  -5.79249857382648090269e-35,
-  -1.55751487734976406800e-34,
-   1.08803473444675097164e-35,
-  -1.76642580167800655186e-35,
-  -2.19472067829971721435e-35,
-   7.00402494950792254401e-35,
-   3.41872797956348256216e-34,
-   3.13780050491784287080e-34,
-  -4.16899339750110147331e-35,
-  -4.06901853646083983881e-35,
-   1.08553341277839457419e-34,
-  -2.03731830167550886819e-34,
-  -1.84151889310128991107e-34,
-   3.35213422482214922609e-34,
-   7.44254301759198580126e-34,
-  -8.23901823678403713263e-36,
-  -3.28054007522562329557e-34,
-  -1.22603941756350441922e-35,
-   2.65479350084108592644e-34,
-  -2.89392131532985061358e-34,
-  -2.01554209648393853527e-34,
-   2.43268162548243936799e-34,
-   8.44129021333130650815e-35,
-   2.23041729116508229374e-34,
-   6.48286289897499050726e-35,
-   4.78185382507794745964e-34,
-   5.83115554204990206287e-36,
-   6.27475601576717558159e-34,
-   1.79491107051249444742e-34,
-   1.80137741133642129667e-34,
-   1.20084187649250941278e-36,
-   1.32573166152346992681e-34,
-   9.65934673768441028887e-35,
-   5.58523525957492006815e-34,
-  -1.24266244666125692650e-34,
-  -1.19979451259695988595e-33,
-   1.19451670840529013061e-33,
-   1.45499779808042462366e-34,
-  -7.85909475788934070840e-34,
-  -5.29681260773087736605e-35,
-   1.41831490541092391460e-34,
-   4.37274414008711521100e-34,
-  -9.61712036952486273884e-34,
-   1.04866444264771831946e-34,
-  -1.53157391944243625956e-33,
-  -5.81658553568648337563e-34,
-   1.10616174641608242694e-33,
-  -2.07657933484844522156e-34,
-  -6.01672905560471580400e-35,
-   7.28750030744868245013e-35,
-  -8.54524375849682218218e-35,
-   7.05249517851921931498e-34,
-   2.29194455076062342775e-34,
-  -3.82959690909774847022e-34,
-  -1.22555360737275070353e-34,
-   4.48657346507093648755e-34,
-   8.75653198958499388345e-34,
-   8.69764136101922312944e-34,
-   5.90787652819712350855e-34,
-   6.38827588596338473827e-34,
-  -1.85936195356446884607e-34,
-   9.47756959914115836852e-35,
-   1.41906763019025231515e-33,
-  -1.43430936025704574499e-33,
-  -2.19684636622895440285e-34,
-   1.16121545287944662458e-34,
-  -1.98435616349848006003e-34,
-   9.73488490867112204462e-36,
-   5.88325970773086256499e-34,
-  -1.08847172191061940688e-34,
-   3.62150507809186191583e-34,
-  -8.30949117532862203787e-34,
-  -3.05099176615291129240e-34,
-   1.26058435130949152643e-33,
-  -7.40926858959241121394e-34,
-   3.59849022148594398706e-34,
-  -3.05010844403759481730e-34,
-   1.28914408632431476014e-34,
-   7.29269342726429509525e-34,
-   1.32943445922098830894e-36,
-   2.26937918017307842179e-34,
-  -1.15808505510079204635e-33,
-  -2.10336945017105558047e-34,
-  -6.24375179092414048514e-34,
-  -1.77996569975105929741e-33,
-   1.03191858965415847655e-33,
-  -1.69053787541844998200e-34,
-   3.37969522387207474222e-36,
-  -2.90926316503119676979e-35,
-   2.71021074085003119083e-34,
-  -5.67750882257727938999e-35,
-  -3.37398928309124276762e-34,
-   5.08876499703616159031e-34,
-   7.37076351757878348695e-34,
-  -4.59090175948406478631e-34,
-  -1.60045712600256974023e-34,
-   1.50376230054341231528e-35,
-  -2.93061454444156472410e-33,
-  -3.55177609197152839136e-34,
-  -9.95531199752781355139e-35,
-   7.35988427216704535015e-34,
-   6.87781600672006700257e-36,
-   1.60849877881703640039e-34,
-  -1.15268119125964699830e-33,
-  -3.85819606076873002811e-34,
-  -7.14853323859643886972e-34,
-  -1.05212534540977315572e-33,
-  -7.35767256735558718110e-34,
-   1.81151288454404933393e-33,
-   1.44794170513138958385e-34,
-   1.68609013469278232090e-33,
-   2.44351225420551045501e-33,
-  -3.86801088779268172629e-34,
-   1.42540700646501408054e-33,
-  -3.05220190339367755920e-34,
-  -1.01524386989214339879e-33,
-   9.19431619060984256813e-34,
-  -6.92638342346056127789e-34,
-   2.96859659130389899794e-34,
-   5.94425409907376499372e-34,
-   8.25485091374040366080e-34,
-   3.94947432034536350781e-34,
-  -2.49228285839479756201e-33
-};
-
 /*
- * Evaluate log(1+y) for a small double-double argument y.
+ * Add
  *
- * The degree-36 Taylor polynomial
+ *   w = log(1+r) - r = -r^2/2 + r^3/3 - ...
  *
- *   log(1+y) = y - y^2/2 + y^3/3 - ... - y^36/36
+ * to the expansion sum, for a small double-double argument |r| <= 1/128.
  *
- * is evaluated in the monomial basis using double-double
- * multiplication.  Each double-double term is accumulated into a
- * three-component floating-point expansion and compressed to
- * double-double only after the complete polynomial has been summed.
+ * Write w = -r^2/2 + r^3 Q(r) with
  *
- * This kernel is used directly by log() and log1p() near zero and
- * after their respective range reductions.
+ *   Q(r) = sum_{n=3}^{18} (-1)^(n+1) r^(n-3) / n.
+ *
+ * The leading term is added exactly: r^2 = r.hi^2 + 2 r.hi r.lo + r.lo^2
+ * is split by TwoProd, so w is not limited by the rounding error of a
+ * double-double square.  The term r^3 Q(r) has relative weight below
+ * 2|r|/3 in w and is evaluated in double-double: by Horner for the
+ * coefficients n = 3,...,9 and in double precision from r.hi for
+ * n >= 10, whose relative weight in Q is below |r|^7 <= 2^-49.  Since
+ * |r c_(n+1)| < |c_n| in every Horner step, the steps use an addition
+ * without the cancellation handling of dd_add().  The truncation error
+ * is below |r|^16/19 relative to w.
+ *
+ * Returning w rather than log(1+r) lets the callers add r and w
+ * separately into their final expansion, and gives log1pmx without
+ * cancellation.
  */
-static gsl_dd
-DD_WRAP(kernel_taylor36_small_y)(const gsl_dd y)
+static void
+DD_WRAP(log1pmx_small_add)(dd_ex4 * sum, const gsl_dd r)
 {
-  static const gsl_dd taylor36_coef[36] = {
-    {  1.00000000000000000e+00,  0.00000000000000000e+00 },
-    { -5.00000000000000000e-01,  0.00000000000000000e+00 },
-    {  3.33333333333333315e-01,  1.85037170770859413e-17 },
-    { -2.50000000000000000e-01,  0.00000000000000000e+00 },
-    {  2.00000000000000011e-01, -1.11022302462515660e-17 },
-    { -1.66666666666666657e-01, -9.25185853854297066e-18 },
-    {  1.42857142857142849e-01,  7.93016446160826056e-18 },
-    { -1.25000000000000000e-01,  0.00000000000000000e+00 },
-    {  1.11111111111111105e-01,  6.16790569236198044e-18 },
-    { -1.00000000000000006e-01,  5.55111512312578301e-18 },
-    {  9.09090909090909116e-02, -2.52323414687535584e-18 },
-    { -8.33333333333333287e-02, -4.62592926927148533e-18 },
-    {  7.69230769230769273e-02, -4.27008855625060232e-18 },
-    { -7.14285714285714246e-02, -3.96508223080413028e-18 },
-    {  6.66666666666666657e-02,  9.25185853854297104e-19 },
-    { -6.25000000000000000e-02,  0.00000000000000000e+00 },
-    {  5.88235294117647051e-02,  8.16340459283203327e-19 },
-    { -5.55555555555555525e-02, -3.08395284618099022e-18 },
-    {  5.26315789473684181e-02,  2.92163953848725389e-18 },
-    { -5.00000000000000028e-02,  2.77555756156289151e-18 },
-    {  4.76190476190476164e-02,  2.64338815386942019e-18 },
-    { -4.54545454545454558e-02,  1.26161707343767792e-18 },
-    {  4.34782608695652162e-02,  1.20676415720125708e-18 },
-    { -4.16666666666666644e-02, -2.31296463463574266e-18 },
-    {  4.00000000000000008e-02, -8.32667268468867375e-19 },
-    { -3.84615384615384637e-02,  2.13504427812530116e-18 },
-    {  3.70370370370370350e-02,  2.05596856412066015e-18 },
-    { -3.57142857142857123e-02, -1.98254111540206514e-18 },
-    {  3.44827586206896547e-02,  4.78544407166015744e-19 },
-    { -3.33333333333333329e-02, -4.62592926927148552e-19 },
-    {  3.22580645161290314e-02,  8.95341148891255250e-19 },
-    { -3.12500000000000000e-02,  0.00000000000000000e+00 },
-    {  3.03030303030303039e-02, -8.41078048958451948e-19 },
-    { -2.94117647058823525e-02, -4.08170229641601664e-19 },
-    {  2.85714285714285705e-02,  8.92143501930929275e-19 },
-    { -2.77777777777777762e-02, -1.54197642309049511e-18 } };
-  gsl_dd power, term;
-  dd_ex3 sum;
+  static const gsl_dd coef[7] = {
+    {  3.33333333333333314830e-01,  1.85037170770859413132e-17 },
+    { -2.50000000000000000000e-01,  0.00000000000000000000e+00 },
+    {  2.00000000000000011102e-01, -1.11022302462515660205e-17 },
+    { -1.66666666666666657415e-01, -9.25185853854297065662e-18 },
+    {  1.42857142857142849213e-01,  7.93016446160826056281e-18 },
+    { -1.25000000000000000000e-01,  0.00000000000000000000e+00 },
+    {  1.11111111111111104943e-01,  6.16790569236198043774e-18 } };
+  const double y = r.hi;
+  gsl_dd q, p, r2;
+  double s;
   int n;
 
-  sum.a = 0.0;
-  sum.b = 0.0;
-  sum.c = 0.0;
+  /* sum_{n=10}^{18} (-1)^(n+1) y^(n-10) / n */
+  q.hi = -1.0 / 18.0;
+  q.hi = 1.0 / 17.0 + y * q.hi;
+  q.hi = -1.0 / 16.0 + y * q.hi;
+  q.hi = 1.0 / 15.0 + y * q.hi;
+  q.hi = -1.0 / 14.0 + y * q.hi;
+  q.hi = 1.0 / 13.0 + y * q.hi;
+  q.hi = -1.0 / 12.0 + y * q.hi;
+  q.hi = 1.0 / 11.0 + y * q.hi;
+  q.hi = -1.0 / 10.0 + y * q.hi;
+  q.lo = 0.0;
 
-  power = y;
-
-  for (n = 0; n < 36; ++n)
+  for (n = 6; n >= 0; --n)
     {
-      term = DD_WRAP(dd_mul)(power, taylor36_coef[n]);
-
-      ex3_add_d(&sum, term.hi);
-      ex3_add_d(&sum, term.lo);
-
-      if (n != 35)
-        power = DD_WRAP(dd_mul)(power, y);
+      p = DD_WRAP(dd_mul)(r, q);
+      s = coef[n].hi + p.hi;
+      q = fast_two_sum(s, ((coef[n].hi - s) + p.hi) + (coef[n].lo + p.lo));
     }
 
-  return ex3_to_dd(sum);
+  /* -r^2/2, exactly */
+  r2 = DD_WRAP(two_prod)(r.hi, r.hi);
+  ex4_add_d(sum, -0.5 * r2.hi);
+  ex4_add_d(sum, -0.5 * r2.lo);
+  p = DD_WRAP(two_prod)(r.hi, r.lo);
+  ex4_add_d(sum, -p.hi);
+  ex4_add_d(sum, -p.lo - 0.5 * r.lo * r.lo);
+
+  /* r^3 Q(r) */
+  r2 = fast_two_sum(r2.hi, r2.lo + 2.0 * p.hi);
+  p = DD_WRAP(dd_mul)(DD_WRAP(dd_mul)(r2, r), q);
+  ex4_add_d(sum, p.hi);
+  ex4_add_d(sum, p.lo);
 }
 
 /*
- * Reconstruct a logarithm from its range-reduced components.
- *
- * Given the binary exponent e, reduction-center index i, and
- *
- *   kr = log(1+r),
- *
- * form
- *
- *   e*log(2) + log(c_i) + kr
- *
- * in a four-component floating-point expansion.
+ * Accumulate e*log(2) + log(j/128) into a four-component expansion,
+ * omitting the terms which vanish (e = 0 or j = 128).
  */
 static void
-DD_WRAP(log_reconstruct)(dd_ex4 * sum, const int e, const int i,
-                         const gsl_dd kr)
+DD_WRAP(log_reconstruct)(dd_ex4 * sum, const int e, const int j)
 {
-  gsl_dd p;
-
   ex4_zero(sum);
 
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
-  ex4_add_d(sum, p.hi);
-  ex4_add_d(sum, p.lo);
+  if (e != 0)
+    {
+      gsl_dd p;
 
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
-  ex4_add_d(sum, p.hi);
-  ex4_add_d(sum, p.lo);
+      p = DD_WRAP(two_prod)((double) e, DD_LN2_HI);
+      ex4_add_d(sum, p.hi);
+      ex4_add_d(sum, p.lo);
 
-  p = DD_WRAP(two_prod)((double) e, DD_LN2_XTRA);
-  ex4_add_d(sum, p.hi);
-  ex4_add_d(sum, p.lo);
+      p = DD_WRAP(two_prod)((double) e, DD_LN2_LO);
+      ex4_add_d(sum, p.hi);
+      ex4_add_d(sum, p.lo);
 
-  ex4_add_d(sum, DD_WRAP(log_centers)[i].hi);
-  ex4_add_d(sum, DD_WRAP(log_centers)[i].lo);
-  ex4_add_d(sum, DD_WRAP(log_center_extra)[i]);
-  ex4_add_d(sum, kr.hi);
-  ex4_add_d(sum, kr.lo);
+      ex4_add_d(sum, (double) e * DD_LN2_XTRA);
+    }
+
+  if (j != 128)
+    {
+      ex4_add_d(sum, log_table[j - 64][0]);
+      ex4_add_d(sum, log_table[j - 64][1]);
+      ex4_add_d(sum, log_table[j - 64][2]);
+    }
 }
 
 /**********************************************
@@ -403,57 +129,58 @@ DD_WRAP(log_reconstruct)(dd_ex4 * sum, const int e, const int i,
  **********************************************/
 
 /*
- * Compute log(x) for a positive double-double argument x.
+ * Compute log(x) for a double-double argument x.
  *
- * For x near one, form
+ * Normalize
  *
- *   y = x - 1
+ *   x = 2^e m,    0.75 <= m < 1.5,
  *
- * accurately in double-double and evaluate log(1+y) directly with the
- * Taylor-36 kernel.
+ * select the nearest center c = j/128, and form
  *
- * Otherwise normalize
+ *   r = (m - c) / c,    |r| <= 1/192.
  *
- *   x = 2^e m,    1 <= m <= 2,
+ * The subtraction m - c is exact (Sterbenz).  Then
  *
- * select one of 128 exact dyadic reduction centers c_i, and form
+ *   log(x) = e*log(2) + log(c) + r + w,    w = log(1+r) - r,
  *
- *   r = (m - c_i) / c_i.
+ * accumulated in a four-component expansion and rounded to
+ * double-double once.  For x near 1, e = 0 and c = 1, so the result is
+ * r + w with r = x - 1 exact and the relative accuracy is retained.
  *
- * Then evaluate
- *
- *   log(x) = e*log(2) + log(c_i) + log(1+r),
- *
- * accumulating the reconstruction in a four-component expansion before
- * the final compression to double-double.
+ * log_sum() accumulates the expansion for positive finite x; dd_log()
+ * handles the special arguments and rounds.
  */
+static void
+DD_WRAP(log_sum)(dd_ex4 * sum, const gsl_dd x)
+{
+  gsl_dd m, r;
+  int e, j;
+  double c;
+
+  m = log_normalize(x, &e);
+  j = log_center_index(m.hi);
+  c = (double) j / 128.0;
+
+  r = dd_sub_d(m, c);
+  if (j != 128)
+    r = DD_WRAP(dd_div_d)(r, c);
+
+  DD_WRAP(log_reconstruct)(sum, e, j);
+  ex4_add_d(sum, r.hi);
+  ex4_add_d(sum, r.lo);
+  DD_WRAP(log1pmx_small_add)(sum, r);
+}
+
 static gsl_dd
 DD_WRAP(dd_log)(const gsl_dd x)
 {
-  gsl_dd one, y, m, center, delta, r, kr;
   dd_ex4 sum;
-  int e, i;
 
-  one.hi = 1.0;
-  one.lo = 0.0;
+  if (!(x.hi > 0.0 && x.hi < GSL_POSINF))
+    return log_special(x.hi);
 
-  if (DD_GT_d(x, 0.875) && DD_LT_d(x, 1.125))
-    {
-      y = dd_sub(x, one);
-      return DD_WRAP(kernel_taylor36_small_y)(y);
-    }
+  DD_WRAP(log_sum)(&sum, x);
 
-  m = log_normalize(x, &e);
-  i = log_center_index(m);
-
-  center.hi = ldexp((double) (257 + 2 * i), -8);
-  center.lo = 0.0;
-
-  delta = dd_sub(m, center);
-  r = DD_WRAP(dd_div_d)(delta, center.hi);
-  kr = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
   return ex4_to_dd(sum);
 }
 
@@ -462,137 +189,72 @@ DD_WRAP(dd_log)(const gsl_dd x)
  **********************************************/
 
 /*
- * Form the intermediate-range reconstruction of log(1+x).
+ * Accumulate log(1+x), x > -1 finite, into a four-component expansion.
  *
- * First form u = 1+x in double-double and use u to determine the binary
- * exponent e and the appropriate one of 128 exact dyadic centers c_i.
- * With
+ * The exponent e and center c = j/128 are chosen from u = 1+x as in
+ * dd_log(); with p = 2^e c the reduced argument is formed from the
+ * original x,
  *
- *   p = 2^e c_i,
+ *   r = (x - (p - 1)) / p,
  *
- * form the reduced argument directly from the original x as
- *
- *   r = (x - (p - 1)) / p.
- *
- * Constructing r from x rather than by subtracting p from the rounded
- * value of 1+x preserves information that would otherwise be lost when
- * x is close to -1.
- *
- * Then compute
- *
- *   log(1+x) = e*log(2) + log(c_i) + log(1+r)
+ * where p - 1 is exact in double-double.  This preserves the
+ * information in x that is lost in the rounded value of 1+x (x near
+ * -1, or |x| tiny), and for small |x| gives p = 1 and r = x exactly.
+ * For x > 1e300, where p could overflow, log(x) is used.
  */
-static dd_ex4
-DD_WRAP(log1p_core)(const gsl_dd x)
+static void
+DD_WRAP(log1p_sum)(dd_ex4 * sum, const gsl_dd x)
 {
-  gsl_dd one, u, m, center, delta, r, kr, p;
-  dd_ex4 sum;
-  int e, i;
+  gsl_dd m, r;
+  int e, j;
+  double p;
 
-  one.hi = 1.0;
-  one.lo = 0.0;
+  if (x.hi > 1.0e300)
+    {
+      /* log(1+x) = log(x) + log(1+1/x), the second term below 1e-300 */
+      DD_WRAP(log_sum)(sum, x);
+      return;
+    }
 
-  u = dd_add_d(x, 1.0);
-  m = log_normalize(u, &e);
-  i = log_center_index(m);
+  m = log_normalize(dd_add_d(x, 1.0), &e);
+  j = log_center_index(m.hi);
+  p = ldexp((double) j / 128.0, e);
 
-  center.hi = ldexp((double) (257 + 2 * i), -8);
-  center.lo = 0.0;
+  if (p == 1.0)
+    r = x;
+  else
+    {
+      r = dd_sub(x, two_sum(p, -1.0));
+      r = DD_WRAP(dd_div_d)(r, p);
+    }
 
-  p.hi = ldexp(center.hi, e);
-  p.lo = 0.0;
-
-  delta = dd_sub(p, one);
-  delta = dd_sub(x, delta);
-  r = DD_WRAP(dd_div)(delta, p);
-  kr = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
-  return sum;
+  DD_WRAP(log_reconstruct)(sum, e, j);
+  ex4_add_d(sum, r.hi);
+  ex4_add_d(sum, r.lo);
+  DD_WRAP(log1pmx_small_add)(sum, r);
 }
 
 /*
- * Form the large-positive reconstruction of log(1+x).
- *
- * For x >= 8, use
- *
- *   log(1+x) = log(x) + log(1 + 1/x).
- *
- * Evaluate log(x) with the standard 128-center logarithm range
- * reduction, and evaluate the small reciprocal correction log(1+1/x)
- * with the Taylor-36 kernel.
- *
- * Both contributions are accumulated in the same four-component
- * expansion.  The expansion is returned uncompressed so that callers
- * may add further corrections before the final double-double rounding.
- */
-static dd_ex4
-DD_WRAP(log1p_large)(const gsl_dd x)
-{
-  gsl_dd m, center, delta, r, kr;
-  dd_ex4 sum;
-  int e, i;
-
-  m = log_normalize(x, &e);
-  i = log_center_index(m);
-
-  center.hi = ldexp((double) (257 + 2 * i), -8);
-  center.lo = 0.0;
-
-  delta = dd_sub(m, center);
-  r = DD_WRAP(dd_div_d)(delta, center.hi);
-  kr = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  /* log(1+x) = log(x) + log(1 + 1/x). */
-  {
-    gsl_dd one;
-    one.hi = 1.0;
-    one.lo = 0.0;
-    r = DD_WRAP(dd_div)(one, x);
-  }
-  r = DD_WRAP(kernel_taylor36_small_y)(r);
-
-  DD_WRAP(log_reconstruct)(&sum, e, i, kr);
-  ex4_add_d(&sum, r.hi);
-  ex4_add_d(&sum, r.lo);
-
-  return sum;
-}
-
-/*
- * Compute log(1+x) for a double-double argument x, x > -1.
- *
- * Three argument ranges are used:
- *
- *   |x| <= 1/8 : evaluate log(1+x) directly with the Taylor-36 kernel;
- *
- *   x >= 8     : use log(x) + log(1+1/x), with both terms accumulated
- *                in a common four-component reconstruction;
- *
- *   otherwise  : use the cancellation-resistant log1p range reduction
- *                implemented by log1p_core().
- *
- * Intermediate and large-argument reconstructions are compressed to
- * double-double only after all terms have been accumulated.
+ * Compute log(1+x) for a double-double argument x.
  */
 static gsl_dd
 DD_WRAP(dd_log1p)(const gsl_dd x)
 {
-  double xv;
   dd_ex4 sum;
 
-  xv = x.hi + x.lo;
+  if (x.hi == 0.0)
+    return x;                   /* +-0 */
 
-  if (fabs(xv) <= 0.125)
-    return DD_WRAP(kernel_taylor36_small_y)(x);
-
-  if (xv >= 8.0)
+  if (!(x.hi > -1.0 && x.hi < GSL_POSINF))
     {
-      sum = DD_WRAP(log1p_large)(x);
-      return ex4_to_dd(sum);
+      if (x.hi == -1.0 && x.lo > 0.0)
+        ;                       /* 1 + x is a tiny positive number */
+      else
+        return log_special(x.hi + 1.0);
     }
 
-  sum = DD_WRAP(log1p_core)(x);
+  DD_WRAP(log1p_sum)(&sum, x);
+
   return ex4_to_dd(sum);
 }
 
@@ -601,215 +263,108 @@ DD_WRAP(dd_log1p)(const gsl_dd x)
  **********************************************/
 
 /*
- * Multiply a four-component expansion by a double-double number without
- * first compressing the expansion to double-double. Every binary64 product
- * is transformed by TwoProd and accumulated in the output expansion.
- */
-static void
-DD_WRAP(ex4_mul_dd)(dd_ex4 * result, const dd_ex4 * a, const gsl_dd x)
-{
-  double av[4];
-  gsl_dd p;
-  int i;
-
-  av[0] = a->a;
-  av[1] = a->b;
-  av[2] = a->c;
-  av[3] = a->d;
-
-  ex4_zero(result);
-
-  for (i = 0; i < 4; ++i)
-    {
-      p = DD_WRAP(two_prod)(av[i], x.hi);
-      ex4_add_d(result, p.hi);
-      ex4_add_d(result, p.lo);
-
-      p = DD_WRAP(two_prod)(av[i], x.lo);
-      ex4_add_d(result, p.hi);
-      ex4_add_d(result, p.lo);
-    }
-}
-
-/*
- * Evaluate the degree-60 approximation used by the central log1pmx
- * kernel.
+ * Compute log(1+x) - x on the central interval |x| <= 1/2.
  *
- * On -0.5 <= x <= 0.5, define the regularized function
+ * Choose the center p = j/128 nearest to 1+x (64 <= j <= 192), so that
+ * 1 + x = p (1+r) with
  *
- *   g(x) = (log(1+x) - x) / x^2,
+ *   r = (x - (p-1)) / p,    |r| <= 1/128,
  *
- * with g(0) = -1/2.  Approximate g(x) by the degree-60 polynomial
- * whose double-double coefficients are stored below in descending
- * degree order.
+ * and use the exact identity
  *
- * The resulting expansion represents P60(x) and is returned
- * uncompressed.
- */
-static dd_ex4
-DD_WRAP(log1pmx_p60_horner)(const gsl_dd x)
-{
-  static const gsl_dd DD_WRAP(log1pmx_p60_coef)[61] = {
-    { -9.65775656332123699777e-01, -2.24532096791980908566e-17 },
-    { 9.79610741009621421860e-01, -9.65937976936286504304e-18 },
-    { 2.68816991954149386856e+00, -2.18496136546857313266e-16 },
-    { -2.72625517274506590226e+00, 1.71650521768200823950e-16 },
-    { -3.90822132900220520213e+00, 1.23633839419962654003e-16 },
-    { 3.96349236198875543025e+00, 3.81291757467303190463e-17 },
-    { 3.63134117691947810869e+00, -6.18027520149773140539e-17 },
-    { -3.68242812913500650041e+00, 1.49348505845065394910e-16 },
-    { -2.49461058870914254015e+00, 2.19214692758218465816e-16 },
-    { 2.52977412018468861277e+00, -1.15743863031112810118e-16 },
-    { 1.26636154506293774347e+00, -5.06529276593280096355e-17 },
-    { -1.28403191101155766951e+00, 3.11066096108128364933e-17 },
-    { -5.48628134402717404505e-01, 3.99400222089679165718e-17 },
-    { 5.56448068068740031578e-01, 3.75975787014999395754e-17 },
-    { 1.55271082198524562612e-01, -8.29826986110985721481e-18 },
-    { -1.57294422356333618573e-01, -1.08795500697964577041e-17 },
-    { -7.00146736910476907845e-02, 8.33131199578298247653e-19 },
-    { 7.11733611848373998177e-02, -5.93314297482026194525e-18 },
-    { -1.17189652844435238804e-02, 8.41645625694020780109e-19 },
-    { 1.20935606563563873700e-02, -6.93908593050473730784e-21 },
-    { -2.59131633344192764679e-02, -4.06628971589620125189e-19 },
-    { 2.65232837260557484382e-02, 1.52450535173351723991e-18 },
-    { -2.46614899070697959904e-02, 1.69546443471558435635e-18 },
-    { 2.52977870666535355204e-02, -1.15501526651527980184e-18 },
-    { -2.63617831813584765910e-02, 1.11534926204096580165e-18 },
-    { 2.70736629022990879512e-02, 1.32676683331222699150e-19 },
-    { -2.77724964652743301630e-02, -6.57241413472885670178e-19 },
-    { 2.85660735505092154563e-02, 4.69386752799506825913e-19 },
-    { -2.94122768300363497673e-02, 6.77454454386064426504e-19 },
-    { 3.03035495721020210758e-02, 9.01491868830507117676e-19 },
-    { -3.12499581610545217047e-02, -4.24014625650924120044e-19 },
-    { 3.22580220936471498416e-02, -1.71280350920586181189e-18 },
-    { -3.33333362017147263878e-02, -1.19647032622321044742e-18 },
-    { 3.44827615290660277614e-02, -1.36440542132039675536e-18 },
-    { -3.57142855502005918122e-02, 3.44752596837664474346e-18 },
-    { 3.70370368706645566870e-02, 1.31223321036334098292e-18 },
-    { -3.84615384693109269021e-02, 3.05957187709209179978e-18 },
-    { 4.00000000078807871340e-02, 6.43768054221850513894e-19 },
-    { -4.16666666663648085911e-02, -3.16474507108915668603e-18 },
-    { 4.34782608692591554522e-02, 8.33184669375939275148e-19 },
-    { -4.54545454545549482139e-02, 3.37772030915312351296e-18 },
-    { 4.76190476190572406501e-02, 9.09173077186999526367e-19 },
-    { -4.99999999999997599143e-02, -2.41494325940720426034e-18 },
-    { 5.26315789473681822086e-02, -2.13756840335985646374e-18 },
-    { -5.55555555555555594105e-02, -7.88798805280934710683e-19 },
-    { 5.88235294117647120049e-02, -1.41413297313964547894e-18 },
-    { -6.25000000000000000000e-02, 6.88987229078932141862e-20 },
-    { 6.66666666666666657415e-02, 8.55327570292044959184e-19 },
-    { -7.14285714285714246063e-02, -3.96583100859162548416e-18 },
-    { 7.69230769230769273470e-02, -4.26932935104722101923e-18 },
-    { -8.33333333333333287074e-02, -4.62592359770636524197e-18 },
-    { 9.09090909090909116141e-02, -2.52323989741666877350e-18 },
-    { -1.00000000000000005551e-01, 5.55111509526822402609e-18 },
-    { 1.11111111111111104943e-01, 6.16790572060743326830e-18 },
-    { -1.25000000000000000000e-01, 7.92559349375334590475e-29 },
-    { 1.42857142857142849213e-01, 7.93016446152790152107e-18 },
-    { -1.66666666666666657415e-01, -9.25185853854307850869e-18 },
-    { 2.00000000000000011102e-01, -1.11022302462514566277e-17 },
-    { -2.50000000000000000000e-01, 4.31034122525845476361e-35 },
-    { 3.33333333333333314830e-01, 1.85037170770859413132e-17 },
-    { -5.00000000000000000000e-01, 7.42020338257589757108e-229 } };
-  dd_ex4 y, t;
-  int i;
-
-  ex4_zero(&y);
-  ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[0].hi);
-  ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[0].lo);
-
-  for (i = 1; i < 61; ++i)
-    {
-      DD_WRAP(ex4_mul_dd)(&t, &y, x);
-      y = t;
-      ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[i].hi);
-      ex4_add_d(&y, DD_WRAP(log1pmx_p60_coef)[i].lo);
-    }
-
-  return y;
-}
-
-/*
- * Compute log(1+x)-x on the central interval -0.5 <= x <= 0.5.
+ *   log1pmx(x) = log1pmx(p-1) + log1pmx(r) - (p-1) r.
  *
- * Remove the cancellation at x = 0 by writing
- *
- *   log(1+x) - x = x^2 g(x)
- *
- * and approximating the regular function g(x) with the degree-60
- * polynomial evaluated by log1pmx_p60_horner().
- *
- * Keep the Horner result and both final multiplications by x in
- * four-component expansions.  Compress to double-double only once,
- * after the complete expression
- *
- *   x*x*P60(x)
- *
- * has been evaluated.
+ * Here log1pmx(p-1) = log(p) - (p-1) is formed from the triple-double
+ * table without loss, and log1pmx(r) comes from log1pmx_small_add().
+ * The derivative of the last two terms with respect to r is about
+ * -(p-1) - r, which is not small relative to the result, so r is used
+ * to triple precision, r + r3, and r3 contributes -(p-1+r) r3.  For |x| < 1/256, p = 1 and
+ * the result is the kernel value with r = x.
  */
 static gsl_dd
-DD_WRAP(kernel_log1pmx_p60)(const gsl_dd x)
+DD_WRAP(log1pmx_central)(const gsl_dd x)
 {
-  dd_ex4 y, t;
-
-  y = DD_WRAP(log1pmx_p60_horner)(x);
-
-  DD_WRAP(ex4_mul_dd)(&t, &y, x);
-  y = t;
-  DD_WRAP(ex4_mul_dd)(&t, &y, x);
-
-  return ex4_to_dd(t);
-}
-
-
-/*
- * Compute log(1+x)-x outside the central interval.
- *
- * Reuse the uncompressed log1p reconstruction: log1p_core() for the
- * intermediate range and log1p_large() for large positive x.  Instead
- * of first rounding log(1+x) to double-double and then subtracting x,
- * accumulate -x.hi and -x.lo directly into the four-component
- * logarithm expansion.
- *
- * Thus
- *
- *   log(1+x) - x
- *
- * is rounded to double-double only once, after the complete expression
- * has been assembled.
- */
-static gsl_dd
-DD_WRAP(log1pmx_outer)(const gsl_dd x)
-{
+  gsl_dd d, R, r, t1, t2;
   dd_ex4 sum;
+  double p, pm1, q1, q2, r3;
+  int j;
 
-  if (x.hi + x.lo >= 8.0)
-    sum = DD_WRAP(log1p_large)(x);
-  else
-    sum = DD_WRAP(log1p_core)(x);
+  j = log_center_index(1.0 + x.hi);
+  if (j == 128)
+    {
+      ex4_zero(&sum);
+      DD_WRAP(log1pmx_small_add)(&sum, x);
+      return ex4_to_dd(sum);
+    }
 
-  ex4_add_d(&sum, -x.hi);
-  ex4_add_d(&sum, -x.lo);
+  p = (double) j / 128.0;
+  pm1 = (double) (j - 128) / 128.0;
+
+  d = dd_sub_d(x, pm1);
+
+  /*
+   * r = d/p to triple precision, q1 + q2 + r3.  The remainder of a
+   * correctly rounded quotient is representable, so d.hi - q1 p and
+   * R.hi - q2 p are exact.
+   */
+  q1 = d.hi / p;
+  t1 = DD_WRAP(two_prod)(q1, p);
+  R = two_sum((d.hi - t1.hi) - t1.lo, d.lo);
+  q2 = R.hi / p;
+  t1 = DD_WRAP(two_prod)(q2, p);
+  r3 = (((R.hi - t1.hi) - t1.lo) + R.lo) / p;
+  r = fast_two_sum(q1, q2);
+
+  ex4_zero(&sum);
+  ex4_add_d(&sum, log_table[j - 64][0]);
+  ex4_add_d(&sum, -pm1);
+  ex4_add_d(&sum, log_table[j - 64][1]);
+  ex4_add_d(&sum, log_table[j - 64][2]);
+
+  t1 = DD_WRAP(two_prod)(pm1, r.hi);
+  ex4_add_d(&sum, -t1.hi);
+  ex4_add_d(&sum, -t1.lo);
+  t2 = DD_WRAP(two_prod)(pm1, r.lo);
+  ex4_add_d(&sum, -t2.hi);
+  ex4_add_d(&sum, -t2.lo - (pm1 + r.hi) * r3);
+
+  DD_WRAP(log1pmx_small_add)(&sum, r);
 
   return ex4_to_dd(sum);
 }
 
 /*
- * Compute log(1+x)-x for a double-double argument x, x > -1.
+ * Compute log(1+x) - x for a double-double argument x.
  *
- * On the central interval
- *
- *   -0.5 <= x <= 0.5,
- *
- * use the cancellation-free degree-60 regularized polynomial kernel.
- * Outside this interval, reuse the log1p range reductions and accumulate
- * -x directly into their uncompressed four-component reconstruction.
+ * On |x| <= 1/2 use log1pmx_central().  Outside this interval the
+ * cancellation between log(1+x) and x is at most a factor of about 4,
+ * so -x is accumulated directly into the uncompressed log1p expansion
+ * and the sum is rounded to double-double once.
  */
 static gsl_dd
 DD_WRAP(dd_log1pmx)(const gsl_dd x)
 {
-  if (!DD_LT_d(x, -0.5) && !DD_GT_d(x, 0.5))
-    return DD_WRAP(kernel_log1pmx_p60)(x);
+  dd_ex4 sum;
 
-  return DD_WRAP(log1pmx_outer)(x);
+  if (!(x.hi > -1.0 && x.hi < GSL_POSINF))
+    {
+      if (x.hi == -1.0 && x.lo > 0.0)
+        ;
+      else
+        {
+          gsl_dd r = log_special(x.hi + 1.0);
+          if (x.hi == GSL_POSINF)
+            r.hi = GSL_NEGINF;  /* log(1+x) - x -> -Inf */
+          return r;
+        }
+    }
+
+  if (x.hi >= -0.5 && x.hi <= 0.5)
+    return DD_WRAP(log1pmx_central)(x);
+
+  DD_WRAP(log1p_sum)(&sum, x);
+  ex4_add_d(&sum, -x.hi);
+  ex4_add_d(&sum, -x.lo);
+
+  return ex4_to_dd(sum);
 }

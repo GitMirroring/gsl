@@ -24,8 +24,9 @@
 #define DD_LN2_HI                6.93147180559945286227e-01 /* double-double expansion of log(2) */
 #define DD_LN2_LO                2.31904681384629955842e-17
 #define DD_LN2_XTRA              5.70770843841621206578e-34
-#define DD_E_HI                  2.718281828459045091e+00   /* double-double expansion of e. */
-#define DD_E_LO                  1.445646891729250158e-16
+#define DD_PI_HI                 3.14159265358979311600e+00 /* triple-double expansion of pi */
+#define DD_PI_LO                 1.22464679914735320717e-16
+#define DD_PI_XTRA               -2.99476980971833966589e-33
 
 #define DD_CAT_(a,b)             a##b
 #define DD_CAT(a,b)              DD_CAT_(a,b)
@@ -34,13 +35,9 @@
 #define DD_LT_d(x, y)            ( (x.hi < y) || (x.hi == y && x.lo < 0.0) )
 
 /*
- * Short floating-point expansions used for compensated accumulation.
+ * Short floating-point expansion used for compensated accumulation.
  *
- * A three-component expansion represents the unevaluated sum
- *
- *   x = a + b + c,
- *
- * and a four-component expansion represents
+ * A four-component expansion represents the unevaluated sum
  *
  *   x = a + b + c + d.
  *
@@ -49,17 +46,10 @@
  * retains information that would be lost by rounding each intermediate
  * sum directly to double-double.
  *
- * These types are temporary accumulation formats, not general
- * triple-double or quad-double arithmetic types.  They are compressed
+ * This type is a temporary accumulation format, not a general
+ * quad-double arithmetic type.  It is compressed
  * to a normalized double-double result after accumulation is complete.
  */
-
-typedef struct
-{
-  double a;
-  double b;
-  double c;
-} dd_ex3;
 
 typedef struct
 {
@@ -75,9 +65,6 @@ static gsl_dd fast_two_sum(const double a, const double b);
 static gsl_dd dd_add(const gsl_dd a, const gsl_dd b);
 static gsl_dd dd_add_d(const gsl_dd a, const double b);
 static gsl_dd dd_ldexp(const gsl_dd a, const int e);
-static void ex3_add_d(dd_ex3 * x, const double q);
-static void ex3_renorm(dd_ex3 * x);
-static gsl_dd ex3_to_dd(const dd_ex3 x);
 static void ex4_add_d(dd_ex4 * x, const double q);
 static gsl_dd ex4_to_dd(const dd_ex4 x);
 static int ex4_zero(dd_ex4 * x);

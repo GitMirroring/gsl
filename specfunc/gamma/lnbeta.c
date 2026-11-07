@@ -783,37 +783,20 @@ lnbeta_neg_dd(const double a, const double b, const gsl_dd s, double * mag)
 }
 
 /*
- * |sin(pi x)| in double-double for x = x.hi + x.lo not an integer:
- * with r = x - n, n the nearest integer (|r| <= 1/2, formed exactly),
- * |sin(pi x)| = |u| sinc(u), u = pi r, from the Taylor series of
- * sinc(u) = sum_k (-u^2)^k / (2k+1)!, truncated after k = 18
- * (remainder below 1e-38 for |u| <= pi/2).
+ * |sin(pi x)| in double-double for x = x.hi + x.lo not an integer.
  */
 static gsl_dd
 lnbeta_dd_abs_sin_pi(const gsl_dd x)
 {
-  const gsl_dd pi = { M_PI, GSL_SF_PI_LO };
-  const double n = floor(x.hi + 0.5);
-  const gsl_dd r = gsl_dd_two_sum(x.hi - n, x.lo);    /* x.hi - n is exact */
-  const gsl_dd u = gsl_dd_mul(pi, r);
-  const gsl_dd u2 = gsl_dd_mul(u, u);
-  gsl_dd term = { 1.0, 0.0 }, sum = { 1.0, 0.0 };
-  int k;
+  gsl_dd sn = gsl_dd_sin_pi(x);
 
-  for (k = 1; k <= 18; ++k)
+  if (sn.hi < 0.0)
     {
-      term = gsl_dd_div_d(gsl_dd_mul(term, u2), -(double) ((2 * k) * (2 * k + 1)));
-      sum = gsl_dd_add(sum, term);
+      sn.hi = -sn.hi;
+      sn.lo = -sn.lo;
     }
 
-  sum = gsl_dd_mul(sum, u);
-  if (sum.hi < 0.0)
-    {
-      sum.hi = -sum.hi;
-      sum.lo = -sum.lo;
-    }
-
-  return sum;
+  return sn;
 }
 
 /*

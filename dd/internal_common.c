@@ -141,69 +141,6 @@ dd_ldexp(const gsl_dd a, const int e)
 }
 
 /*
- * Accumulate a binary64 value into a three-term expansion.
- *
- * Add q to the leading component with TwoSum, then propagate the
- * resulting residual through the second component.  Any residual from
- * that addition is accumulated in the third component.
- */
-static void
-ex3_add_d(dd_ex3 * x, const double q)
-{
-  gsl_dd s, t;
-
-  s = two_sum(x->a, q);
-  t = two_sum(x->b, s.lo);
-
-  x->a = s.hi;
-  x->b = t.hi;
-  x->c += t.lo;
-}
-
-/*
- * Renormalize a three-term floating-point expansion.
- *
- * Fold the third component into the second with TwoSum, then propagate
- * the leading part of that result into the first component.  The
- * remaining residual is retained in the second component and the third
- * component is cleared.
- *
- * The resulting first two components are suitable for subsequent
- * compression to a normalized double-double value.
- */
-static void
-ex3_renorm(dd_ex3 * x)
-{
-  gsl_dd t, u;
-
-  t = two_sum(x->b, x->c);
-  u = two_sum(x->a, t.hi);
-
-  x->a = u.hi;
-  x->b = u.lo + t.lo;
-  x->c = 0.0;
-}
-
-/*
- * Compress a three-term floating-point expansion to double-double.
- *
- * Combine the two trailing components with TwoSum, add their leading
- * contribution to the first component, and renormalize the resulting
- * two-word value with FastTwoSum.
- */
-static gsl_dd
-ex3_to_dd(const dd_ex3 x)
-{
-  gsl_dd t, u;
-
-  t = two_sum(x.b, x.c);
-  u = two_sum(x.a, t.hi);
-  u.lo += t.lo;
-
-  return fast_two_sum(u.hi, u.lo);
-}
-
-/*
  * Accumulate a binary64 value into a four-term expansion.
  *
  * Add q to the leading component with TwoSum, then propagate each
@@ -259,3 +196,4 @@ ex4_zero(dd_ex4 * x)
 #include "internal_exp.c"
 #include "internal_log.c"
 #include "internal_sqrt.c"
+#include "internal_trig.c"

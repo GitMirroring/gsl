@@ -225,3 +225,4 @@ dd_div_d_p(const gsl_dd a, const double b)
 #include "internal_exp_source.c"
 #include "internal_log_source.c"
 #include "internal_sqrt_source.c"
+#include "internal_trig_source.c"

@@ -43,6 +43,7 @@ test_gamma_all(void)
 
   status += test_beta();
   status += test_lnbeta();
+  status += test_psi();
 
   return status;
 }
