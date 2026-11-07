@@ -154,6 +154,16 @@ int test_bessel(void)
   TEST_SF(s, gsl_sf_bessel_Kn_e, (   5,    2.0, &r), 9.431049100596467443,     TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_bessel_Kn_e, ( 100,  100.0, &r), 7.617129630494085416e-25, TEST_TOL2, GSL_SUCCESS);
 
+  /* large x: sin, cos of the argument were wrong beyond ~1e8 (bugs
+     #45726, #36152) */
+  TEST_SF(s,  gsl_sf_bessel_y0_e, (1.0e19, &r),  3.7490516955071783e-20, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_y0_e, (1.0e22, &r), -5.2321478539513895e-23, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_y1_e, (1.0e20, &r),  6.4525128526578084e-21, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_y2_e, (1.0e19, &r), -3.7490516955071783e-20, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_y2_e, (1.0e300, &r), -5.7538611195754902e-301, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_j0_e, (1.0e18, &r), -9.9296932074040508e-19, TEST_TOL0, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_bessel_j0_e, (1.0e100, &r), -3.8063773100502866e-101, TEST_TOL0, GSL_SUCCESS);
+
   TEST_SF(s,  gsl_sf_bessel_j0_e, (-10.0, &r), -0.05440211108893698134, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_bessel_j0_e, (0.001, &r), 0.9999998333333416667, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_bessel_j0_e, (  1.0, &r), 0.84147098480789650670, TEST_TOL0, GSL_SUCCESS);

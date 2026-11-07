@@ -21,6 +21,7 @@
 #define TEST_TRIG_ALL_H
 
 int test_trig_all(void);
+int test_sin_cos(void);
 int test_sinc(void);
 
 #endif /* TEST_TRIG_ALL_H */

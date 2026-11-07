@@ -2203,30 +2203,7 @@ int test_trig(void)
   TEST_SF(s, gsl_sf_hypot_e, (GSL_POSINF, GSL_NAN, &r), GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_hypot_e, (GSL_NAN, GSL_NEGINF, &r), GSL_POSINF, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_sin_e, (-10.0, &r),       0.5440211108893698134,    TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1.0, &r),         0.8414709848078965067,    TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1000.0, &r),      0.8268795405320025603,    TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1048576.75, &r),  0.8851545351115651914,    TEST_TOL1, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (62831853.75, &r), 0.6273955953485000827,    TEST_TOL3, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1073741822.5, &r), -0.8284043541754465988,  TEST_SQRT_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1073741824.0, &r), -0.6173264150460421708,  TEST_SQRT_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_sin_e, (1073741825.5, &r),  0.7410684679436226926,  TEST_SQRT_TOL0, GSL_SUCCESS);
-  /*
-  TEST_SF(s, gsl_sf_sin_e, (1099511627776.0, &r), -0.4057050115328287198, 32.0*TEST_SQRT_TOL0, GSL_SUCCESS);
-  */
-
-  TEST_SF(s, gsl_sf_cos_e, (-10.0, &r),      -0.8390715290764524523,    TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (1.0, &r),         0.5403023058681397174,    TEST_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (1000.0, &r),      0.5623790762907029911,    TEST_TOL1, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (1048576.75, &r),  0.4652971620066351799,    TEST_TOL2, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (62831853.75, &r), 0.7787006914966116436,    TEST_TOL2, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (1073741822.5, &r),   -0.5601305436977716102,  TEST_SQRT_TOL0, GSL_SUCCESS);
-  TEST_SF(s, gsl_sf_cos_e, (1073741824.0, &r),    0.7867071229411881196,  TEST_SQRT_TOL0, GSL_SUCCESS);
-  /*
-  TEST_SF(s, gsl_sf_cos_e, (1099511627776.0, &r), -0.9140040719915570023, 128.0*TEST_SQRT_TOL0, GSL_SUCCESS);
-  */
-
-  
+  /* sin, cos: see trig/test_sin_cos.c */
 
   /*
   TEST_SF(s, gsl_sf_sin_pi_x_e, (1000.5, &r), 1.0, TEST_TOL0, GSL_SUCCESS);
@@ -2658,7 +2635,7 @@ int main(int argc, char * argv[])
   gsl_test(test_synch(),       "Synchrotron Functions");
   gsl_test(test_transport(),   "Transport Functions");
   gsl_test(test_trig(),        "Trigonometric and Related Functions");
-  gsl_test(test_trig_all(),    "Trigonometric Functions (sinc)");
+  gsl_test(test_trig_all(),    "Trigonometric Functions (sin, cos, sinc)");
   gsl_test(test_zeta(),        "Zeta Functions");
 
   gsl_test(test_results(),     "Result Methods");

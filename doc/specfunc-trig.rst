@@ -10,20 +10,25 @@ Circular Trigonometric Functions
 .. index::
    single: sine function, special functions
 
-.. function:: double gsl_sf_sin (double x)
-              int gsl_sf_sin_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_sin (const double x)
+              int gsl_sf_sin_e (const double x, gsl_sf_result * result)
 
-   These routines compute the sine function :math:`\sin(x)`.
-.. Exceptional Return Values:
+   These routines compute the sine function :math:`\sin(x)`, using the C
+   library :func:`sin` (which reduces the argument exactly for all finite
+   :math:`x`), with an error estimate of 2 ulp.  For infinite or NaN
+   :data:`x` the result is NaN and :macro:`GSL_EDOM` is returned.
+.. Exceptional Return Values: GSL_EDOM
 
 .. index::
    single: cosine function, special functions
 
-.. function:: double gsl_sf_cos (double x)
-              int gsl_sf_cos_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_cos (const double x)
+              int gsl_sf_cos_e (const double x, gsl_sf_result * result)
 
-   These routines compute the cosine function :math:`\cos(x)`.
-.. Exceptional Return Values:
+   These routines compute the cosine function :math:`\cos(x)`, using the
+   C library :func:`cos`, with an error estimate of 2 ulp.  For infinite or
+   NaN :data:`x` the result is NaN and :macro:`GSL_EDOM` is returned.
+.. Exceptional Return Values: GSL_EDOM
 
 .. index::
    single: hypot function, special functions

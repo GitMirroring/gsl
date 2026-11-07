@@ -3,6 +3,14 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bugs #45746, #52570, #45726 and #36152 (gsl_sf_sin and
+   gsl_sf_cos lost all accuracy for |x| beyond about 1e8, and returned
+   values far outside [-1,1] for |x| >= ~1e16, with GSL_SUCCESS; the
+   Airy and Bessel functions inherited this: they now use the C
+   library sin() and cos(), which reduce the argument exactly, with an
+   error estimate of 2 ulp; infinite or NaN arguments give NaN with
+   GSL_EDOM; reported by E. Tang, Z. Fu and S. Lehtola)
+
 ** fix for bug #57978 (gsl_sf_sin_pi and gsl_sf_cos_pi returned 0 and 1
    for infinite arguments; they now return NaN with GSL_EDOM, also for
    NaN; reported by J. Vanover)
@@ -198,6 +206,7 @@
    - gsl_sf_hyperg_1F1_renorm (new)
    - gsl_sf_hyperg_2F1, gsl_sf_hyperg_2F1_conj,
      gsl_sf_hyperg_2F1_renorm, gsl_sf_hyperg_2F1_conj_renorm
+   - gsl_sf_sin, gsl_sf_cos
    - gsl_sf_sinc
    - gsl_sf_log1p (new)
    - gsl_sf_log1pmx (new)

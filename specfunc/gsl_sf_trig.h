@@ -37,18 +37,21 @@
 __BEGIN_DECLS
 
 
-/* Sin(x) with GSL semantics. This is actually important
- * because we want to control the error estimate, and trying
- * to guess the error for the standard library implementation
- * every time it is used would be a little goofy.
+/* Sin(x) with GSL semantics: the C library sin() with an error
+ * estimate.
+ *
+ * exceptions: GSL_EDOM (x infinite or NaN)
  */
-int gsl_sf_sin_e(double x, gsl_sf_result * result);
+int gsl_sf_sin_e(const double x, gsl_sf_result * result);
 double gsl_sf_sin(const double x);
 
 
-/* Cos(x) with GSL semantics.
+/* Cos(x) with GSL semantics: the C library cos() with an error
+ * estimate.
+ *
+ * exceptions: GSL_EDOM (x infinite or NaN)
  */
-int gsl_sf_cos_e(double x, gsl_sf_result * result);
+int gsl_sf_cos_e(const double x, gsl_sf_result * result);
 double gsl_sf_cos(const double x);
 
 

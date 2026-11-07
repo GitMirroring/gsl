@@ -25,6 +25,7 @@ test_trig_all(void)
 {
   int status = 0;
 
+  status += test_sin_cos();
   status += test_sinc();
 
   return status;
