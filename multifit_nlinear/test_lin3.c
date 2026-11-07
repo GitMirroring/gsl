@@ -13,7 +13,8 @@ lin3_checksol(const double x[], const double sumsq,
   const double n = (double) lin3_N;
   const double sumsq_exact = 0.5 * (n*n + 3*n - 6.0) / (2*n - 3.0);
   const double sum_exact = 3.0 / (2.0*n - 3.0);
-  double sum = 0.0;
+  const double c2 = (n - 2.0) * (n - 1.0) * (2.0*n - 3.0) / 6.0;  /* sum_i c_i^2 */
+  double sum = 0.0, sum_tol;
 
   gsl_test_rel(sumsq, sumsq_exact, epsrel, "%s/%s sumsq",
                sname, pname);
@@ -21,7 +22,17 @@ lin3_checksol(const double x[], const double sumsq,
   for (i = 1; i < lin3_P - 1; ++i)
     sum += (i + 1.0) * x[i];
 
-  gsl_test_rel(sum, sum_exact, epsrel, "%s/%s coeff sum",
+  /*
+   * sumsq = sumsq* + 1/2 sum_i c_i^2 (s - s*)^2, with c_i the multiplier
+   * of the coefficient sum s in residual i (f_i = c_i s - 1), depends on
+   * s only to second order: a solver stopping with sumsq within 64 eps of
+   * the minimum (by the step size test, on this rank-deficient problem)
+   * determines s only to sqrt(2 * 64 eps sumsq* / sum_i c_i^2), which
+   * depends on rounding (e.g. FMA contraction) and can exceed epsrel
+   */
+  sum_tol = GSL_MAX (epsrel, sqrt (128.0 * GSL_DBL_EPSILON * sumsq_exact / c2) / sum_exact);
+
+  gsl_test_rel(sum, sum_exact, sum_tol, "%s/%s coeff sum",
                sname, pname);
 
   (void)x; /* avoid unused parameter warning */

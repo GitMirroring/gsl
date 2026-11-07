@@ -3,6 +3,9 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #67446 (multilarge_nlinear test failures;
+   reported by D. Jerius)
+
 ** fix for bug #67447 (spmatrix complex_float test failures;
    reported by D. Jerius)
 
