@@ -1190,7 +1190,7 @@ gsl_sf_hermite_func_der_e(const int m, const int n, const double x, gsl_sf_resul
     {
       double hi2 = 1.0 / sqrt(M_SQRTPI);
       double hi1 = M_SQRT2 * x * hi2;
-      double hi = 0.0;
+      double hi = (n == 0) ? hi2 : hi1;   /* psi_n (without exp(-x^2/2)) for n < 2 */
       double sum_log_scale = 0.0;
       double abshi;
       int i;
@@ -1214,9 +1214,21 @@ gsl_sf_hermite_func_der_e(const int m, const int n, const double x, gsl_sf_resul
             }
         }
 
-      /* psi'_n(x) = sqrt(2 n) psi_{n-1} - x psi_n */
-      result->val = (sqrt(2.0*n) * hi2 - x * hi) * exp(-0.5 * x * x + sum_log_scale);
-      result->err = n * GSL_DBL_EPSILON * fabs(result->val);
+      /* psi'_n(x) = sqrt(2 n) psi_{n-1} - x psi_n (for n = 0 the first
+         term vanishes) */
+      {
+        const double t1 = sqrt(2.0*n) * hi2;
+        const double t2 = x * hi;
+        const double L = -0.5 * x * x + sum_log_scale;
+        const double e = exp(L);
+
+        result->val = (t1 - t2) * e;
+
+        /* recurrence (relative to the terms, which may cancel), and the
+           rounding of the exponent */
+        result->err = GSL_DBL_EPSILON * ((n + 2.0) * (fabs(t1) + fabs(t2)) * e
+                                         + (0.5 * x * x + fabs(sum_log_scale)) * fabs(result->val));
+      }
 
       return GSL_SUCCESS;
     }

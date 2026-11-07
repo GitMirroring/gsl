@@ -375,6 +375,21 @@ test_hermite(void)
   }
   TEST_SF(s, gsl_sf_hermite_func_series_e, (n, x, res, &r),  0.81717103529960997134154552556,  TEST_TOL0, GSL_SUCCESS);
 
+  /* first derivative for n = 0, 1 (bug #68625): psi_0' = -x psi_0,
+     psi_1' = sqrt(2) psi_0 - x psi_1 */
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 0, 0.75, &r), -0.4252344802707702127341295, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 0, -1.3, &r), 0.4194469559344528964481383, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 0, 3.5, &r), -0.005750781600050709010012369, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 0, 10.25, &r), -1.181420206956638289975898e-22, TEST_TOL2, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 1, 0.75, &r), 0.350800548692765235285092, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 1, -1.3, &r), -0.3148457122363409216793984, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 1, 3.5, &r), -0.02614124999904865942948026, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 1, 10.25, &r), -1.696249694166836319854481e-21, TEST_TOL2, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 2, 0.75, &r), 1.165158965300970245768341, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 2, -1.3, &r), -0.4804819347606766653866587, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 2, 3.5, &r), -0.07929512499711426693609012, TEST_TOL1, GSL_SUCCESS);
+  TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 2, 10.25, &r), -1.71359422932791162817011e-20, TEST_TOL2, GSL_SUCCESS);
+
   TEST_SF(s, gsl_sf_hermite_func_der_e, (0, 28, 0.75, &r),  0.235262808086212406493191404,  TEST_TOL1, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_hermite_func_der_e, (1, 28, 0.75, &r),  1.289485094958329643927802330,  TEST_TOL1, GSL_SUCCESS);
   TEST_SF(s, gsl_sf_hermite_func_der_e, (2, 28, 0.75, &r), -13.27764473136561269145948989,  TEST_TOL1, GSL_SUCCESS);
