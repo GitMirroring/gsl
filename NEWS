@@ -3,6 +3,9 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** specfunc tests are now more robust against rounding differences
+   on different platforms
+
 ** fix for bugs #45746, #52570, #45726 and #36152 (gsl_sf_sin and
    gsl_sf_cos lost all accuracy for |x| beyond about 1e8, and returned
    values far outside [-1,1] for |x| >= ~1e16, with GSL_SUCCESS; the

@@ -967,12 +967,48 @@ test_alf_vsh2(const gsl_sf_alf_t norm, const size_t flags, const size_t lmax,
   for (i = 0; i < nlm; ++i)
     {
       t[i] = p[i];
-      same = same && (t[i] == v[i]) && (dt[i] == dv[i]);
       err = GSL_MAX(err, fabs(d2t[i] - d2k[i]));
       vmax = GSL_MAX(vmax, fabs(d2k[i]));
     }
 
-  gsl_test(!same, "alf vsh2 %s lmax=%zu theta=%g P, dP equal to vsh_array", desc, lmax, theta);
+  /*
+   * vsh2_array evaluates the same recurrences as vsh_array in separate
+   * code, so the two agree only to rounding (with FMA contraction the
+   * compiler may round them differently), accumulated over the steps of
+   * the recurrence in l.  The comparison is per column m, relative to
+   * the largest value in the column: the columns differ in magnitude by
+   * many orders (about sin(theta)^m), and within a column P(l,m)
+   * oscillates in l, so that an entrywise relative test would fail near
+   * its zeros.
+   */
+  {
+    const double ptol = 2.0 * (lmax + 1.0) * GSL_DBL_EPSILON;
+    double rel_p = 0.0, rel_dp = 0.0;
+    size_t l, m;
+
+    for (m = 0; m <= lmax; ++m)
+      {
+        double perr = 0.0, pmax = 0.0, dperr = 0.0, dpmax = 0.0;
+
+        for (l = m; l <= lmax; ++l)
+          {
+            const size_t idx = gsl_sf_alf_array_index(l, m, lmax);
+            perr = GSL_MAX(perr, fabs(t[idx] - v[idx]));
+            pmax = GSL_MAX(pmax, fabs(v[idx]));
+            dperr = GSL_MAX(dperr, fabs(dt[idx] - dv[idx]));
+            dpmax = GSL_MAX(dpmax, fabs(dv[idx]));
+          }
+
+        /* an all-zero column (e.g. underflow near the poles) must be
+           matched exactly */
+        rel_p = GSL_MAX(rel_p, (pmax > 0.0) ? perr / pmax : (perr > 0.0 ? GSL_POSINF : 0.0));
+        rel_dp = GSL_MAX(rel_dp, (dpmax > 0.0) ? dperr / dpmax : (dperr > 0.0 ? GSL_POSINF : 0.0));
+      }
+
+    gsl_test(!(rel_p <= ptol && rel_dp <= ptol),
+             "alf vsh2 %s lmax=%zu theta=%g P, dP agree with vsh_array (largest relative difference in a column %.2e, %.2e)",
+             desc, lmax, theta, rel_p, rel_dp);
+  }
   gsl_test(err > tol * vmax, "alf vsh2 %s lmax=%zu theta=%g d2P vs derivk (relative error %.2e)",
            desc, lmax, theta, err / vmax);
 
