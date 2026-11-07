@@ -22,6 +22,7 @@
 
 int test_hyperg_all(void);
 
+int test_1F1(void);
 int test_2F1(void);
 
 #endif /* TEST_HYPERG_ALL_H */

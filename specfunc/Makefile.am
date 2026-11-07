@@ -83,7 +83,6 @@ libgslspecfunc_la_SOURCES = \
   hermite.c                 \
   hyperg_0F1.c              \
   hyperg_2F0.c              \
-  hyperg_1F1.c              \
   hyperg_U.c                \
   hyperg.c                  \
   inline.c                  \

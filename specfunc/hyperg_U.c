@@ -1519,6 +1519,28 @@ hyperg_U_int_origin (const int a, const int b, gsl_sf_result_e10 * result)
 
 */
 
+/*
+ * M(a,b,x) as needed in A&S 13.1.3 below.  For b a non-positive integer
+ * the series of M terminates only if a is an integer with b <= a <= 0,
+ * and the formula then gives U with the value of Kummer's
+ * transformation e^x M(b-a,b,-x), which is not the terminating
+ * polynomial that gsl_sf_hyperg_1F1_e returns there (at such b the
+ * limit of M depends on how a and b approach their values).
+ */
+static int
+hyperg_U_negx_M (const double a, const double b, const double x, gsl_sf_result * result)
+{
+  if (b <= 0.0 && b == floor (b) && a <= 0.0 && a == floor (a) && a >= b)
+    {
+      gsl_sf_result K;
+      int stat_K = gsl_sf_hyperg_1F1_e (b - a, b, -x, &K);
+      int stat_e = gsl_sf_exp_mult_err_e (x, 0.0, K.val, K.err, result);
+      return GSL_ERROR_SELECT_2 (stat_e, stat_K);
+    }
+
+  return gsl_sf_hyperg_1F1_e (a, b, x, result);
+}
+
 static int
 hyperg_U_negx (const double a, const double b, const double x, gsl_sf_result_e10 * result)
 {
@@ -1556,7 +1578,7 @@ hyperg_U_negx (const double a, const double b, const double x, gsl_sf_result_e10
       if (r1.val != 0.0) 
         {
           gsl_sf_result Mr1;
-          int stat_Mr1 = gsl_sf_hyperg_1F1_e (a, b, x, &Mr1);
+          int stat_Mr1 = hyperg_U_negx_M (a, b, x, &Mr1);
           status = GSL_ERROR_SELECT_2(status, stat_Mr1);
           
           T1 = Mr1.val * r1.val;
@@ -1597,7 +1619,7 @@ hyperg_U_negx (const double a, const double b, const double x, gsl_sf_result_e10
       if (r2.val != 0.0)
         {
           gsl_sf_result Mr2;
-          int stat_Mr2 = gsl_sf_hyperg_1F1_e (1+a-b, 2-b, x, &Mr2);
+          int stat_Mr2 = hyperg_U_negx_M (1+a-b, 2-b, x, &Mr2);
           T2 =  Mr2.val * r2.val;
           T2_err = 2.0 * GSL_DBL_EPSILON * fabs(T2)
             + fabs(Mr2.err * r2.val) + fabs(Mr2.val * r2.err);

@@ -25,6 +25,7 @@ test_hyperg_all(void)
 {
   int status = 0;
 
+  status += test_1F1();
   status += test_2F1();
 
   return status;

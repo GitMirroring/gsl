@@ -51,19 +51,28 @@ double gsl_sf_hyperg_0F1(const double c, const double x);
 /* Confluent hypergeometric function  for integer parameters.
  * 1F1[m,n,x] = M(m,n,x)
  *
- * exceptions: 
+ * exceptions: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM, GSL_ELOSS
  */
 int gsl_sf_hyperg_1F1_int_e(const int m, const int n, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_1F1_int(const int m, const int n, double x);
+double gsl_sf_hyperg_1F1_int(const int m, const int n, const double x);
 
 
 /* Confluent hypergeometric function.
  * 1F1[a,b,x] = M(a,b,x)
  *
- * exceptions:
+ * exceptions: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM, GSL_ELOSS
  */
 int gsl_sf_hyperg_1F1_e(const double a, const double b, const double x, gsl_sf_result * result);
-double gsl_sf_hyperg_1F1(double a, double b, double x);
+double gsl_sf_hyperg_1F1(const double a, const double b, const double x);
+
+
+/* Renormalized confluent hypergeometric function, 1F1[a,b,x] / Gamma[b],
+ * defined also for b a non-positive integer.
+ *
+ * exceptions: GSL_EOVRFLW, GSL_EUNDRFLW, GSL_EDOM, GSL_ELOSS
+ */
+int gsl_sf_hyperg_1F1_renorm_e(const double a, const double b, const double x, gsl_sf_result * result);
+double gsl_sf_hyperg_1F1_renorm(const double a, const double b, const double x);
 
 
 /* Confluent hypergeometric function for integer parameters.

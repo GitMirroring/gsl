@@ -25,8 +25,8 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 ..   Gamma[c] (-x)^(1/2(1-c)) J_(c-1)(2 Sqrt[-x])
 .. exceptions: GSL_EOVRFLW, GSL_EUNDRFLW
 
-.. function:: double gsl_sf_hyperg_1F1_int (int m, int n, double x)
-              int gsl_sf_hyperg_1F1_int_e (int m, int n, double x, gsl_sf_result * result)
+.. function:: double gsl_sf_hyperg_1F1_int (const int m, const int n, const double x)
+              int gsl_sf_hyperg_1F1_int_e (const int m, const int n, const double x, gsl_sf_result * result)
 
    These routines compute the confluent hypergeometric function
 
@@ -38,24 +38,65 @@ Hypergeometric functions are described in Abramowitz & Stegun, Chapters
 
       .. math:: 1F1(m,n,x) = M(m,n,x)
 
-   for integer parameters :data:`m`, :data:`n`.
-.. exceptions: 
+   for integer parameters :data:`m`, :data:`n`, as
+   :func:`gsl_sf_hyperg_1F1`.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW, GSL_EUNDRFLW
 
-.. function:: double gsl_sf_hyperg_1F1 (double a, double b, double x)
-              int gsl_sf_hyperg_1F1_e (double a, double b, double x, gsl_sf_result * result)
+.. function:: double gsl_sf_hyperg_1F1 (const double a, const double b, const double x)
+              int gsl_sf_hyperg_1F1_e (const double a, const double b, const double x, gsl_sf_result * result)
 
    These routines compute the confluent hypergeometric function
 
    .. only:: not texinfo
 
-      .. math:: {}_1F_1(a,b,x) = M(a,b,x)
+      .. math:: {}_1F_1(a,b,x) = M(a,b,x) = \sum_{k=0}^\infty {(a)_k \over (b)_k} {x^k \over k!}
 
    .. only:: texinfo
 
-      .. math:: 1F1(a,b,x) = M(a,b,x)
+      .. math:: 1F1(a,b,x) = M(a,b,x) = \sum_{k=0}^\infty (a)_k / (b)_k x^k / k!
 
-   for general parameters :data:`a`, :data:`b`.
-.. exceptions:
+   for general parameters :data:`a`, :data:`b`.  When :math:`b` is a
+   non-positive integer the function is defined only if :math:`a` is an
+   integer with :math:`b \le a \le 0`, where the series terminates before
+   the zero of :math:`(b)_k`; it is then the polynomial
+   :math:`\sum_{k=0}^{-a} (a)_k/(b)_k \, x^k/k!`, and otherwise a domain
+   error is returned.  (Releases before 2.9 returned
+   :math:`e^x M(b-a,b,-x)` for some of these arguments, which is a
+   different polynomial.)  :math:`M(0,b,x) = 1` for all :math:`x`.
+
+   The function is evaluated by the series (with its cancellation
+   tracked, and a double-double summation when needed), Kummer's
+   transformation :math:`M(a,b,x) = e^x M(b-a,b,-x)` for :math:`x < 0`,
+   the asymptotic expansion for large :math:`x`, and the recurrences in
+   :math:`a` and :math:`b` otherwise.  The error estimate accounts for
+   the cancellation and the growth of rounding errors in the recurrences.
+   If no significant digit is left, as can happen for very large
+   parameters of opposite signs, the error code :macro:`GSL_ELOSS` is
+   returned.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW, GSL_EUNDRFLW
+
+.. function:: double gsl_sf_hyperg_1F1_renorm (const double a, const double b, const double x)
+              int gsl_sf_hyperg_1F1_renorm_e (const double a, const double b, const double x, gsl_sf_result * result)
+
+   These routines compute the renormalized confluent hypergeometric
+   function
+
+   .. only:: not texinfo
+
+      .. math:: {}_1F_1(a,b,x) / \Gamma(b) = {\bf M}(a,b,x)
+
+   .. only:: texinfo
+
+      .. math:: 1F1(a,b,x) / \Gamma(b)
+
+   which is defined for all :math:`b`.  For :math:`b = -n` a
+   non-positive integer the limit
+
+   .. math:: {(a)_{n+1} \over (n+1)!} x^{n+1} M(a+n+1, n+2, x)
+
+   is returned; it is zero when :math:`a` is an integer with
+   :math:`b \le a \le 0`.
+.. exceptions: GSL_EDOM, GSL_ELOSS, GSL_EOVRFLW, GSL_EUNDRFLW
 
 .. function:: double gsl_sf_hyperg_U_int (int m, int n, double x)
               int gsl_sf_hyperg_U_int_e (int m, int n, double x, gsl_sf_result * result)

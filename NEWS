@@ -118,6 +118,20 @@
    2F1(a+1,b;a;x) and 2F1(a,b+1;b;x) and the other cases listed in
    bug #66850 (suggested by Fermé le Lundi)
 
+** fix for bugs #28267 and #43809 (gsl_sf_hyperg_1F1 was inaccurate,
+   with an error estimate larger than the value, for a << 0 and
+   x >> 0, and for large x; reported by W. Li)
+
+** fix for bug #55687 (gsl_sf_hyperg_1F1 crashed with a NaN argument;
+   it now returns GSL_EDOM, except that M(0,b,x) = 1 for all x;
+   reported by S. Byrne)
+
+** fix for bug #58032 (gsl_sf_hyperg_1F1 and gsl_sf_hyperg_1F1_int
+   returned a value for b a non-positive integer where the function
+   is undefined, e.g. 1 for 1F1(2,0,0); reported by J. Vanover)
+
+** fix for bug #66826 (reported by Fermé le Lundi)
+
 ** new adaptive differentation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
@@ -145,6 +159,8 @@
      handle negative arguments)
    - gsl_sf_psi, gsl_sf_psi_int, gsl_sf_psi_1, gsl_sf_psi_1_int,
      gsl_sf_psi_1piy
+   - gsl_sf_hyperg_1F1, gsl_sf_hyperg_1F1_int
+   - gsl_sf_hyperg_1F1_renorm (new)
    - gsl_sf_hyperg_2F1, gsl_sf_hyperg_2F1_conj,
      gsl_sf_hyperg_2F1_renorm, gsl_sf_hyperg_2F1_conj_renorm
    - gsl_sf_sinc
