@@ -44,6 +44,12 @@ test_LU_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
   gsl_matrix_memcpy(A, m);
   gsl_linalg_LU_decomp(A, p, &signum);
 
+  /* the permutation is built in place from the row interchanges: it
+     must be valid, with signum its parity */
+  gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS, "%s: (%lu,%lu) valid permutation", desc, M, N);
+  gsl_test(signum != ((gsl_permutation_inversions(p) % 2) ? -1 : 1),
+           "%s: (%lu,%lu) signum %d is the parity of the permutation", desc, M, N, signum);
+
   if (M >= N)
     {
       gsl_matrix_view U = gsl_matrix_submatrix(A, 0, 0, N, N);
@@ -123,7 +129,7 @@ test_LU_decomp_eps(const gsl_matrix * m, const double eps, const char * desc)
  * pivot array unset, which could crash gsl_linalg_LU_decomp).
  */
 static int
-test_LU_decomp_singular(const gsl_matrix * m0, const size_t k)
+test_LU_decomp_singular(const gsl_matrix * m0, const size_t k, const size_t k2)
 {
   int s = 0;
   const size_t M = m0->size1;
@@ -137,14 +143,16 @@ test_LU_decomp_singular(const gsl_matrix * m0, const size_t k)
   gsl_matrix_memcpy(m, m0);
   c = gsl_matrix_column(m, k);
   gsl_vector_set_zero(&c.vector);
+  c = gsl_matrix_column(m, k2);
+  gsl_vector_set_zero(&c.vector);
   gsl_matrix_memcpy(A, m);
 
   status = gsl_linalg_LU_decomp(A, p, &signum);
-  gsl_test(status != (int) k + 1, "LU_decomp singular (%lu,%lu) zero column %lu: status %d, expected %lu",
-           M, N, k, status, k + 1);
+  gsl_test(status != (int) GSL_MIN(k, k2) + 1, "LU_decomp singular (%lu,%lu) zero columns %lu,%lu: status %d, expected %lu",
+           M, N, k, k2, status, GSL_MIN(k, k2) + 1);
   gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS,
-           "LU_decomp singular (%lu,%lu) zero column %lu: valid permutation", M, N, k);
-  s += (status != (int) k + 1);
+           "LU_decomp singular (%lu,%lu) zero columns %lu,%lu: valid permutation", M, N, k, k2);
+  s += (status != (int) GSL_MIN(k, k2) + 1);
 
   test_LU_decomp_eps(m, 4096.0 * N * GSL_DBL_EPSILON, "LU_decomp singular");
 
@@ -216,14 +224,14 @@ test_LU_decomp(gsl_rng * r)
   }
 
   /* bug #66026: singular matrices beyond the Level 2 crossover, with the
-     zero pivot in either half of the recursion */
+     zero pivot in either half of the recursion; and below it */
   {
-    const size_t sizes[3][2] = { { 127, 127 }, { 300, 300 }, { 200, 120 } };
+    const size_t sizes[5][2] = { { 127, 127 }, { 300, 300 }, { 200, 120 }, { 12, 12 }, { 20, 10 } };
     /* own generator, so that the matrices of the other tests are unchanged */
     gsl_rng * r2 = gsl_rng_alloc(gsl_rng_default);
     size_t t;
 
-    for (t = 0; t < 3; ++t)
+    for (t = 0; t < 5; ++t)
       {
         const size_t M = sizes[t][0], N = sizes[t][1];
         size_t ks[4];
@@ -237,7 +245,12 @@ test_LU_decomp(gsl_rng * r)
 
         create_random_matrix(m, r2);
         for (i = 0; i < 4; ++i)
-          s += test_LU_decomp_singular(m, ks[i]);
+          s += test_LU_decomp_singular(m, ks[i], ks[i]);
+
+        /* several zero pivots, in either order and either half */
+        s += test_LU_decomp_singular(m, N - 1, 5);
+        s += test_LU_decomp_singular(m, N / 2, N - 1);
+        s += test_LU_decomp_singular(m, 5, N / 2);
 
         gsl_matrix_free(m);
       }

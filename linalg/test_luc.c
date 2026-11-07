@@ -44,6 +44,12 @@ test_LUc_decomp_eps(const gsl_matrix_complex * m, const double eps, const char *
   gsl_matrix_complex_memcpy(A, m);
   gsl_linalg_complex_LU_decomp(A, p, &signum);
 
+  /* the permutation is built in place from the row interchanges: it
+     must be valid, with signum its parity */
+  gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS, "%s: (%lu,%lu) valid permutation", desc, M, N);
+  gsl_test(signum != ((gsl_permutation_inversions(p) % 2) ? -1 : 1),
+           "%s: (%lu,%lu) signum %d is the parity of the permutation", desc, M, N, signum);
+
   if (M >= N)
     {
       gsl_matrix_complex_view U = gsl_matrix_complex_submatrix(A, 0, 0, N, N);
@@ -129,7 +135,7 @@ test_LUc_decomp_eps(const gsl_matrix_complex * m, const double eps, const char *
 
 /* as test_LU_decomp_singular() (bug #66026) */
 static int
-test_LUc_decomp_singular(const gsl_matrix_complex * m0, const size_t k)
+test_LUc_decomp_singular(const gsl_matrix_complex * m0, const size_t k, const size_t k2)
 {
   int s = 0;
   const size_t M = m0->size1;
@@ -143,14 +149,16 @@ test_LUc_decomp_singular(const gsl_matrix_complex * m0, const size_t k)
   gsl_matrix_complex_memcpy(m, m0);
   c = gsl_matrix_complex_column(m, k);
   gsl_vector_complex_set_zero(&c.vector);
+  c = gsl_matrix_complex_column(m, k2);
+  gsl_vector_complex_set_zero(&c.vector);
   gsl_matrix_complex_memcpy(A, m);
 
   status = gsl_linalg_complex_LU_decomp(A, p, &signum);
-  gsl_test(status != (int) k + 1, "complex_LU_decomp singular (%lu,%lu) zero column %lu: status %d, expected %lu",
-           M, N, k, status, k + 1);
+  gsl_test(status != (int) GSL_MIN(k, k2) + 1, "complex_LU_decomp singular (%lu,%lu) zero columns %lu,%lu: status %d, expected %lu",
+           M, N, k, k2, status, GSL_MIN(k, k2) + 1);
   gsl_test(gsl_permutation_valid(p) != GSL_SUCCESS,
-           "complex_LU_decomp singular (%lu,%lu) zero column %lu: valid permutation", M, N, k);
-  s += (status != (int) k + 1);
+           "complex_LU_decomp singular (%lu,%lu) zero columns %lu,%lu: valid permutation", M, N, k, k2);
+  s += (status != (int) GSL_MIN(k, k2) + 1);
 
   test_LUc_decomp_eps(m, 1.0e5 * N * GSL_DBL_EPSILON, "complex_LU_decomp singular");
 
@@ -220,12 +228,12 @@ test_LUc_decomp(gsl_rng * r)
 
   /* bug #66026 */
   {
-    const size_t sizes[3][2] = { { 127, 127 }, { 200, 200 }, { 150, 90 } };
+    const size_t sizes[5][2] = { { 127, 127 }, { 200, 200 }, { 150, 90 }, { 12, 12 }, { 20, 10 } };
     /* own generator, so that the matrices of the other tests are unchanged */
     gsl_rng * r2 = gsl_rng_alloc(gsl_rng_default);
     size_t t;
 
-    for (t = 0; t < 3; ++t)
+    for (t = 0; t < 5; ++t)
       {
         const size_t M = sizes[t][0], N = sizes[t][1];
         size_t ks[4];
@@ -239,7 +247,12 @@ test_LUc_decomp(gsl_rng * r)
 
         create_random_complex_matrix(m, r2);
         for (i = 0; i < 4; ++i)
-          s += test_LUc_decomp_singular(m, ks[i]);
+          s += test_LUc_decomp_singular(m, ks[i], ks[i]);
+
+        /* several zero pivots, in either order and either half */
+        s += test_LUc_decomp_singular(m, N - 1, 5);
+        s += test_LUc_decomp_singular(m, N / 2, N - 1);
+        s += test_LUc_decomp_singular(m, 5, N / 2);
 
         gsl_matrix_complex_free(m);
       }

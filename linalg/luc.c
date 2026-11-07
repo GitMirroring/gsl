@@ -32,11 +32,12 @@
 #include <gsl/gsl_linalg.h>
 
 #include "recurse.h"
+#include "lu_pivots.h"
 
-static int LU_decomp_L2 (gsl_matrix_complex * A, gsl_vector_uint * ipiv);
-static int LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv);
+static int LU_decomp_L2 (gsl_matrix_complex * A, size_t * ipiv);
+static int LU_decomp_L3 (gsl_matrix_complex * A, size_t * ipiv);
 static int singular (const gsl_matrix_complex * LU);
-static int apply_pivots(gsl_matrix_complex * A, const gsl_vector_uint * ipiv);
+static int apply_pivots(gsl_matrix_complex * A, const size_t * ipiv, const size_t npiv);
 
 /* Factorise a general N x N complex matrix A into,
  *
@@ -75,9 +76,9 @@ gsl_linalg_complex_LU_decomp (gsl_matrix_complex * A, gsl_permutation * p, int *
       int status;
       const size_t N = A->size2;
       const size_t minMN = GSL_MIN(M, N);
-      gsl_vector_uint * ipiv = gsl_vector_uint_alloc(minMN);
+      /* the row interchanges are stored in p itself (see lu_pivots.h) */
+      size_t * ipiv = p->data;
       gsl_matrix_complex_view AL = gsl_matrix_complex_submatrix(A, 0, 0, M, minMN);
-      size_t i;
 
       status = LU_decomp_L3 (&AL.matrix, ipiv);
 
@@ -87,31 +88,14 @@ gsl_linalg_complex_LU_decomp (gsl_matrix_complex * A, gsl_permutation * p, int *
           gsl_matrix_complex_view AR = gsl_matrix_complex_submatrix(A, 0, M, M, N - M);
 
           /* apply pivots to AR */
-          apply_pivots(&AR.matrix, ipiv);
+          apply_pivots(&AR.matrix, ipiv, minMN);
 
           /* AR = AL^{-1} AR */
           gsl_blas_ztrsm(CblasLeft, CblasLower, CblasNoTrans, CblasUnit, GSL_COMPLEX_ONE, &AL.matrix, &AR.matrix);
         }
 
-      /* convert ipiv array to permutation */
-
-      gsl_permutation_init(p);
-      *signum = 1;
-
-      for (i = 0; i < minMN; ++i)
-        {
-          unsigned int pivi = gsl_vector_uint_get(ipiv, i);
-
-          if (p->data[pivi] != p->data[i])
-            {
-              size_t tmp = p->data[pivi];
-              p->data[pivi] = p->data[i];
-              p->data[i] = tmp;
-              *signum = -(*signum);
-            }
-        }
-
-      gsl_vector_uint_free(ipiv);
+      /* convert the interchanges to the permutation, in place */
+      lu_pivots_to_permutation(p, minMN, signum);
 
       return status;
     }
@@ -122,7 +106,8 @@ LU_decomp_L2
   LU decomposition with partial pivoting using Level 2 BLAS
 
 Inputs: A    - on input, matrix to be factored; on output, L and U factors
-        ipiv - (output) array containing row swaps
+        ipiv - (output) row interchanges: row i was swapped with
+               row ipiv[i] >= i, i = 0, ..., MIN(M,N)-1
 
 Notes:
 1) Based on LAPACK ZGETF2
@@ -133,78 +118,72 @@ the factorization is still completed
 */
 
 static int
-LU_decomp_L2 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
+LU_decomp_L2 (gsl_matrix_complex * A, size_t * ipiv)
 {
   int status = GSL_SUCCESS;
   const size_t M = A->size1;
   const size_t N = A->size2;
   const size_t minMN = GSL_MIN(M, N);
 
-  if (ipiv->size != minMN)
-    {
-      GSL_ERROR ("ipiv length must equal MIN(M,N)", GSL_EBADLEN);
-    }
-  else
-    {
-      size_t i, j;
+    size_t i, j;
 
-      for (j = 0; j < minMN; ++j)
-        {
-          /* find maximum in the j-th column */
-          gsl_vector_complex_view v = gsl_matrix_complex_subcolumn(A, j, j, M - j);
-          size_t j_pivot = j + gsl_blas_izamax(&v.vector);
-          gsl_complex Ajpj = gsl_matrix_complex_get(A, j_pivot, j);
-          gsl_vector_complex_view v1, v2;
+    for (j = 0; j < minMN; ++j)
+      {
+        /* find maximum in the j-th column */
+        gsl_vector_complex_view v = gsl_matrix_complex_subcolumn(A, j, j, M - j);
+        size_t j_pivot = j + gsl_blas_izamax(&v.vector);
+        gsl_complex Ajpj = gsl_matrix_complex_get(A, j_pivot, j);
+        gsl_vector_complex_view v1, v2;
 
-          gsl_vector_uint_set(ipiv, j, j_pivot);
+        ipiv[j] = j_pivot;
 
-          if (GSL_REAL(Ajpj) != 0.0 || GSL_IMAG(Ajpj) != 0.0)
-            {
-              if (j_pivot != j)
-                {
-                  /* swap rows j and j_pivot */
-                  v1 = gsl_matrix_complex_row(A, j);
-                  v2 = gsl_matrix_complex_row(A, j_pivot);
-                  gsl_blas_zswap(&v1.vector, &v2.vector);
-                }
+        if (GSL_REAL(Ajpj) != 0.0 || GSL_IMAG(Ajpj) != 0.0)
+          {
+            if (j_pivot != j)
+              {
+                /* swap rows j and j_pivot */
+                v1 = gsl_matrix_complex_row(A, j);
+                v2 = gsl_matrix_complex_row(A, j_pivot);
+                gsl_blas_zswap(&v1.vector, &v2.vector);
+              }
 
-              if (j < M - 1)
-                {
-                  gsl_complex Ajj = gsl_matrix_complex_get(A, j, j);
-                  gsl_complex Ajjinv = gsl_complex_inverse(Ajj);
+            if (j < M - 1)
+              {
+                gsl_complex Ajj = gsl_matrix_complex_get(A, j, j);
+                gsl_complex Ajjinv = gsl_complex_inverse(Ajj);
 
-                  if (gsl_complex_abs(Ajj) >= GSL_DBL_MIN)
-                    {
-                      v1 = gsl_matrix_complex_subcolumn(A, j, j + 1, M - j - 1);
-                      gsl_blas_zscal(Ajjinv, &v1.vector);
-                    }
-                  else
-                    {
-                      for (i = 1; i < M - j; ++i)
-                        {
-                          gsl_complex * ptr = gsl_matrix_complex_ptr(A, j + i, j);
-                          *ptr = gsl_complex_mul(*ptr, Ajjinv);
-                        }
-                    }
-                }
-            }
-          else
-            {
-              status = (int) j + 1;
-            }
+                if (gsl_complex_abs(Ajj) >= GSL_DBL_MIN)
+                  {
+                    v1 = gsl_matrix_complex_subcolumn(A, j, j + 1, M - j - 1);
+                    gsl_blas_zscal(Ajjinv, &v1.vector);
+                  }
+                else
+                  {
+                    for (i = 1; i < M - j; ++i)
+                      {
+                        gsl_complex * ptr = gsl_matrix_complex_ptr(A, j + i, j);
+                        *ptr = gsl_complex_mul(*ptr, Ajjinv);
+                      }
+                  }
+              }
+          }
+        else if (status == GSL_SUCCESS)
+          {
+            /* the first zero pivot (as LAPACK ZGETF2) */
+            status = (int) j + 1;
+          }
 
-          if (j < minMN - 1)
-            {
-              gsl_matrix_complex_view A22 = gsl_matrix_complex_submatrix(A, j + 1, j + 1, M - j - 1, N - j - 1);
-              v1 = gsl_matrix_complex_subcolumn(A, j, j + 1, M - j - 1);
-              v2 = gsl_matrix_complex_subrow(A, j, j + 1, N - j - 1);
+        if (j < minMN - 1)
+          {
+            gsl_matrix_complex_view A22 = gsl_matrix_complex_submatrix(A, j + 1, j + 1, M - j - 1, N - j - 1);
+            v1 = gsl_matrix_complex_subcolumn(A, j, j + 1, M - j - 1);
+            v2 = gsl_matrix_complex_subrow(A, j, j + 1, N - j - 1);
 
-              gsl_blas_zgeru(GSL_COMPLEX_NEGONE, &v1.vector, &v2.vector, &A22.matrix);
-            }
-        }
+            gsl_blas_zgeru(GSL_COMPLEX_NEGONE, &v1.vector, &v2.vector, &A22.matrix);
+          }
+      }
 
-      return status;
-    }
+    return status;
 }
 
 /*
@@ -212,14 +191,15 @@ LU_decomp_L3
   LU decomposition with partial pivoting using Level 3 BLAS
 
 Inputs: A    - on input, matrix to be factored; on output, L and U factors
-        ipiv - (output) array containing row swaps
+        ipiv - (output) row interchanges: row i was swapped with
+               row ipiv[i] >= i, i = 0, ..., MIN(M,N)-1
 
 Notes:
 1) Based on ReLAPACK DGETRF
 */
 
 static int
-LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
+LU_decomp_L3 (gsl_matrix_complex * A, size_t * ipiv)
 {
   const size_t M = A->size1;
   const size_t N = A->size2;
@@ -227,10 +207,6 @@ LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
   if (M < N)
     {
       GSL_ERROR ("matrix must have M >= N", GSL_EBADLEN);
-    }
-  else if (ipiv->size != GSL_MIN(M, N))
-    {
-      GSL_ERROR ("ipiv length must equal MIN(M,N)", GSL_EBADLEN);
     }
   else if (N <= CROSSOVER_LU)
     {
@@ -266,8 +242,8 @@ LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
        * partition ipiv = [ ipiv1 ] N1
        *                  [ ipiv2 ] N2
        */
-      gsl_vector_uint_view ipiv1 = gsl_vector_uint_subvector(ipiv, 0, N1);
-      gsl_vector_uint_view ipiv2 = gsl_vector_uint_subvector(ipiv, N1, N2);
+      size_t * ipiv1 = ipiv;
+      size_t * ipiv2 = ipiv + N1;
 
       size_t i;
 
@@ -279,10 +255,10 @@ LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
        */
 
       /* recursion on (AL, ipiv1) */
-      status = LU_decomp_L3(&AL.matrix, &ipiv1.vector);
+      status = LU_decomp_L3(&AL.matrix, ipiv1);
 
       /* apply ipiv1 to AR */
-      apply_pivots(&AR.matrix, &ipiv1.vector);
+      apply_pivots(&AR.matrix, ipiv1, N1);
 
       /* A12 = A11^{-1} A12 */
       gsl_blas_ztrsm(CblasLeft, CblasLower, CblasNoTrans, CblasUnit, GSL_COMPLEX_ONE, &A11.matrix, &A12.matrix);
@@ -291,19 +267,16 @@ LU_decomp_L3 (gsl_matrix_complex * A, gsl_vector_uint * ipiv)
       gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, GSL_COMPLEX_NEGONE, &A21.matrix, &A12.matrix, GSL_COMPLEX_ONE, &A22.matrix);
 
       /* recursion on (A22, ipiv2) */
-      status2 = LU_decomp_L3(&A22.matrix, &ipiv2.vector);
+      status2 = LU_decomp_L3(&A22.matrix, ipiv2);
       if (status == GSL_SUCCESS && status2 > 0)
         status = status2 + (int) N1;
 
       /* apply pivots to A21 */
-      apply_pivots(&A21.matrix, &ipiv2.vector);
+      apply_pivots(&A21.matrix, ipiv2, N2);
 
       /* shift pivots */
       for (i = 0; i < N2; ++i)
-        {
-          unsigned int * ptr = gsl_vector_uint_ptr(&ipiv2.vector, i);
-          *ptr += N1;
-        }
+        ipiv2[i] += N1;
 
       return status;
     }
@@ -590,9 +563,9 @@ singular (const gsl_matrix_complex * LU)
 }
 
 static int
-apply_pivots(gsl_matrix_complex * A, const gsl_vector_uint * ipiv)
+apply_pivots(gsl_matrix_complex * A, const size_t * ipiv, const size_t npiv)
 {
-  if (A->size1 < ipiv->size)
+  if (A->size1 < npiv)
     {
       GSL_ERROR("matrix does not match pivot vector", GSL_EBADLEN);
     }
@@ -600,9 +573,9 @@ apply_pivots(gsl_matrix_complex * A, const gsl_vector_uint * ipiv)
     {
       size_t i;
 
-      for (i = 0; i < ipiv->size; ++i)
+      for (i = 0; i < npiv; ++i)
         {
-          size_t pi = gsl_vector_uint_get(ipiv, i);
+          size_t pi = ipiv[i];
 
           if (i != pi)
             {
