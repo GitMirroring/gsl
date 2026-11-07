@@ -36,11 +36,6 @@
 
 __BEGIN_DECLS
 
-/* gamma/beta.c */
-int gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result);
-double gsl_new_sf_lnbeta(const double a, const double b);
-int gsl_new_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn);
-
 /* gamma/lngamma.c */
 int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
 int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
@@ -238,13 +233,19 @@ double gsl_sf_gamma_inc(const double a, const double x);
 /* Logarithm of Beta Function
  * Log[B(a,b)]
  *
- * a > 0, b > 0
+ * a, b, a+b not zero or negative integers; gsl_sf_lnbeta_e()
+ * additionally requires B(a,b) > 0
  * exceptions: GSL_EDOM
  */
 int gsl_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result);
 double gsl_sf_lnbeta(const double a, const double b);
 
-int gsl_sf_lnbeta_sgn_e(const double x, const double y, gsl_sf_result * result, double * sgn);
+/* Logarithm of |B(a,b)| and the sign of B(a,b)
+ *
+ * a, b, a+b not zero or negative integers
+ * exceptions: GSL_EDOM
+ */
+int gsl_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn);
 
 
 /* Beta Function

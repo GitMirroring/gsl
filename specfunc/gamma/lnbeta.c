@@ -22,34 +22,60 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_dd.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
+#include <gsl/gsl_sf_psi.h>
+#include <gsl/gsl_sf_sincos_pi.h>
 
+#include "constants.h"
 #include "error.h"
 #include "eval.h"
+#include "stirling.c"
 
-#define HALF_LOG_2PI            0.91893853320467274178032973640562
-#define HALF_LOG_2PI_MINUS_HALF 0.41893853320467274178032973640562
+/*
+ * For min(a,b) < 1, the double-precision result is recomputed in
+ * double-double when the terms it is formed from exceed its magnitude
+ * by more than this factor (near the log(B) = 0 contour)
+ */
+#define LNBETA_REFINE_AMP  2.0
+
+/* radius and degree of the local expansion about (a,b) = (1,1) */
+#define LNBETA_CORNER_RADIUS 0.04
+#define LNBETA_CORNER_NMAX   30
+
+/* smallest argument of the double-double Stirling series */
+#define LNBETA_DD_STIRLING_MIN 30.0
+
+/*
+ * absolute error of the double-double evaluations relative to the
+ * magnitude of their intermediate terms (observed ~1e-32; with margin)
+ */
+#define LNBETA_DD_REL_ERR 4.0e-32
 
 static int lnbeta_pos(const double a0, const double b0, gsl_sf_result * result);
-static double lnbeta_dlnrel(const double a);
+static int lnbeta_pos_dd(const gsl_dd x, const gsl_dd y, gsl_sf_result * result);
+static double lnbeta_log_sin_pi(const gsl_dd x, double * sgn);
+static int lnbeta_isnonposint(const double x);
+static double lnbeta_small(const double a, const double b, double * t);
 static double lnbeta_dlgdiv(const double a, const double b);
 static double lnbeta_dbcorr(const double a0, const double b0);
-static double lnbeta_dpdel(const double x);
-static double lnbeta_dgamln(const double aa);
+static double lnbeta_dgamln(const double a);
 static double lnbeta_dgsmln(const double a, const double b);
-static void lnbeta_set_result(gsl_sf_result *r, const double val, const double factor);
-static gsl_dd lnbeta_branch1(const gsl_dd a0, const gsl_dd b0);
+static void lnbeta_set_result(gsl_sf_result * r, const double val, const double factor);
+static gsl_dd lnbeta_dd(const gsl_dd x0, const gsl_dd y0, double * mag);
+static gsl_dd lnbeta_dd_abs_sin_pi(const gsl_dd x);
+static gsl_dd lnbeta_neg_dd(const double a, const double b, const gsl_dd s, double * mag);
+static gsl_dd lnbeta_dd_delta(const gsl_dd z);
+static gsl_dd lnbeta_dd_stirling(const gsl_dd z);
 static gsl_dd lnbeta_corner_11(const gsl_dd p, const gsl_dd q);
-static gsl_dd lnbeta_compact_base(const gsl_dd a, const gsl_dd b);
-static gsl_dd dd_cheb_row(const gsl_dd *c, const int n, const gsl_dd x);
 
 /*
  * Compute log|B(a,b)| and an absolute error estimate.
  */
 int
-gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
+gsl_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
 {
   double sgn;
-  int status = gsl_new_sf_lnbeta_sgn_e(a, b, result, &sgn);
+  int status = gsl_sf_lnbeta_sgn_e(a, b, result, &sgn);
 
   if (sgn == -1)
     DOMAIN_ERROR(result);
@@ -60,37 +86,171 @@ gsl_new_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
 /*
  * Compute log|B(a,b)| and the sign of B(a,b).
  *
- * Positive arguments are handled by the specialized positive-domain
- * dispatcher.  Otherwise use the signed log-Gamma representation
+ * B(a,b) = Gamma(a) Gamma(b) / Gamma(a+b) has poles where a or b is a
+ * non-positive integer (GSL_EDOM) and vanishes where only a+b is one
+ * (log|B| = -inf: GSL_EDOM with sgn = 0).
  *
- *   log|B(a,b)| = log|Gamma(a)| + log|Gamma(b)| - log|Gamma(a+b)|.
+ * Positive arguments are handled by lnbeta_pos().  Otherwise, with
+ * a <= b, the reflection formula Gamma(x) = pi / (sin(pi x) Gamma(1-x))
+ * reduces B to a positive-argument Beta function and elementary
+ * factors, s(x) = sin(pi x):
+ *
+ *   a < 0 < b, a+b > 0:  B(a,b) = pi / (b s(a) B(1-a, a+b))
+ *   a < 0 < b, a+b < 0:  B(a,b) = s(a+b) / s(a) B(b, 1-a-b)
+ *   a, b < 0:            B(a,b) = pi s(a+b) / (s(a) s(b) (1-a-b) B(1-a, 1-b))
+ *
+ * so no large log Gamma values cancel.  The sums a+b, 1-a, 1-a-b, 1-b
+ * are formed exactly as double-double pairs, and their low parts are
+ * carried to first order.  Near |B| = 1 the elementary terms cancel
+ * against log B; when the cancellation exceeds LNBETA_REFINE_AMP the
+ * result is recomputed in double-double by lnbeta_neg_dd().
  */
-
 int
-gsl_new_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn)
+gsl_sf_lnbeta_sgn_e(const double a0, const double b0, gsl_sf_result * result, double * sgn)
 {
-  if (a > 0.0 && b > 0.0)
+  const double a = GSL_MIN(a0, b0);
+  const double b = GSL_MAX(a0, b0);
+
+  if (a > 0.0)
     {
       *sgn = 1.0;
       return lnbeta_pos(a, b, result);
     }
+  else if (lnbeta_isnonposint(a) || lnbeta_isnonposint(b))
+    {
+      *sgn = 0.0;
+      DOMAIN_ERROR(result);
+    }
   else
     {
-      gsl_sf_result lga, lgb, lgab;
-      double sga, sgb, sgab, ab = a+b;
-      int stat_ga  = gsl_sf_lngamma_sgn_e(a, &lga, &sga);
-      int stat_gb  = gsl_sf_lngamma_sgn_e(b, &lgb, &sgb);
-      int stat_gab = gsl_sf_lngamma_sgn_e(ab, &lgab, &sgab);
-      *sgn = sga * sgb * sgab;
-      result->val  = lga.val + lgb.val - lgab.val;
-      result->err  = lga.err + lgb.err + lgab.err;
-      result->err += 2.0 * GSL_DBL_EPSILON * (fabs(lga.val) + fabs(lgb.val) + fabs(lgab.val));
-      result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-      return GSL_ERROR_SELECT_3(stat_ga, stat_gb, stat_gab);
+      const gsl_dd s = gsl_dd_two_sum(a, b);
+      const gsl_dd one = { 1.0, 0.0 };
+      gsl_dd ad, bd, x, y;
+      gsl_sf_result r;
+      double sa, ss, sb, la, ls, lb, t;
+      int status;
+
+      if (s.lo == 0.0 && lnbeta_isnonposint(s.hi))
+        {
+          *sgn = 0.0;          /* B = 0 */
+          DOMAIN_ERROR(result);
+        }
+
+      ad.hi = a;
+      ad.lo = 0.0;
+      bd.hi = b;
+      bd.lo = 0.0;
+      la = lnbeta_log_sin_pi(ad, &sa);
+
+      if (b > 0.0 && (s.hi > 0.0 || (s.hi == 0.0 && s.lo > 0.0)))
+        {
+          /* log|B| = log(pi) - log(b) - log|s(a)| - log B(1-a, a+b) */
+          x = gsl_dd_sub(one, ad);
+          status = lnbeta_pos_dd(x, s, &r);
+          lb = log(b);
+          result->val = ((M_LNPI - lb) - la) - r.val;
+          t = M_LNPI + fabs(lb) + fabs(la);
+          *sgn = sa;
+        }
+      else if (b > 0.0)
+        {
+          /* log|B| = log|s(a+b)| - log|s(a)| + log B(b, 1-a-b) */
+          ls = lnbeta_log_sin_pi(s, &ss);
+          y = gsl_dd_sub(one, s);
+          status = lnbeta_pos_dd(bd, y, &r);
+          result->val = (ls - la) + r.val;
+          t = fabs(ls) + fabs(la);
+          *sgn = ss * sa;
+        }
+      else
+        {
+          /* log|B| = log(pi) + log|s(a+b)| - log|s(a)| - log|s(b)| - log(1-a-b) - log B(1-a, 1-b) */
+          double l1;
+
+          ls = lnbeta_log_sin_pi(s, &ss);
+          lb = lnbeta_log_sin_pi(bd, &sb);
+          y = gsl_dd_sub(one, s);
+          l1 = log(y.hi) + y.lo / y.hi;
+          x = gsl_dd_sub(one, ad);
+          status = lnbeta_pos_dd(x, gsl_dd_sub(one, bd), &r);
+          result->val = ((((M_LNPI + ls) - la) - lb) - l1) - r.val;
+          t = M_LNPI + fabs(ls) + fabs(la) + fabs(lb) + fabs(l1);
+          *sgn = ss * sa * sb;
+        }
+
+      t += fabs(r.val);
+
+      if (t > LNBETA_REFINE_AMP * fabs(result->val))
+        {
+          /* near |B| = 1: the terms cancel, recompute in double-double */
+          double mag;
+          const gsl_dd v = lnbeta_neg_dd(a, b, s, &mag);
+
+          result->val = v.hi + v.lo;
+          result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val) + LNBETA_DD_REL_ERR * mag;
+        }
+      else
+        {
+          result->err = r.err + 2.0 * GSL_DBL_EPSILON * t + 2.0 * GSL_DBL_EPSILON * fabs(result->val);
+        }
+
+      return status;
     }
 }
 
-double gsl_new_sf_lnbeta(const double a, const double b) { EVAL_RESULT(gsl_new_sf_lnbeta_e(a, b, &result)); }
+double gsl_sf_lnbeta(const double a, const double b) { EVAL_RESULT(gsl_sf_lnbeta_e(a, b, &result)); }
+
+/*********************************************************
+ * INTERNAL ROUTINES FOR NEGATIVE ARGUMENTS              *
+ *********************************************************/
+
+/* return 1 if x is zero or a negative integer */
+static int
+lnbeta_isnonposint(const double x)
+{
+  return (x <= 0.0 && x == floor(x));
+}
+
+/*
+ * Compute log|sin(pi x)| and its sign for x = x.hi + x.lo, using
+ * sin(pi (x.hi + x.lo)) = sin(pi x.hi) + pi x.lo cos(pi x.hi) to first
+ * order in the (tiny) low part, which matters near the zeros of sin.
+ */
+static double
+lnbeta_log_sin_pi(const gsl_dd x, double * sgn)
+{
+  double v = gsl_sf_sin_pi(x.hi);
+
+  if (x.lo != 0.0)
+    v += M_PI * x.lo * gsl_sf_cos_pi(x.hi);
+
+  *sgn = (v < 0.0) ? -1.0 : 1.0;
+
+  return log(fabs(v));
+}
+
+/*
+ * log B(x,y) for positive x = x.hi + x.lo, y = y.hi + y.lo: lnbeta_pos()
+ * at the leading parts, corrected to first order for the low parts,
+ *
+ *   d log B / dx = psi(x) - psi(x+y),   d log B / dy = psi(y) - psi(x+y).
+ */
+static int
+lnbeta_pos_dd(const gsl_dd x, const gsl_dd y, gsl_sf_result * result)
+{
+  int status = lnbeta_pos(x.hi, y.hi, result);
+
+  if (x.lo != 0.0 || y.lo != 0.0)
+    {
+      const double pxy = gsl_sf_psi(x.hi + y.hi);
+      const double c = x.lo * (gsl_sf_psi(x.hi) - pxy) + y.lo * (gsl_sf_psi(y.hi) - pxy);
+
+      result->val += c;
+      result->err += 2.0 * GSL_DBL_EPSILON * fabs(c);
+    }
+
+  return status;
+}
 
 /*********************************************************
  * INTERNAL ROUTINES FOR POSITIVE-POSITIVE LNBETA        *
@@ -99,10 +259,12 @@ double gsl_new_sf_lnbeta(const double a, const double b) { EVAL_RESULT(gsl_new_s
 /*
  * Positive-domain log-Beta dispatcher.
  *
- * The arguments are ordered so that a <= b.  The positive quadrant is
- * divided into regions following the NSWC DBETLN algorithm, with
- * specialized double-double kernels used where cancellation would
- * otherwise cause significant loss of accuracy.
+ * The arguments are ordered so that a <= b, and the quadrant is divided
+ * into the regions of the NSWC DBETLN algorithm (TOMS 708 BETALN),
+ * evaluated in double precision.  For a < 1 the log(B) = 0 contour
+ * passes through the region; there the double-precision result is
+ * recomputed in double-double by lnbeta_dd() whenever the terms
+ * it is formed from cancel by more than a factor LNBETA_REFINE_AMP.
  */
 static int
 lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
@@ -115,18 +277,30 @@ lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
 
   if (a < 1.0)
     {
-      if (b < 10.0)
+      double t;
+
+      val = lnbeta_small(a, b, &t);
+
+      if (t > LNBETA_REFINE_AMP * fabs(val))
         {
-          const gsl_dd ad = { a, 0.0 };
-          const gsl_dd bd = { b, 0.0 };
-          gsl_dd r = lnbeta_branch1(ad, bd);
+          gsl_dd ad, bd, r;
+          double mag;
+
+          ad.hi = a;
+          ad.lo = 0.0;
+          bd.hi = b;
+          bd.lo = 0.0;
+          r = lnbeta_dd(ad, bd, &mag);
+
           result->val = r.hi + r.lo;
-          result->err = 2.0 * GSL_DBL_EPSILON * (1.0 + fabs(result->val));
-          return GSL_SUCCESS;
+          result->err = 2.0 * GSL_DBL_EPSILON * fabs(result->val) + LNBETA_DD_REL_ERR * mag;
+        }
+      else
+        {
+          result->val = val;
+          result->err = 4.0 * GSL_DBL_EPSILON * t;
         }
 
-      val = lnbeta_dgamln(a) + lnbeta_dlgdiv(a, b);
-      lnbeta_set_result(result, val, 8.0);
       return GSL_SUCCESS;
     }
 
@@ -137,8 +311,7 @@ lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
         {
           if (b <= 2.0)
             {
-              val = lnbeta_dgamln(a) + lnbeta_dgamln(b)
-                  - lnbeta_dgsmln(a, b);
+              val = lnbeta_dgamln(a) + lnbeta_dgamln(b) - lnbeta_dgsmln(a, b);
               lnbeta_set_result(result, val, 16.0);
               return GSL_SUCCESS;
             }
@@ -167,6 +340,7 @@ lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
               else
                 w *= h / (1.0 + h);
             }
+
           w = log(w);
 
           if (b >= 10.0)
@@ -178,16 +352,15 @@ lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
                   return GSL_SUCCESS;
                 }
 
-              /* Original L50: b > 1000. */
-              sn = (double)n;
-              val = (w - sn * log(b))
-                  + (lnbeta_dgamln(a) + lnbeta_dlgdiv(a, b));
+              /* b > 1000 */
+              sn = (double) n;
+              val = (w - sn * log(b)) + (lnbeta_dgamln(a) + lnbeta_dlgdiv(a, b));
               lnbeta_set_result(result, val, 16.0);
               return GSL_SUCCESS;
             }
         }
 
-      /* Common L40: reduce b when b < 10. */
+      /* reduce b when b < 10 */
       n = (int)(b - 1.0);
       z = 1.0;
       for (i = 1; i <= n; ++i)
@@ -196,35 +369,95 @@ lnbeta_pos(const double a0, const double b0, gsl_sf_result * result)
           z *= b / (a + b);
         }
 
-      val = w + log(z)
-          + (lnbeta_dgamln(a)
-             + (lnbeta_dgamln(b) - lnbeta_dgsmln(a, b)));
+      val = w + log(z) + (lnbeta_dgamln(a) + (lnbeta_dgamln(b) - lnbeta_dgsmln(a, b)));
       lnbeta_set_result(result, val, 16.0);
       return GSL_SUCCESS;
     }
 
-  /* a >= 10: direct NSWC DBCORR representation. */
+  /* a >= 10: Stirling form with the DBCORR correction */
   w = lnbeta_dbcorr(a, b);
   h = a / b;
   c = h / (1.0 + h);
   u = -(a - 0.5) * log(c);
-  v = b * lnbeta_dlnrel(h);
+  v = b * gsl_sf_log1p(h);
 
   if (u <= v)
-    val = (((-0.5 * log(b) + HALF_LOG_2PI) + w) - u) - v;
+    val = (((-0.5 * log(b) + GSL_SF_LOG_SQRT_2PI) + w) - u) - v;
   else
-    val = (((-0.5 * log(b) + HALF_LOG_2PI) + w) - v) - u;
+    val = (((-0.5 * log(b) + GSL_SF_LOG_SQRT_2PI) + w) - v) - u;
 
   lnbeta_set_result(result, val, 12.0);
-
   return GSL_SUCCESS;
 }
 
 /*
- * Coefficients for the asymptotic correction series used by DLGDIV,
- * DBCORR, and DPDEL.
+ * Compute log B(a,b) in double precision for 0 < a < 1, a <= b, and in
+ * *t the sum of the magnitudes of the terms it is formed from, so that
+ * t / |log B| bounds the amplification of their rounding errors.
+ *
+ *   log B(a,b) = log Gamma(a) + d,   d = log Gamma(b) - log Gamma(a+b).
+ *
+ * For b >= 10, d is given by dlgdiv().  For b < 1, d is formed from
+ * lngamma1p() and log1p(a/b) (see below).  For 1 <= b < 10, b is
+ * reduced to b0 = b - n in [1,2) (exactly) when b >= 2 (TOMS 708 BETALN):
+ *
+ *   d = log Gamma(b0) - log Gamma(a+b0) - sum_{k<n} log1p(a / (b0+k)),
+ *
+ * so that every term is small and accurate relative to its magnitude.
+ * a + b0 is formed exactly, and log Gamma(a+b0) is corrected for its
+ * rounding to first order, d/dx log Gamma(x) = psi(x).
  */
+static double
+lnbeta_small(const double a, const double b, double * t)
+{
+  const double ga = lnbeta_dgamln(a);
+  double d;
 
+  if (b >= 10.0)
+    {
+      d = lnbeta_dlgdiv(a, b);
+      *t = fabs(ga) + fabs(d);
+    }
+  else if (b < 1.0)
+    {
+      /*
+       * log Gamma(x) = log Gamma(1+x) - log x for both terms:
+       *   d = lngamma1p(b) - lngamma1p(a+b) + log1p(a/b),
+       * avoiding the cancellation of -log b against log(a+b); the
+       * rounding of a + b is corrected with d/dx lngamma1p(x) = psi(1+x)
+       */
+      const gsl_dd ab = gsl_dd_two_sum(a, b);
+      const double gb = gsl_sf_lngamma1p(b);
+      const double gab = gsl_sf_lngamma1p(ab.hi) + ((ab.lo != 0.0) ? gsl_sf_psi(1.0 + ab.hi) * ab.lo : 0.0);
+      const double l = gsl_sf_log1p(a / b);
+
+      d = (gb - gab) + l;
+      *t = fabs(ga) + fabs(gb) + fabs(gab) + l;
+    }
+  else
+    {
+      const int n = (b >= 2.0) ? (int) b - 1 : 0;
+      const double b0 = b - (double) n;     /* exact */
+      const gsl_dd ab = gsl_dd_two_sum(a, b0);
+      const double gb = lnbeta_dgamln(b0);
+      const double gab = lnbeta_dgamln(ab.hi) + ((ab.lo != 0.0) ? gsl_sf_psi(ab.hi) * ab.lo : 0.0);
+      double s = 0.0;
+      int k;
+
+      for (k = 0; k < n; ++k)
+        s += gsl_sf_log1p(a / (b0 + (double) k));
+
+      d = (gb - gab) - s;
+      *t = fabs(ga) + fabs(gb) + fabs(gab) + s;
+    }
+
+  return ga + d;
+}
+
+/*
+ * Coefficients of the NSWC asymptotic correction series used by
+ * DLGDIV and DBCORR, scaled for the variable (10/x)^2.
+ */
 static const double DELTA[15] = {
   8.333333333333333333333333333333e-02,
  -2.777777777777777777752282e-05,
@@ -244,63 +477,22 @@ static const double DELTA[15] = {
 };
 
 /*
- * Compute log(1+a), using the NSWC DLNREL expansion when a is close
- * enough to zero that direct evaluation of log(1+a) would lose
- * accuracy.
- */
-static double
-lnbeta_dlnrel(const double a)
-{
-  const double eps = DBL_EPSILON;
-
-  if (a > -0.5 && a < 0.4)
-    {
-      const double t = a / (a + 2.0);
-      const double t2 = t * t;
-      int n = 5;
-      double z = t2;
-      double w = 0.0;
-
-      for (;;)
-        {
-          const double c = z / (double)n;
-          if (c < eps)
-            break;
-          w += c;
-          n += 2;
-          z *= t2;
-        }
-
-      w += 1.0 / 3.0;
-      return 2.0 * t * (1.0 + t2 * w);
-    }
-  else
-    {
-      double t = 1.0 + a;
-      if (a < 0.0)
-        t = 0.5 + (0.5 + a);
-      return log(t);
-    }
-}
-
-/*
  * Compute the NSWC DLGDIV asymptotic representation of
  *
  *   log Gamma(b) - log Gamma(a+b)
  *
  * for a >= 0 and b >= 10.
  *
- * The logarithmic terms are arranged to reduce cancellation and the
- * DELTA series supplies the Stirling correction.
+ * The logarithmic terms are arranged to reduce cancellation, and the
+ * DELTA series supplies Delta(b) - Delta(a+b) without subtracting the
+ * two corrections.
  */
 static double
 lnbeta_dlgdiv(const double a, const double b)
 {
-  double h, c, d, x;
+  double h, c, d, x, x2, w, t, u, v;
   double s[15];
-
-  if (!(a >= 0.0) || !(b >= 10.0))
-    return NAN;
+  int j;
 
   if (a <= b)
     {
@@ -317,27 +509,21 @@ lnbeta_dlgdiv(const double a, const double b)
       d = a + (b - 0.5);
     }
 
-  {
-    const double x2 = x * x;
-    double w;
-    double t;
+  x2 = x * x;
+  s[0] = 1.0;
+  for (j = 1; j < 15; ++j)
+    s[j] = 1.0 + (x + x2 * s[j - 1]);
 
-    s[0] = 1.0;
-    for (int j = 1; j < 15; ++j)
-      s[j] = 1.0 + (x + x2 * s[j - 1]);
+  t = (10.0 / b) * (10.0 / b);
+  w = DELTA[14] * s[14];
+  for (j = 14; j >= 1; --j)
+    w = t * w + DELTA[j - 1] * s[j - 1];
+  w *= c / b;
 
-    t = (10.0 / b) * (10.0 / b);
-    w = DELTA[14] * s[14];
-    for (int j = 14; j >= 1; --j)
-      w = t * w + DELTA[j - 1] * s[j - 1];
-    w *= c / b;
+  u = d * gsl_sf_log1p(a / b);
+  v = a * (log(b) - 1.0);
 
-    {
-      const double u = d * lnbeta_dlnrel(a / b);
-      const double v = a * (log(b) - 1.0);
-      return (u <= v) ? ((w - u) - v) : ((w - v) - u);
-    }
-  }
+  return (u <= v) ? ((w - u) - v) : ((w - v) - u);
 }
 
 /*
@@ -350,73 +536,45 @@ lnbeta_dlgdiv(const double a, const double b)
 static double
 lnbeta_dbcorr(const double a0, const double b0)
 {
-  const double a = a0 < b0 ? a0 : b0;
-  const double b = a0 > b0 ? a0 : b0;
+  const double a = GSL_MIN(a0, b0);
+  const double b = GSL_MAX(a0, b0);
   const double h = a / b;
   const double c = h / (1.0 + h);
   const double x = 1.0 / (1.0 + h);
   const double x2 = x * x;
   double s[15];
-  double z, w, t;
-
-  if (a < 10.0 || b < 10.0)
-    return NAN;
+  double w, t;
+  int j;
 
   s[0] = 1.0;
-  for (int j = 1; j < 15; ++j)
+  for (j = 1; j < 15; ++j)
     s[j] = 1.0 + (x + x2 * s[j - 1]);
 
   t = (10.0 / b) * (10.0 / b);
   w = DELTA[14] * s[14];
-  for (int j = 14; j >= 1; --j)
+  for (j = 14; j >= 1; --j)
     w = t * w + DELTA[j - 1] * s[j - 1];
   w *= c / b;
 
-  t = (10.0 / a) * (10.0 / a);
-  z = DELTA[14];
-  for (int j = 14; j >= 1; --j)
-    z = t * z + DELTA[j - 1];
-
-  return z / a + w;
-}
-
-/*
- * Evaluate the asymptotic Stirling correction Delta(x) for x >= 10
- * using the NSWC DPDEL expansion.
- */
-static double
-lnbeta_dpdel(const double x)
-{
-  const double t = (10.0 / x) * (10.0 / x);
-  double w = DELTA[14];
-  for (int i = 14; i >= 1; --i)
-    w = t * w + DELTA[i - 1];
-  return w / x;
+  return gamma_stirling_delta(a) + w;
 }
 
 /*
  * Compute log Gamma(a) for a > 0.
  *
- * Small and moderate arguments are reduced to the GSL
- * lngamma1p/lngamma kernels.  For a >= 10, use the NSWC asymptotic
- * representation with the DPDEL correction.
+ * Small and moderate arguments are reduced to the lngamma1p and
+ * lngamma kernels.  For a >= 10, use Stirling's formula with the
+ * correction Delta(a) (stirling.c).
  */
 static double
-lnbeta_dgamln(const double aa)
+lnbeta_dgamln(const double a)
 {
-  double a = aa;
-
-  if (!(a > 0.0))
-    return NAN;
-
   if (a < 0.5)
     return gsl_sf_lngamma1p(a) - log(a);
 
   if (a <= 2.5)
     {
-      double x = a - 1.0;
-      if (a < 1.0)
-        x = (a - 0.5) - 0.5;
+      const double x = (a < 1.0) ? (a - 0.5) - 0.5 : a - 1.0;
       return gsl_sf_lngamma1p(x);
     }
 
@@ -425,8 +583,9 @@ lnbeta_dgamln(const double aa)
       const int n = (int)(a - 1.5);
       double x = a;
       double w = 1.0;
+      int i;
 
-      for (int i = 0; i < n; ++i)
+      for (i = 0; i < n; ++i)
         {
           x -= 1.0;
           w *= x;
@@ -435,13 +594,12 @@ lnbeta_dgamln(const double aa)
       return gsl_sf_lngamma(x) + log(w);
     }
 
-  return (HALF_LOG_2PI_MINUS_HALF + lnbeta_dpdel(a))
-       + (a - 0.5) * (log(a) - 1.0);
+  return (GSL_SF_LOG_SQRT_2PI - 0.5 + gamma_stirling_delta(a)) + (a - 0.5) * (log(a) - 1.0);
 }
 
 /*
  * Compute log Gamma(a+b) for 1 <= a,b <= 2 using the NSWC DGSMLN
- * argument reduction and the GSL lngamma1p kernel.
+ * argument reduction and the lngamma1p kernel.
  */
 static double
 lnbeta_dgsmln(const double a, const double b)
@@ -450,232 +608,321 @@ lnbeta_dgsmln(const double a, const double b)
 
   if (x <= 0.5)
     return gsl_sf_lngamma1p(1.0 + x);
+
   if (x <= 1.5)
-    return gsl_sf_lngamma1p(x) + lnbeta_dlnrel(x);
+    return gsl_sf_lngamma1p(x) + gsl_sf_log1p(x);
+
   return gsl_sf_lngamma1p(x - 1.0) + log(x * (1.0 + x));
 }
 
-/* store a binary64 result and its branch-dependent absolute error estimate */
+/* store a result and its branch-dependent absolute error estimate */
 static void
-lnbeta_set_result(gsl_sf_result *r, const double val, const double factor)
+lnbeta_set_result(gsl_sf_result * r, const double val, const double factor)
 {
   r->val = val;
-  r->err = factor * DBL_EPSILON * (1.0 + fabs(val));
+  r->err = factor * GSL_DBL_EPSILON * (1.0 + fabs(val));
 }
 
-#define RADIUS 0.04
+/*********************************************************
+ * DOUBLE-DOUBLE REFINEMENT NEAR |B(a,b)| = 1            *
+ *********************************************************/
 
 /*
- * Positive log-Beta kernel for 0 < a < 1, 0 < b < 10.
+ * Compute log B(x,y) in double-double for positive double-double
+ * arguments x, y.
  *
- * The direct log-Gamma representation loses accuracy near the
- * log(B(a,b)) = 0 contour.  Arguments are reduced to [1,2]^2 using
- * log-difference recurrences evaluated in double-double arithmetic.
+ * With x <= y: near (1,1) use the local expansion lnbeta_corner_11().
+ * Otherwise shift x and y to z = x + N >= 30 and y' = y + M >= 30 (N = 0,
+ * M = 0 for arguments already >= 30):
  *
- * On [1,2]^2, a local analytic expansion is used near (1,1), where
- * log(B) is small, and a bivariate Chebyshev approximation is used
- * elsewhere.
+ *   log Gamma(x) = S(z) - log P,                P = prod_{k<N} (x+k),
+ *   log Gamma(y) - log Gamma(x+y)
+ *     = D(y') + log Q,                          Q = prod_{k<M} (x+y+k)/(y+k),
+ *
+ * with the Stirling form S(z) = log Gamma(z) (lnbeta_dd_stirling()) and
+ * the Stirling difference
+ *
+ *   D(y') = -(y' - 1/2) log1p(x/y') - x log(x+y') + x + Delta(y') - Delta(x+y').
+ *
+ * The products are combined into one logarithm, log(Q/P).  *mag receives
+ * the magnitude of the intermediate terms, which bounds the absolute
+ * rounding error as LNBETA_DD_REL_ERR * (*mag).
  */
 static gsl_dd
-lnbeta_branch1(const gsl_dd a0, const gsl_dd b0)
+lnbeta_dd(const gsl_dd x0, const gsl_dd y0, double * mag)
 {
-  gsl_dd a = a0, b = b0;
-  gsl_dd z = {0.0, 0.0};
-  gsl_dd q;
+  const gsl_dd one = { 1.0, 0.0 };
+  const int swap = (x0.hi > y0.hi || (x0.hi == y0.hi && x0.lo > y0.lo));
+  const gsl_dd x = swap ? y0 : x0;
+  const gsl_dd y = swap ? x0 : y0;
+  const gsl_dd xy = gsl_dd_add(x, y);
+  gsl_dd P = one, R, z, yp, xyp, s, t;
+  int k, N, M;
 
-  /* Handle the cancellation-sensitive neighborhood before recurrence. */
-  if (fabs(a.hi - 1.0) < RADIUS && fabs(b.hi - 1.0) < RADIUS)
-    return lnbeta_corner_11(gsl_dd_sub_d(a, 1.0), gsl_dd_sub_d(b, 1.0));
+  if (fabs(x.hi - 1.0) < LNBETA_CORNER_RADIUS && fabs(y.hi - 1.0) < LNBETA_CORNER_RADIUS)
+    {
+      const gsl_dd p = gsl_dd_sub_d(x, 1.0);
+      const gsl_dd q = gsl_dd_sub_d(y, 1.0);
 
-  if (!((a.hi > 0.0 || (a.hi == 0.0 && a.lo > 0.0)) &&
-        (a.hi < 1.0 || (a.hi == 1.0 && a.lo < 0.0)) &&
-        (b.hi > 0.0 || (b.hi == 0.0 && b.lo > 0.0)) &&
-        (b.hi < 10.0 || (b.hi == 10.0 && b.lo < 0.0))))
-    { q.hi = GSL_NAN; q.lo = GSL_NAN; return q; }
-
-  while (a.hi < 1.0 || (a.hi == 1.0 && a.lo < 0.0))
-    {
-      gsl_dd apb = gsl_dd_add(a, b);
-      q = gsl_dd_sub(gsl_dd_log(apb), gsl_dd_log(a));
-      z = gsl_dd_add(z, q);
-      a = gsl_dd_add_d(a, 1.0);
-    }
-  while (a.hi > 2.0 || (a.hi == 2.0 && a.lo > 0.0))
-    {
-      gsl_dd am1 = gsl_dd_sub_d(a, 1.0);
-      gsl_dd apb1 = gsl_dd_sub_d(gsl_dd_add(a, b), 1.0);
-      q = gsl_dd_sub(gsl_dd_log(am1), gsl_dd_log(apb1));
-      z = gsl_dd_add(z, q);
-      a = am1;
-    }
-  while (b.hi < 1.0 || (b.hi == 1.0 && b.lo < 0.0))
-    {
-      gsl_dd apb = gsl_dd_add(a, b);
-      q = gsl_dd_sub(gsl_dd_log(apb), gsl_dd_log(b));
-      z = gsl_dd_add(z, q);
-      b = gsl_dd_add_d(b, 1.0);
-    }
-  while (b.hi > 2.0 || (b.hi == 2.0 && b.lo > 0.0))
-    {
-      gsl_dd bm1 = gsl_dd_sub_d(b, 1.0);
-      gsl_dd apb1 = gsl_dd_sub_d(gsl_dd_add(a, b), 1.0);
-      q = gsl_dd_sub(gsl_dd_log(bm1), gsl_dd_log(apb1));
-      z = gsl_dd_add(z, q);
-      b = bm1;
+      *mag = 2.0 * (fabs(p.hi) + fabs(q.hi));    /* |log1p(p+q)| + series terms */
+      return lnbeta_corner_11(p, q);
     }
 
-  /* Local analytic series is used only where log(B) is close enough to zero
-   * that direct Chebyshev evaluation would lose relative bits. */
+  /* log Gamma(x): shift x up to z >= LNBETA_DD_STIRLING_MIN */
+  N = (x.hi < LNBETA_DD_STIRLING_MIN) ? (int) ceil(LNBETA_DD_STIRLING_MIN - x.hi) : 0;
+  for (k = 0; k < N; ++k)
+    P = gsl_dd_mul(P, gsl_dd_add_d(x, (double) k));
+  z = gsl_dd_add_d(x, (double) N);
+
+  /* log Gamma(y) - log Gamma(x+y): shift y up to y' >= LNBETA_DD_STIRLING_MIN */
+  M = (y.hi < LNBETA_DD_STIRLING_MIN) ? (int) ceil(LNBETA_DD_STIRLING_MIN - y.hi) : 0;
   {
-    gsl_dd p = gsl_dd_sub_d(a, 1.0);
-    gsl_dd qv = gsl_dd_sub_d(b, 1.0);
-    if (fmax(fabs(p.hi + p.lo), fabs(qv.hi + qv.lo)) < RADIUS)
-      q = lnbeta_corner_11(p, qv);
-    else
-      q = lnbeta_compact_base(a, b);
+    gsl_dd num = one, den = P;
+
+    for (k = 0; k < M; ++k)
+      {
+        num = gsl_dd_mul(num, gsl_dd_add_d(xy, (double) k));
+        den = gsl_dd_mul(den, gsl_dd_add_d(y, (double) k));
+      }
+
+    R = gsl_dd_div(num, den);    /* Q / P */
+    yp = gsl_dd_add_d(y, (double) M);
+    xyp = gsl_dd_add_d(xy, (double) M);
   }
-  return gsl_dd_add(z, q);
+
+  s = lnbeta_dd_stirling(z);
+
+  /* D(y') */
+  {
+    gsl_dd d;
+
+    d = gsl_dd_mul(gsl_dd_sub_d(yp, 0.5), gsl_dd_log1p(gsl_dd_div(x, yp)));
+    d = gsl_dd_add(d, gsl_dd_mul(gsl_dd_log(xyp), x));
+    d = gsl_dd_sub(d, x);
+    t = gsl_dd_sub(gsl_dd_sub(lnbeta_dd_delta(yp), lnbeta_dd_delta(xyp)), d);
+  }
+
+  {
+    const gsl_dd lr = gsl_dd_log(R);
+
+    *mag = fabs(s.hi) + fabs(t.hi) + fabs(lr.hi);
+    return gsl_dd_add(gsl_dd_add(s, t), lr);
+  }
 }
 
 /*
- * Coefficients zeta(n)/n, n = 2,...,14, represented as
- * double-double high/low pairs for the local (1,1) expansion.
+ * log|B(a,b)| in double-double for a <= b, a < 0, a+b = s not a
+ * non-positive integer, from the reflection formulas of
+ * gsl_sf_lnbeta_sgn_e(), with the elementary factors combined into one
+ * logarithm.  *mag as for lnbeta_dd().
  */
-static const gsl_dd dd_zeta_over_n[13] = {
-  {0.8224670334241132, 1.5203361751992381e-17},
-  {0.40068563438653143, -2.2507470424875041e-18},
-  {0.27058080842778454, 1.1871280107138412e-17},
-  {0.20738555102867398, 4.0997673286218126e-18},
-  {0.16955717699740819, 2.2393851330167238e-18},
-  {0.14404989676884611, 9.6231400852325549e-18},
-  {0.12550966952474304, -2.5214685384672305e-18},
-  {0.11133426586956469, 4.6439905725829241e-18},
-  {0.10009945751278181, 2.6102404859583283e-18},
-  {0.090954017145829041, 8.3067054576918846e-19},
-  {0.083353840546109004, 2.9638326036526421e-19},
-  {0.076932516411352195, -3.2900356019181198e-18},
-  {0.07143294629536133, 6.2788060241914992e-18},
-};
+static gsl_dd
+lnbeta_neg_dd(const double a, const double b, const gsl_dd s, double * mag)
+{
+  const gsl_dd pi = { M_PI, GSL_SF_PI_LO };
+  const gsl_dd one = { 1.0, 0.0 };
+  const gsl_dd sa = lnbeta_dd_abs_sin_pi(gsl_dd_two_sum(a, 0.0));
+  gsl_dd ad, bd;
+
+  ad.hi = a;
+  ad.lo = 0.0;
+  bd.hi = b;
+  bd.lo = 0.0;
+
+  if (b > 0.0 && (s.hi > 0.0 || (s.hi == 0.0 && s.lo > 0.0)))
+    {
+      /* log(pi / (b |s(a)|)) - log B(1-a, a+b) */
+      const gsl_dd le = gsl_dd_log(gsl_dd_div(pi, gsl_dd_mul_d(sa, b)));
+      const gsl_dd r = lnbeta_dd(gsl_dd_sub(one, ad), s, mag);
+
+      *mag += fabs(le.hi);
+      return gsl_dd_sub(le, r);
+    }
+  else if (b > 0.0)
+    {
+      /* log(|s(a+b)| / |s(a)|) + log B(b, 1-a-b) */
+      const gsl_dd le = gsl_dd_log(gsl_dd_div(lnbeta_dd_abs_sin_pi(s), sa));
+      const gsl_dd r = lnbeta_dd(bd, gsl_dd_sub(one, s), mag);
+
+      *mag += fabs(le.hi);
+      return gsl_dd_add(le, r);
+    }
+  else
+    {
+      /* log(pi |s(a+b)| / (|s(a)| |s(b)| (1-a-b))) - log B(1-a, 1-b) */
+      const gsl_dd num = gsl_dd_mul(pi, lnbeta_dd_abs_sin_pi(s));
+      const gsl_dd den = gsl_dd_mul(gsl_dd_mul(sa, lnbeta_dd_abs_sin_pi(bd)), gsl_dd_sub(one, s));
+      const gsl_dd le = gsl_dd_log(gsl_dd_div(num, den));
+      const gsl_dd r = lnbeta_dd(gsl_dd_sub(one, ad), gsl_dd_sub(one, bd), mag);
+
+      *mag += fabs(le.hi);
+      return gsl_dd_sub(le, r);
+    }
+}
 
 /*
- * Local expansion of log(B(1+p,1+q)) about p = q = 0.
+ * |sin(pi x)| in double-double for x = x.hi + x.lo not an integer:
+ * with r = x - n, n the nearest integer (|r| <= 1/2, formed exactly),
+ * |sin(pi x)| = |u| sinc(u), u = pi r, from the Taylor series of
+ * sinc(u) = sum_k (-u^2)^k / (2k+1)!, truncated after k = 18
+ * (remainder below 1e-38 for |u| <= pi/2).
+ */
+static gsl_dd
+lnbeta_dd_abs_sin_pi(const gsl_dd x)
+{
+  const gsl_dd pi = { M_PI, GSL_SF_PI_LO };
+  const double n = floor(x.hi + 0.5);
+  const gsl_dd r = gsl_dd_two_sum(x.hi - n, x.lo);    /* x.hi - n is exact */
+  const gsl_dd u = gsl_dd_mul(pi, r);
+  const gsl_dd u2 = gsl_dd_mul(u, u);
+  gsl_dd term = { 1.0, 0.0 }, sum = { 1.0, 0.0 };
+  int k;
+
+  for (k = 1; k <= 18; ++k)
+    {
+      term = gsl_dd_div_d(gsl_dd_mul(term, u2), -(double) ((2 * k) * (2 * k + 1)));
+      sum = gsl_dd_add(sum, term);
+    }
+
+  sum = gsl_dd_mul(sum, u);
+  if (sum.hi < 0.0)
+    {
+      sum.hi = -sum.hi;
+      sum.lo = -sum.lo;
+    }
+
+  return sum;
+}
+
+/*
+ * Stirling correction Delta(z) = log Gamma(z) - [(z-1/2) log z - z + log sqrt(2 pi)]
+ * in double-double for z >= LNBETA_DD_STIRLING_MIN, from the asymptotic
+ * series sum_{k=1}^{15} B_{2k} / (2k (2k-1) z^{2k-1}); the first omitted
+ * term is below 1e-38 for z >= 30.
+ */
+static gsl_dd
+lnbeta_dd_delta(const gsl_dd z)
+{
+  /* B_{2k} / (2k (2k-1)), k = 1, ..., 15, as double-double pairs */
+  static const double c[15][2] = {
+    {  8.33333333333333287e-02,  4.62592926927148533e-18 },
+    { -2.77777777777777788e-03,  1.06010879087471541e-19 },
+    {  7.93650793650793650e-04,  6.88382331736828211e-22 },
+    { -5.95238095238095292e-04,  5.36938218754726024e-20 },
+    {  8.41750841750841714e-04,  3.68701748892376936e-20 },
+    { -1.91752691752691763e-03,  1.06757027768724749e-19 },
+    {  6.41025641025641003e-03,  2.22400445638052172e-19 },
+    { -2.95506535947712423e-02,  4.86176095750885531e-19 },
+    {  1.79644372368830574e-01, -6.40160048271094580e-19 },
+    { -1.39243221690590113e+00,  1.58370569892303027e-17 },
+    {  1.34028640441683926e+01, -6.15411410199396641e-16 },
+    { -1.56848284626002027e+02,  9.39182314171538895e-15 },
+    {  2.19310333333333347e+03, -1.33392556260029476e-13 },
+    { -3.61087712537249899e+04,  5.89758335351436479e-13 },
+    {  6.91472268851313042e+05,  2.55852963051579989e-11 }
+  };
+  const gsl_dd one = { 1.0, 0.0 };
+  const gsl_dd w = gsl_dd_div(one, z);
+  const gsl_dd w2 = gsl_dd_mul(w, w);
+  gsl_dd p, ck;
+  int k;
+
+  p.hi = c[14][0];
+  p.lo = c[14][1];
+  for (k = 13; k >= 0; --k)
+    {
+      ck.hi = c[k][0];
+      ck.lo = c[k][1];
+      p = gsl_dd_add(gsl_dd_mul(p, w2), ck);
+    }
+
+  return gsl_dd_mul(p, w);
+}
+
+/*
+ * log Gamma(z) = (z - 1/2) log z - z + log sqrt(2 pi) + Delta(z)
+ * in double-double for z >= LNBETA_DD_STIRLING_MIN.
+ */
+static gsl_dd
+lnbeta_dd_stirling(const gsl_dd z)
+{
+  const gsl_dd log_sqrt_2pi = { GSL_SF_LOG_SQRT_2PI, GSL_SF_LOG_SQRT_2PI_LO };
+  gsl_dd s = gsl_dd_mul(gsl_dd_sub_d(z, 0.5), gsl_dd_log(z));
+
+  s = gsl_dd_sub(s, z);
+  s = gsl_dd_add(s, log_sqrt_2pi);
+
+  return gsl_dd_add(s, lnbeta_dd_delta(z));
+}
+
+/*
+ * Local expansion of log B(1+p, 1+q) about p = q = 0,
  *
- * The expansion is evaluated through degree 14 in double-double
- * arithmetic to preserve relative accuracy near log(B) = 0.
+ *   log B(1+p,1+q) = -log1p(p+q)
+ *                    + sum_{n>=2} (-1)^n zeta(n)/n (p^n + q^n - (p+q)^n),
+ *
+ * evaluated through n = LNBETA_CORNER_NMAX in double-double arithmetic to
+ * preserve relative accuracy near log(B) = 0, for |p|, |q| <
+ * LNBETA_CORNER_RADIUS.  The truncation error is below
+ * (2 LNBETA_CORNER_RADIUS)^(LNBETA_CORNER_NMAX+1), ~1e-34, so the double-double
+ * rounding (~1e-32 relative to the largest term) dominates.
  */
 static gsl_dd
 lnbeta_corner_11(const gsl_dd p, const gsl_dd q)
 {
+  /* zeta(n)/n, n = 2, ..., LNBETA_CORNER_NMAX, as double-double pairs */
+  static const double zn[LNBETA_CORNER_NMAX - 1][2] = {
+    { 8.22467033424113203e-01, 1.52033617519923808e-17 },
+    { 4.00685634386531431e-01, -2.25074704248750415e-18 },
+    { 2.70580808427784536e-01, 1.18712801071384119e-17 },
+    { 2.07385551028673981e-01, 4.09976732862181262e-18 },
+    { 1.69557176997408188e-01, 2.23938513301672378e-18 },
+    { 1.44049896768846108e-01, 9.62314008523255486e-18 },
+    { 1.25509669524743045e-01, -2.52146853846723048e-18 },
+    { 1.11334265869564686e-01, 4.64399057258292406e-18 },
+    { 1.00099457512781806e-01, 2.61024048595832832e-18 },
+    { 9.09540171458290414e-02, 8.30670545769188462e-19 },
+    { 8.33538405461090037e-02, 2.96383260365264211e-19 },
+    { 7.69325164113521948e-02, -3.29003560191811977e-18 },
+    { 7.14329462953613298e-02, 6.27880602419149916e-18 },
+    { 6.66687058824204648e-02, 3.22958607599663057e-18 },
+    { 6.25009551412130382e-02, 2.55109946401931504e-18 },
+    { 5.88239786586845850e-02, -2.69129013419663566e-18 },
+    { 5.55557676274036141e-02, -3.02618648498309645e-18 },
+    { 5.26316793796166582e-02, 2.52384370247121503e-18 },
+    { 5.00000476981016934e-02, 2.78944182644587960e-19 },
+    { 4.76190703301422255e-02, 2.47963426842933546e-18 },
+    { 4.54545562932046690e-02, 4.38293177455007562e-19 },
+    { 4.34782660530402612e-02, -1.84622298803959428e-18 },
+    { 4.16666691503412082e-02, 2.30817468724826604e-18 },
+    { 4.00000011921401374e-02, 3.14569061393772909e-18 },
+    { 3.84615390346751823e-02, 3.39272042239591675e-18 },
+    { 3.70370373129893238e-02, 1.77099324149498771e-18 },
+    { 3.57142858473333547e-02, 3.37720268655954160e-18 },
+    { 3.44827586849193041e-02, -3.25998692705954774e-18 },
+    { 3.33333333643775834e-02, -2.29368273689617943e-18 }
+  };
   const gsl_dd r = gsl_dd_add(p, q);
-  gsl_dd termp = p;
-  gsl_dd termq = q;
-  gsl_dd termr = r;
-  gsl_dd sum;
-  gsl_dd t, c, u;
+  gsl_dd termp = p, termq = q, termr = r;
+  gsl_dd sum, t, c, u;
   int n;
 
   sum = gsl_dd_mul_d(gsl_dd_log1p(r), -1.0);
-  for (n = 2; n <= 14; ++n)
+
+  for (n = 2; n <= LNBETA_CORNER_NMAX; ++n)
     {
       termp = gsl_dd_mul(termp, p);
       termq = gsl_dd_mul(termq, q);
       termr = gsl_dd_mul(termr, r);
       t = gsl_dd_sub(gsl_dd_add(termp, termq), termr);
-      c = dd_zeta_over_n[n-2];
+      c.hi = zn[n - 2][0];
+      c.lo = zn[n - 2][1];
       u = gsl_dd_mul(t, c);
-      if (n & 1) sum = gsl_dd_sub(sum, u);
-      else       sum = gsl_dd_add(sum, u);
+      if (n & 1)
+        sum = gsl_dd_sub(sum, u);
+      else
+        sum = gsl_dd_add(sum, u);
     }
+
   return sum;
-}
-
-/*
- * Double-double coefficients for the 24 x 24 bivariate Chebyshev
- * representation of log(B(a,b)) on [1,2]^2 away from the
- * cancellation-sensitive neighborhood of (1,1).
- */
-static const gsl_dd lnbeta_compact_cheb_dd[24][24] = {
-  {{-0.86504033759118515, 5.7380084848695749e-18}, {-0.44924435881396069, 2.5600380227684583e-17}, {0.035045670907099112, -3.8908240809634333e-19}, {-0.003760930810660524, 1.1704845023499001e-19}, {0.00046427716438066519, 9.7661745048170213e-22}, {-6.206455320084213e-05, 6.0184086368966729e-21}, {8.7282843299947311e-06, -7.4295272001813381e-22}, {-1.2705367472718048e-06, 8.7080624094585436e-23}, {1.8954766818763988e-07, -7.4657961759483994e-24}, {-2.8797423946068869e-08, -1.0787110347602115e-24}, {4.4364708677692412e-09, 2.1550666780276658e-25}, {-6.910114809980372e-10, 3.2966748100368199e-26}, {1.0858731107783586e-10, 5.1003476439929505e-27}, {-1.7188804441783913e-11, -5.8017629224090537e-28}, {2.7376494853794703e-12, -8.2764101992471945e-29}, {-4.3831309297727502e-13, 2.0341861655319389e-29}, {7.0494835019080568e-14, -3.6531142251347413e-30}, {-1.1382795572234817e-14, -6.7067314836249314e-31}, {1.8444091861759519e-15, 1.6311248799515135e-31}, {-2.9978843345964078e-16, 1.5501573491036611e-32}, {4.8863120845288926e-17, -2.5994747589949338e-33}, {-7.9843032750763832e-18, 6.1915608563198432e-35}, {1.3076158826741593e-18, -5.3263575380913989e-35}, {-2.1459639750108475e-19, 5.9212409719869696e-36}},
-  {{-0.44924435881396069, 2.5600380227684583e-17}, {-0.10068134640772008, 3.6981739352209909e-18}, {0.0050526808796402777, 2.7990797873342375e-19}, {-0.00033714168914599255, 2.3848053951608845e-20}, {2.5245011139245349e-05, -1.188545492785082e-21}, {-2.0120354992514202e-06, -1.1232696559041603e-22}, {1.6674051316765731e-07, 5.7127368497584045e-24}, {-1.4191910325882356e-08, -8.1037317799261401e-25}, {1.2316549974761426e-09, 3.1313789094714098e-27}, {-1.0849067280636541e-10, -2.2490162404503443e-27}, {9.6697493101531909e-12, 1.5530921185698571e-28}, {-8.7020632625168611e-13, 3.9348415658638905e-29}, {7.8946720526642812e-14, 1.4085719689260419e-30}, {-7.2117631474573732e-15, 1.4370071181985447e-31}, {6.6275292363187117e-16, 4.0707242374784251e-32}, {-6.1228597430176952e-17, -5.5418177410202527e-33}, {5.6832735727394985e-18, -9.1276403622665616e-35}, {-5.297580496978727e-19, -9.2655886078906124e-36}, {4.9569869489753332e-20, 2.2959430202163717e-36}, {-4.6544820705786844e-21, -3.4508869683901485e-37}, {4.3844057817506425e-22, -2.3611398731469322e-38}, {-4.1421382342013549e-23, -2.4320141868654698e-39}, {3.9238721606777905e-24, 2.7050746782565304e-40}, {-3.7264430700855275e-25, 1.438055216499413e-41}},
-  {{0.035045670907099112, -3.8908240809634333e-19}, {0.0050526808796402777, 2.7990797873342375e-19}, {-0.00050094877738293588, -7.0577359961327906e-21}, {4.9412249720339405e-05, 1.016947877948615e-22}, {-4.8517501826099431e-06, -2.1277755548628606e-24}, {4.7450145468878501e-07, 4.224567212277191e-24}, {-4.6248526394054571e-08, -3.2542332178979654e-24}, {4.4948307142717918e-09, -3.863732516231973e-25}, {-4.358149305950116e-10, 4.6425598136261257e-27}, {4.2175921642509996e-11, -8.2291012543602593e-28}, {-4.0755117455499493e-12, 2.6731714906980515e-28}, {3.9338414171721319e-13, 1.6769367292333479e-29}, {-3.7941255151179559e-14, 1.0920307731939239e-30}, {3.6575599035690594e-15, -3.9268420159840051e-31}, {-3.525037342200106e-16, -1.7245766082096759e-32}, {3.3971935359598056e-17, -9.7942909876298127e-34}, {-3.274451093639441e-18, 1.636596534853558e-34}, {3.1570597070026653e-19, 6.7799944554847063e-36}, {-3.0451316826869731e-20, -7.1923224778212007e-37}, {2.9386725437052206e-21, 1.5337551714981988e-37}, {-2.8376068075582877e-22, 1.9470497643667388e-38}, {2.7417992871661559e-23, -2.1191592578876025e-39}, {-2.6510723888330518e-24, 4.7600103262356756e-41}, {2.5652199317879269e-25, -1.2239341711689187e-41}},
-  {{-0.003760930810660524, 1.1704845023499001e-19}, {-0.00033714168914599255, 2.3848053951608845e-20}, {4.9412249720339405e-05, 1.016947877948615e-22}, {-6.4103376791085636e-06, -2.4732744131874745e-22}, {7.7613700642003713e-07, 3.3268817805076288e-23}, {-8.9834836765064918e-08, 1.0425036316665484e-24}, {1.0071638509486243e-08, 3.985363235980306e-26}, {-1.1025641934653388e-09, -5.6518801336379498e-26}, {1.1849129931882227e-10, 9.6814911646117009e-28}, {-1.2548579728707265e-11, 9.881879655737919e-30}, {1.3132418099946347e-12, 8.0907040318762753e-29}, {-1.3610260072463708e-13, 9.3027933989440419e-30}, {1.3992290224368789e-14, -5.5249538240832683e-33}, {-1.4288783140789812e-15, -4.9712820334754826e-32}, {1.4509749960194822e-16, 6.9872921726562935e-34}, {-1.4664693013327467e-17, -5.4993812005900348e-34}, {1.4762448991272747e-18, 8.6166512715533653e-35}, {-1.4811101713168788e-19, 1.1343430941901845e-36}, {1.4817947472357633e-20, -1.9575287015989823e-37}, {-1.4789498446719581e-21, -5.9453617385622177e-38}, {1.4731512309170829e-22, 7.2711604852402867e-39}, {-1.4649038688013962e-23, 6.5106412672519789e-40}, {1.4546475353611758e-24, -4.7223927579942449e-41}, {-1.4427628886046398e-25, 8.653587228160135e-42}},
-  {{0.00046427716438066519, 9.7661745048170213e-22}, {2.5245011139245349e-05, -1.188545492785082e-21}, {-4.8517501826099431e-06, -2.1277755548628606e-24}, {7.7613700642003713e-07, 3.3268817805076288e-23}, {-1.1137305085231891e-07, 2.1699483962815346e-24}, {1.4862233942454462e-08, 1.6905646966543162e-25}, {-1.8823901082547846e-09, -1.8482925447993325e-25}, {2.2919619562861126e-10, 3.1663063655179624e-27}, {-2.7059075443774754e-11, -1.0183200813256709e-27}, {3.1165691395674497e-12, 9.303286626931252e-29}, {-3.5176860715516074e-13, 1.7232288418750466e-29}, {3.904336359804975e-14, 1.4434790444257159e-30}, {-4.2728245485400345e-15, 1.3441080251099544e-31}, {4.6205389016132657e-16, -3.8536120004463736e-32}, {-4.9457958277370522e-17, -2.0886308838468591e-33}, {5.2476844190338659e-18, -2.3420870816148401e-35}, {-5.5259196935273217e-19, -9.8666891790855267e-36}, {5.780709687881057e-20, -2.0878430377681548e-36}, {-6.0126389457004118e-21, 1.4758317836745285e-37}, {6.2225690961060121e-22, -2.1207590208655114e-38}, {-6.4115559858237129e-23, 5.8579336171904608e-39}, {6.5807820778976824e-24, -4.2235876061648529e-41}, {-6.7315024349393846e-25, -7.650193249765121e-42}, {6.8650024579859938e-26, -5.513045010451247e-42}},
-  {{-6.206455320084213e-05, 6.0184086368966729e-21}, {-2.0120354992514202e-06, -1.1232696559041603e-22}, {4.7450145468878501e-07, 4.224567212277191e-24}, {-8.9834836765064918e-08, 1.0425036316665484e-24}, {1.4862233942454462e-08, 1.6905646966543162e-25}, {-2.2423081698136215e-09, 6.8580184865704407e-26}, {3.1628001160234202e-10, -1.8080921273870784e-27}, {-4.2375031859047391e-11, -3.1827699645965323e-27}, {5.4514860743003655e-12, -3.6653924142657588e-28}, {-6.7866557909855619e-13, 4.3791883653813922e-29}, {8.2231499606874779e-14, -3.691457608629481e-30}, {-9.7404979585931865e-15, -3.5691877519836303e-31}, {1.1318536550726474e-15, -3.9361147255219558e-32}, {-1.2938090169046929e-16, -1.206803537143107e-32}, {1.4581440818436031e-17, 2.5683101452079527e-34}, {-1.6232619978560561e-18, 5.5757130369395718e-35}, {1.7877556858851097e-19, -1.787462021128023e-36}, {-1.9504115859445107e-20, 8.3540817408642437e-37}, {2.1102052569798618e-21, 1.7990874212818351e-37}, {-2.266291318630793e-22, -7.6245876969711315e-39}, {2.41798975851676e-23, -2.5071215646389468e-40}, {-2.5647701899676403e-24, -1.3383289869163885e-40}, {2.7062352566702624e-25, 1.1963581375439757e-42}, {-2.8421040525691655e-26, -1.3075025331908703e-42}},
-  {{8.7282843299947311e-06, -7.4295272001813381e-22}, {1.6674051316765731e-07, 5.7127368497584045e-24}, {-4.6248526394054571e-08, -3.2542332178979654e-24}, {1.0071638509486243e-08, 3.985363235980306e-26}, {-1.8823901082547846e-09, -1.8482925447993325e-25}, {3.1628001160234202e-10, -1.8080921273870784e-27}, {-4.9112493292639721e-11, -1.2165886653607988e-27}, {7.1758202514386494e-12, 3.8781732559997389e-28}, {-9.9884651880673148e-13, -1.1460884852099506e-29}, {1.3364993140439959e-13, -4.1003610532959535e-30}, {-1.7306066585179246e-14, 1.4687744460124189e-30}, {2.1798881654124204e-15, 1.0943718205244906e-31}, {-2.6819244149723535e-16, -1.3615578137636235e-32}, {3.2333807755860648e-17, -1.253945614192776e-33}, {-3.8302298157229359e-18, 3.7039163510570687e-34}, {4.4679600241802568e-19, -3.7404656748934821e-35}, {-5.1417631228791275e-20, 6.17899766220522e-37}, {5.8466958989484777e-21, -1.3733352385078923e-37}, {-6.5778152137207072e-22, -3.6960605093215981e-38}, {7.3302867664628997e-23, -4.4297945478716266e-39}, {-8.0994694399592075e-24, 6.5928911259501065e-40}, {8.880977780165935e-25, 2.2115460565265016e-41}, {-9.6707254984404659e-26, 4.2064742548270745e-42}, {1.046495294755304e-26, 3.3323741894149151e-43}},
-  {{-1.2705367472718048e-06, 8.7080624094585436e-23}, {-1.4191910325882356e-08, -8.1037317799261401e-25}, {4.4948307142717918e-09, -3.863732516231973e-25}, {-1.1025641934653388e-09, -5.6518801336379498e-26}, {2.2919619562861126e-10, 3.1663063655179624e-27}, {-4.2375031859047391e-11, -3.1827699645965323e-27}, {7.1758202514386494e-12, 3.8781732559997389e-28}, {-1.1347631957619732e-12, -4.3770067479037566e-29}, {1.6985833427467751e-13, 8.4765412108897577e-30}, {-2.4305277617521308e-14, -1.2308850358069323e-30}, {3.3494736634824739e-15, -6.1173400111023125e-32}, {-4.4711206203936342e-16, -1.8061108049648661e-32}, {5.8076476244367402e-17, 8.1941415306642261e-34}, {-7.3675732220789527e-18, -5.1666546963318088e-34}, {9.1557863838919401e-19, 3.5347017733079034e-35}, {-1.1173712405839829e-19, -6.7069140800511636e-37}, {1.3419578643857032e-20, -2.2543615640486713e-37}, {-1.5888747862383287e-21, -1.527368539887702e-38}, {1.8574091321857909e-22, -3.052255929819539e-39}, {-2.1466378621359866e-23, -1.4674225504551132e-39}, {2.4554666191838794e-24, 9.3037487560867796e-41}, {-2.7826670854626838e-25, -1.597432597836335e-41}, {3.1269118830015205e-26, -2.7875259558143321e-42}, {-3.4868063924833246e-27, 1.3883961796969611e-43}},
-  {{1.8954766818763988e-07, -7.4657961759483994e-24}, {1.2316549974761426e-09, 3.1313789094714098e-27}, {-4.358149305950116e-10, 4.6425598136261257e-27}, {1.1849129931882227e-10, 9.6814911646117009e-28}, {-2.7059075443774754e-11, -1.0183200813256709e-27}, {5.4514860743003655e-12, -3.6653924142657588e-28}, {-9.9884651880673148e-13, -1.1460884852099506e-29}, {1.6985833427467751e-13, 8.4765412108897577e-30}, {-2.7195840430336067e-14, 1.2292036604441519e-31}, {4.1430398179145559e-15, -3.5413716533101656e-31}, {-6.0535069634188261e-16, 4.7228635579529533e-34}, {8.5362682624534568e-17, -3.5064291971894188e-33}, {-1.1674823020486081e-17, -1.7143672531514542e-34}, {1.5548628911031495e-18, 7.201618553306859e-35}, {-2.0231176671265811e-19, 2.4617922924430982e-36}, {2.5788441203535039e-20, -1.342988313855495e-36}, {-3.2277721722212914e-21, 7.0044030776927577e-38}, {3.9746859809734994e-22, 1.785130591873063e-38}, {-4.8233807298805109e-23, -4.082499567384459e-40}, {5.7766504964307572e-24, 3.0574866679028598e-40}, {-6.8363027047444721e-25, -5.9024722564646067e-42}, {8.0031944565305417e-26, 5.4797054193695083e-42}, {-9.2772861172912219e-27, -6.7850477435932194e-43}, {1.06577078163761e-27, -4.5469066015250187e-44}},
-  {{-2.8797423946068869e-08, -1.0787110347602115e-24}, {-1.0849067280636541e-10, -2.2490162404503443e-27}, {4.2175921642509996e-11, -8.2291012543602593e-28}, {-1.2548579728707265e-11, 9.881879655737919e-30}, {3.1165691395674497e-12, 9.303286626931252e-29}, {-6.7866557909855619e-13, 4.3791883653813922e-29}, {1.3364993140439959e-13, -4.1003610532959535e-30}, {-2.4305277617521308e-14, -1.2308850358069323e-30}, {4.1430398179145559e-15, -3.5413716533101656e-31}, {-6.6928674285981235e-16, -4.6872400862380665e-32}, {1.0333195525045708e-16, -7.0750468555315986e-35}, {-1.5347790532893229e-17, -8.8074861825321904e-34}, {2.2045964220797934e-18, -4.8388324306455037e-36}, {-3.0756629667992339e-19, 5.1646830702782128e-36}, {4.1821809875128594e-20, -2.2735594107275061e-36}, {-5.5589936368319873e-21, -2.9119443493595991e-37}, {7.2409234113818783e-22, -3.8723973863115096e-38}, {-9.2621438039511631e-23, -1.4079258288871778e-39}, {1.1655603173726111e-23, 8.8346611692150624e-41}, {-1.4452514515364303e-24, 1.6684545904332107e-41}, {1.7681919843769866e-25, -4.1112229480009811e-42}, {-2.1370333553066114e-26, -7.2822656951796222e-43}, {2.554146545045089e-27, -2.7108769113790925e-45}, {-3.0216021231019286e-28, 1.0809553590739684e-44}},
-  {{4.4364708677692412e-09, 2.1550666780276658e-25}, {9.6697493101531909e-12, 1.5530921185698571e-28}, {-4.0755117455499493e-12, 2.6731714906980515e-28}, {1.3132418099946347e-12, 8.0907040318762753e-29}, {-3.5176860715516074e-13, 1.7232288418750466e-29}, {8.2231499606874779e-14, -3.691457608629481e-30}, {-1.7306066585179246e-14, 1.4687744460124189e-30}, {3.3494736634824739e-15, -6.1173400111023125e-32}, {-6.0535069634188261e-16, 4.7228635579529533e-34}, {1.0333195525045708e-16, -7.0750468555315986e-35}, {-1.6805639247655363e-17, -9.6790858766212879e-34}, {2.6221163104076966e-18, 1.8925694539026657e-34}, {-3.9465484332610186e-19, 1.1515764580668584e-35}, {5.755739034607397e-20, 4.8105183656805366e-36}, {-8.1642147563850686e-21, 8.2917044451954855e-38}, {1.1298106831407955e-21, -3.9702870963173621e-38}, {-1.5293781040052362e-22, 6.7662796163656436e-39}, {2.029620741028201e-23, 1.0900518375554202e-40}, {-2.6457140048175089e-24, -6.3286753974655716e-41}, {3.393317712941409e-25, 5.7801505726597217e-42}, {-4.2883767381933327e-26, 1.6155271442170177e-42}, {5.3469223255967523e-27, 3.2208560311281237e-43}, {-6.5848793243652705e-28, -7.2481464798829236e-45}, {8.0178837197588667e-29, 2.608135157842698e-45}},
-  {{-6.910114809980372e-10, 3.2966748100368199e-26}, {-8.7020632625168611e-13, 3.9348415658638905e-29}, {3.9338414171721319e-13, 1.6769367292333479e-29}, {-1.3610260072463708e-13, 9.3027933989440419e-30}, {3.904336359804975e-14, 1.4434790444257159e-30}, {-9.7404979585931865e-15, -3.5691877519836303e-31}, {2.1798881654124204e-15, 1.0943718205244906e-31}, {-4.4711206203936342e-16, -1.8061108049648661e-32}, {8.5362682624534568e-17, -3.5064291971894188e-33}, {-1.5347790532893229e-17, -8.8074861825321904e-34}, {2.6221163104076966e-18, 1.8925694539026657e-34}, {-4.287138016848098e-19, -1.6625524546865632e-35}, {6.7463988695107683e-20, -5.6203277600924526e-38}, {-1.0265813164756633e-20, -3.8906753192913373e-37}, {1.5163958301763211e-21, 9.2448828891247011e-38}, {-2.1814233950895764e-22, 2.850064748184955e-39}, {3.0645793806616884e-23, -1.71926577842953e-39}, {-4.2143225126256904e-24, -2.3229802146694789e-41}, {5.684500409550733e-25, -4.7144330264472369e-42}, {-7.5340800254548384e-26, -5.3451820771373948e-42}, {9.8267739534265738e-27, 3.3439270456862757e-43}, {-1.2630576247343065e-27, 2.7906645131618843e-44}, {1.6017223213637806e-28, 4.9410155808874602e-45}, {-2.0061595581279922e-29, 1.3056269857121216e-45}},
-  {{1.0858731107783586e-10, 5.1003476439929505e-27}, {7.8946720526642812e-14, 1.4085719689260419e-30}, {-3.7941255151179559e-14, 1.0920307731939239e-30}, {1.3992290224368789e-14, -5.5249538240832683e-33}, {-4.2728245485400345e-15, 1.3441080251099544e-31}, {1.1318536550726474e-15, -3.9361147255219558e-32}, {-2.6819244149723535e-16, -1.3615578137636235e-32}, {5.8076476244367402e-17, 8.1941415306642261e-34}, {-1.1674823020486081e-17, -1.7143672531514542e-34}, {2.2045964220797934e-18, -4.8388324306455037e-36}, {-3.9465484332610186e-19, 1.1515764580668584e-35}, {6.7463988695107683e-20, -5.6203277600924526e-38}, {-1.1077520516053096e-20, -1.8266207556762091e-37}, {1.7555809988243602e-21, 7.5179663465745143e-38}, {-2.6961625083332312e-22, -2.098669719316569e-39}, {4.026065646967894e-23, 2.912489607180897e-39}, {-5.8622987155453939e-24, -2.6006267567688174e-40}, {8.3439673838319214e-25, -6.7276186019046171e-41}, {-1.1633629170181108e-25, 5.0399211665960898e-42}, {1.591830092476649e-26, -2.0851326945195173e-43}, {-2.1410089355355797e-27, -3.898548677794301e-44}, {2.8346428111141187e-28, -2.2376940837943344e-44}, {-3.6989917860013766e-29, -9.3047705228884589e-46}, {4.7627777646504703e-30, 2.6699572716058726e-46}},
-  {{-1.7188804441783913e-11, -5.8017629224090537e-28}, {-7.2117631474573732e-15, 1.4370071181985447e-31}, {3.6575599035690594e-15, -3.9268420159840051e-31}, {-1.4288783140789812e-15, -4.9712820334754826e-32}, {4.6205389016132657e-16, -3.8536120004463736e-32}, {-1.2938090169046929e-16, -1.206803537143107e-32}, {3.2333807755860648e-17, -1.253945614192776e-33}, {-7.3675732220789527e-18, -5.1666546963318088e-34}, {1.5548628911031495e-18, 7.201618553306859e-35}, {-3.0756629667992339e-19, 5.1646830702782128e-36}, {5.755739034607397e-20, 4.8105183656805366e-36}, {-1.0265813164756633e-20, -3.8906753192913373e-37}, {1.7555809988243602e-21, 7.5179663465745143e-38}, {-2.8928615070761221e-22, -1.9846899927474038e-38}, {4.612125101516584e-23, 2.7853941990455149e-40}, {-7.1391778147354543e-24, -6.7490060789801717e-40}, {1.0760990081450694e-24, -5.1081536614860681e-41}, {-1.5834903697139645e-25, -7.6148516110763776e-42}, {2.2797749316122906e-26, -1.1373005141513194e-42}, {-3.2174637705849164e-27, 9.4426475739855417e-44}, {4.458719672335276e-28, 2.456392366812764e-44}, {-6.0761043205411646e-29, -1.5951217204578e-45}, {8.1532303108718655e-30, 2.2189059644183231e-46}, {-1.0785302259657595e-30, -4.7441597642013478e-47}},
-  {{2.7376494853794703e-12, -8.2764101992471945e-29}, {6.6275292363187117e-16, 4.0707242374784251e-32}, {-3.525037342200106e-16, -1.7245766082096759e-32}, {1.4509749960194822e-16, 6.9872921726562935e-34}, {-4.9457958277370522e-17, -2.0886308838468591e-33}, {1.4581440818436031e-17, 2.5683101452079527e-34}, {-3.8302298157229359e-18, 3.7039163510570687e-34}, {9.1557863838919401e-19, 3.5347017733079034e-35}, {-2.0231176671265811e-19, 2.4617922924430982e-36}, {4.1821809875128594e-20, -2.2735594107275061e-36}, {-8.1642147563850686e-21, 8.2917044451954855e-38}, {1.5163958301763211e-21, 9.2448828891247011e-38}, {-2.6961625083332312e-22, -2.098669719316569e-39}, {4.612125101516584e-23, 2.7853941990455149e-40}, {-7.6226331470804072e-24, 2.755377228900703e-40}, {1.2215247302609411e-24, 6.4452878227237582e-42}, {-1.9037533361209664e-25, -6.3138538149335205e-42}, {2.8931069866938948e-26, 2.4849169210998755e-42}, {-4.2968221678916331e-27, -3.5353486942186657e-43}, {6.2491115973691525e-28, -4.1335102961427047e-44}, {-8.9152162738901764e-29, 5.0991581615394947e-45}, {1.2495539206910659e-29, 5.5597591515310526e-47}, {-1.7229783721593784e-30, 1.1941389467912966e-46}, {2.340101755932929e-31, -2.0207081074335319e-47}},
-  {{-4.3831309297727502e-13, 2.0341861655319389e-29}, {-6.1228597430176952e-17, -5.5418177410202527e-33}, {3.3971935359598056e-17, -9.7942909876298127e-34}, {-1.4664693013327467e-17, -5.4993812005900348e-34}, {5.2476844190338659e-18, -2.3420870816148401e-35}, {-1.6232619978560561e-18, 5.5757130369395718e-35}, {4.4679600241802568e-19, -3.7404656748934821e-35}, {-1.1173712405839829e-19, -6.7069140800511636e-37}, {2.5788441203535039e-20, -1.342988313855495e-36}, {-5.5589936368319873e-21, -2.9119443493595991e-37}, {1.1298106831407955e-21, -3.9702870963173621e-38}, {-2.1814233950895764e-22, 2.850064748184955e-39}, {4.026065646967894e-23, 2.912489607180897e-39}, {-7.1391778147354543e-24, -6.7490060789801717e-40}, {1.2215247302609411e-24, 6.4452878227237582e-42}, {-2.0240385549836542e-25, 4.8823477326890701e-42}, {3.257955530031743e-26, -7.37000123708602e-43}, {-5.1079098996982076e-27, -1.3192108902015187e-43}, {7.8184809941021135e-28, -1.3078584842958049e-44}, {-1.1707534573553501e-28, -1.0669646532302424e-44}, {1.7181032862524443e-29, 1.4794256441175823e-46}, {-2.47492029425006e-30, 1.0636826546588442e-46}, {3.504391091244508e-31, -5.492010247649059e-48}, {-4.8837051096614317e-32, -5.4446384797680694e-49}},
-  {{7.0494835019080568e-14, -3.6531142251347413e-30}, {5.6832735727394985e-18, -9.1276403622665616e-35}, {-3.274451093639441e-18, 1.636596534853558e-34}, {1.4762448991272747e-18, 8.6166512715533653e-35}, {-5.5259196935273217e-19, -9.8666891790855267e-36}, {1.7877556858851097e-19, -1.787462021128023e-36}, {-5.1417631228791275e-20, 6.17899766220522e-37}, {1.3419578643857032e-20, -2.2543615640486713e-37}, {-3.2277721722212914e-21, 7.0044030776927577e-38}, {7.2409234113818783e-22, -3.8723973863115096e-38}, {-1.5293781040052362e-22, 6.7662796163656436e-39}, {3.0645793806616884e-23, -1.71926577842953e-39}, {-5.8622987155453939e-24, -2.6006267567688174e-40}, {1.0760990081450694e-24, -5.1081536614860681e-41}, {-1.9037533361209664e-25, -6.3138538149335205e-42}, {3.257955530031743e-26, -7.37000123708602e-43}, {-5.4103846133461401e-27, -2.0791707841292642e-43}, {8.7426939555022902e-28, -9.9618634170413083e-45}, {-1.3779337292273952e-28, -5.8634709608242208e-45}, {2.1226633515057136e-29, 5.2547898135817312e-46}, {-3.2018436579380398e-30, -2.1874730524033773e-46}, {4.7368652591066482e-31, 2.1071027347420514e-47}, {-6.8830706372938101e-32, 1.9818446650370963e-48}, {9.836390961432268e-33, -6.3711660794491447e-49}},
-  {{-1.1382795572234817e-14, -6.7067314836249314e-31}, {-5.297580496978727e-19, -9.2655886078906124e-36}, {3.1570597070026653e-19, 6.7799944554847063e-36}, {-1.4811101713168788e-19, 1.1343430941901845e-36}, {5.780709687881057e-20, -2.0878430377681548e-36}, {-1.9504115859445107e-20, 8.3540817408642437e-37}, {5.8466958989484777e-21, -1.3733352385078923e-37}, {-1.5888747862383287e-21, -1.527368539887702e-38}, {3.9746859809734994e-22, 1.785130591873063e-38}, {-9.2621438039511631e-23, -1.4079258288871778e-39}, {2.029620741028201e-23, 1.0900518375554202e-40}, {-4.2143225126256904e-24, -2.3229802146694789e-41}, {8.3439673838319214e-25, -6.7276186019046171e-41}, {-1.5834903697139645e-25, -7.6148516110763776e-42}, {2.8931069866938948e-26, 2.4849169210998755e-42}, {-5.1079098996982076e-27, -1.3192108902015187e-43}, {8.7426939555022902e-28, -9.9618634170413083e-45}, {-1.4547108518206581e-28, -1.1020993189891069e-45}, {2.3587866490058554e-29, 2.916928525576282e-46}, {-3.7351105651758705e-30, 3.1589550584437569e-46}, {5.7867527120726558e-31, 4.2192124872179782e-47}, {-8.7862807343315585e-32, -2.7974651943072026e-48}, {1.3093556434099833e-32, -6.2851328426428963e-49}, {-1.9176485927857537e-33, 3.5423526771150137e-50}},
-  {{1.8444091861759519e-15, 1.6311248799515135e-31}, {4.9569869489753332e-20, 2.2959430202163717e-36}, {-3.0451316826869731e-20, -7.1923224778212007e-37}, {1.4817947472357633e-20, -1.9575287015989823e-37}, {-6.0126389457004118e-21, 1.4758317836745285e-37}, {2.1102052569798618e-21, 1.7990874212818351e-37}, {-6.5778152137207072e-22, -3.6960605093215981e-38}, {1.8574091321857909e-22, -3.052255929819539e-39}, {-4.8233807298805109e-23, -4.082499567384459e-40}, {1.1655603173726111e-23, 8.8346611692150624e-41}, {-2.6457140048175089e-24, -6.3286753974655716e-41}, {5.684500409550733e-25, -4.7144330264472369e-42}, {-1.1633629170181108e-25, 5.0399211665960898e-42}, {2.2797749316122906e-26, -1.1373005141513194e-42}, {-4.2968221678916331e-27, -3.5353486942186657e-43}, {7.8184809941021135e-28, -1.3078584842958049e-44}, {-1.3779337292273952e-28, -5.8634709608242208e-45}, {2.3587866490058554e-29, 2.916928525576282e-46}, {-3.9316191178990245e-30, -2.8143327594245842e-46}, {6.3946242450598306e-31, -2.0425921382547806e-47}, {-1.0168306378036861e-31, -5.7504546610547802e-48}, {1.5834661570483014e-32, 1.2642184206478156e-48}, {-2.4185382475286811e-33, -8.997786469115319e-50}, {3.6280273796813045e-34, 7.0399991100046599e-52}},
-  {{-2.9978843345964078e-16, 1.5501573491036611e-32}, {-4.6544820705786844e-21, -3.4508869683901485e-37}, {2.9386725437052206e-21, 1.5337551714981988e-37}, {-1.4789498446719581e-21, -5.9453617385622177e-38}, {6.2225690961060121e-22, -2.1207590208655114e-38}, {-2.266291318630793e-22, -7.6245876969711315e-39}, {7.3302867664628997e-23, -4.4297945478716266e-39}, {-2.1466378621359866e-23, -1.4674225504551132e-39}, {5.7766504964307572e-24, 3.0574866679028598e-40}, {-1.4452514515364303e-24, 1.6684545904332107e-41}, {3.393317712941409e-25, 5.7801505726597217e-42}, {-7.5340800254548384e-26, -5.3451820771373948e-42}, {1.591830092476649e-26, -2.0851326945195173e-43}, {-3.2174637705849164e-27, 9.4426475739855417e-44}, {6.2491115973691525e-28, -4.1335102961427047e-44}, {-1.1707534573553501e-28, -1.0669646532302424e-44}, {2.1226633515057136e-29, 5.2547898135817312e-46}, {-3.7351105651758705e-30, 3.1589550584437569e-46}, {6.3946242450598306e-31, -2.0425921382547806e-47}, {-1.0675009285293277e-31, -4.8850158397161117e-48}, {1.7410284565315602e-32, -9.6201265072211023e-49}, {-2.7789283151670695e-33, 1.483089978930148e-49}, {4.3476284386038056e-34, -4.1144524345762956e-50}, {-6.6762435935449445e-35, -1.3483822401382536e-51}},
-  {{4.8863120845288926e-17, -2.5994747589949338e-33}, {4.3844057817506425e-22, -2.3611398731469322e-38}, {-2.8376068075582877e-22, 1.9470497643667388e-38}, {1.4731512309170829e-22, 7.2711604852402867e-39}, {-6.4115559858237129e-23, 5.8579336171904608e-39}, {2.41798975851676e-23, -2.5071215646389468e-40}, {-8.0994694399592075e-24, 6.5928911259501065e-40}, {2.4554666191838794e-24, 9.3037487560867796e-41}, {-6.8363027047444721e-25, -5.9024722564646067e-42}, {1.7681919843769866e-25, -4.1112229480009811e-42}, {-4.2883767381933327e-26, 1.6155271442170177e-42}, {9.8267739534265738e-27, 3.3439270456862757e-43}, {-2.1410089355355797e-27, -3.898548677794301e-44}, {4.458719672335276e-28, 2.456392366812764e-44}, {-8.9152162738901764e-29, 5.0991581615394947e-45}, {1.7181032862524443e-29, 1.4794256441175823e-46}, {-3.2018436579380398e-30, -2.1874730524033773e-46}, {5.7867527120726558e-31, 4.2192124872179782e-47}, {-1.0168306378036861e-31, -5.7504546610547802e-48}, {1.7410284565315602e-32, -9.6201265072211023e-49}, {-2.9104574694911947e-33, 1.0886266578306307e-49}, {4.758562034521016e-34, -2.453581009058866e-50}, {-7.6213170010463993e-35, -3.462414573251763e-51}, {1.1973901829249692e-35, -3.6335391945293393e-52}},
-  {{-7.9843032750763832e-18, 6.1915608563198432e-35}, {-4.1421382342013549e-23, -2.4320141868654698e-39}, {2.7417992871661559e-23, -2.1191592578876025e-39}, {-1.4649038688013962e-23, 6.5106412672519789e-40}, {6.5807820778976824e-24, -4.2235876061648529e-41}, {-2.5647701899676403e-24, -1.3383289869163885e-40}, {8.880977780165935e-25, 2.2115460565265016e-41}, {-2.7826670854626838e-25, -1.597432597836335e-41}, {8.0031944565305417e-26, 5.4797054193695083e-42}, {-2.1370333553066114e-26, -7.2822656951796222e-43}, {5.3469223255967523e-27, 3.2208560311281237e-43}, {-1.2630576247343065e-27, 2.7906645131618843e-44}, {2.8346428111141187e-28, -2.2376940837943344e-44}, {-6.0761043205411646e-29, -1.5951217204578e-45}, {1.2495539206910659e-29, 5.5597591515310526e-47}, {-2.47492029425006e-30, 1.0636826546588442e-46}, {4.7368652591066482e-31, 2.1071027347420514e-47}, {-8.7862807343315585e-32, -2.7974651943072026e-48}, {1.5834661570483014e-32, 1.2642184206478156e-48}, {-2.7789283151670695e-33, 1.483089978930148e-49}, {4.758562034521016e-34, -2.453581009058866e-50}, {-7.9648029947325922e-35, 6.0488768559580644e-52}, {1.30516605668788e-35, -1.1891470495647974e-51}, {-2.0968574925065491e-36, -1.9114180422120063e-54}},
-  {{1.3076158826741593e-18, -5.3263575380913989e-35}, {3.9238721606777905e-24, 2.7050746782565304e-40}, {-2.6510723888330518e-24, 4.7600103262356756e-41}, {1.4546475353611758e-24, -4.7223927579942449e-41}, {-6.7315024349393846e-25, -7.650193249765121e-42}, {2.7062352566702624e-25, 1.1963581375439757e-42}, {-9.6707254984404659e-26, 4.2064742548270745e-42}, {3.1269118830015205e-26, -2.7875259558143321e-42}, {-9.2772861172912219e-27, -6.7850477435932194e-43}, {2.554146545045089e-27, -2.7108769113790925e-45}, {-6.5848793243652705e-28, -7.2481464798829236e-45}, {1.6017223213637806e-28, 4.9410155808874602e-45}, {-3.6989917860013766e-29, -9.3047705228884589e-46}, {8.1532303108718655e-30, 2.2189059644183231e-46}, {-1.7229783721593784e-30, 1.1941389467912966e-46}, {3.504391091244508e-31, -5.492010247649059e-48}, {-6.8830706372938101e-32, 1.9818446650370963e-48}, {1.3093556434099833e-32, -6.2851328426428963e-49}, {-2.4185382475286811e-33, -8.997786469115319e-50}, {4.3476284386038056e-34, -4.1144524345762956e-50}, {-7.6213170010463993e-35, -3.462414573251763e-51}, {1.30516605668788e-35, -1.1891470495647974e-51}, {-2.1870508490455045e-36, -1.0841564994101567e-52}, {3.5911932775106397e-37, -1.9557943832944457e-53}},
-  {{-2.1459639750108475e-19, 5.9212409719869696e-36}, {-3.7264430700855275e-25, 1.438055216499413e-41}, {2.5652199317879269e-25, -1.2239341711689187e-41}, {-1.4427628886046398e-25, 8.653587228160135e-42}, {6.8650024579859938e-26, -5.513045010451247e-42}, {-2.8421040525691655e-26, -1.3075025331908703e-42}, {1.046495294755304e-26, 3.3323741894149151e-43}, {-3.4868063924833246e-27, 1.3883961796969611e-43}, {1.06577078163761e-27, -4.5469066015250187e-44}, {-3.0216021231019286e-28, 1.0809553590739684e-44}, {8.0178837197588667e-29, 2.608135157842698e-45}, {-2.0061595581279922e-29, 1.3056269857121216e-45}, {4.7627777646504703e-30, 2.6699572716058726e-46}, {-1.0785302259657595e-30, -4.7441597642013478e-47}, {2.340101755932929e-31, -2.0207081074335319e-47}, {-4.8837051096614317e-32, -5.4446384797680694e-49}, {9.836390961432268e-33, -6.3711660794491447e-49}, {-1.9176485927857537e-33, 3.5423526771150137e-50}, {3.6280273796813045e-34, 7.0399991100046599e-52}, {-6.6762435935449445e-35, -1.3483822401382536e-51}, {1.1973901829249692e-35, -3.6335391945293393e-52}, {-2.0968574925065491e-36, -1.9114180422120063e-54}, {3.5911932775106397e-37, -1.9557943832944457e-53}, {-6.0239623598484065e-38, 1.8091423606161449e-55}},
-};
-
-/*
- * Evaluate the compact bivariate Chebyshev representation of
- * log(B(a,b)) for a,b in [1,2].
- */
-static gsl_dd
-lnbeta_compact_base(const gsl_dd a, const gsl_dd b)
-{
-  gsl_dd u = gsl_dd_sub_d(gsl_dd_mul_d(a, 2.0), 3.0);
-  gsl_dd v = gsl_dd_sub_d(gsl_dd_mul_d(b, 2.0), 3.0);
-  gsl_dd t[64];
-  gsl_dd b1, b2, b0;
-  int i;
-
-  for (i = 0; i < 24; ++i)
-    t[i] = dd_cheb_row(lnbeta_compact_cheb_dd[i], 23, v);
-
-  b1.hi = 0.0; b1.lo = 0.0;
-  b2.hi = 0.0; b2.lo = 0.0;
-  for (i = 23; i >= 1; --i)
-    {
-      b0 = gsl_dd_mul_d(b1, 2.0);
-      b0 = gsl_dd_mul(b0, u);
-      b0 = gsl_dd_sub(b0, b2);
-      b0 = gsl_dd_add(b0, t[i]);
-      b2 = b1;
-      b1 = b0;
-    }
-  b0 = gsl_dd_mul(u, b1);
-  b0 = gsl_dd_sub(b0, b2);
-  b0 = gsl_dd_add(b0, t[0]);
-  return b0;
-}
-
-/*
- * Evaluate one row of a Chebyshev expansion using Clenshaw
- * recurrence in double-double arithmetic.
- */
-static gsl_dd
-dd_cheb_row(const gsl_dd *c, const int n, const gsl_dd x)
-{
-  gsl_dd b1 = {0.0, 0.0};
-  gsl_dd b2 = {0.0, 0.0};
-  gsl_dd b0, t;
-  int j;
-  for (j = n; j >= 1; --j)
-    {
-      t = gsl_dd_mul_d(b1, 2.0);
-      t = gsl_dd_mul(t, x);
-      b0 = gsl_dd_sub(t, b2);
-      b0 = gsl_dd_add(b0, c[j]);
-      b2 = b1;
-      b1 = b0;
-    }
-  t = gsl_dd_mul(x, b1);
-  t = gsl_dd_sub(t, b2);
-  t = gsl_dd_add(t, c[0]);
-  return t;
 }

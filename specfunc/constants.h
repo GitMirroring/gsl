@@ -28,6 +28,7 @@
 #define GSL_SF_DBL_EPSILON_4       5.55111512312578270212e-17     /* GSL_DBL_EPSILON / 4 = 2^{-54} */
 #define GSL_SF_LOG_SQRT_2PI        9.18938533204672741780e-01     /* log(sqrt(2*pi)) */
 #define GSL_SF_LOG_SQRT_2PI_LO    -3.87829415806724144983e-17     /* log(sqrt(2*pi)) - GSL_SF_LOG_SQRT_2PI (double-double low part) */
+#define GSL_SF_PI_LO               1.22464679914735320717e-16     /* pi - M_PI (double-double low part) */
 #define GSL_SF_SQRT_2PI            2.50662827463100050242e+00     /* sqrt(2*pi) */
 #define GSL_SF_INV_SQRT_2PI        3.98942280401432677940e-01     /* 1/sqrt(2*pi) */
 #define GSL_SF_INV_SQRT_2PI_LO    -2.49232720227773004439e-17     /* 1/sqrt(2*pi) - GSL_SF_INV_SQRT_2PI (double-double low part) */

@@ -537,7 +537,7 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
 {
   /*
    * Q(a,x) for 0 < a <= 2, x > 0.  Use the continued fraction of
-   * gamma_inc_Q_cf() for x >= 1.1, and for x >= 0.5 when a < 0.25 (see below).
+   * gamma_inc_Q_cf() for x >= 0.8, and for x >= 0.5 when a < 0.25 (see below).
    * Otherwise use the series of DiDonato and Morris (TOMS 12, 1986, "grat1"):
    *
    *   Q(a,x) = 1 - x^a (1 - J(a,x)) / Gamma(1+a)
@@ -548,14 +548,15 @@ gamma_inc_Q_small_a(const double a, const double x, gsl_sf_result * result)
    * 1 - x^a/Gamma(1+a), but for small a its terms still nearly cancel as x
    * grows: Q -> a E1(x) while the terms are ~ a log(x), a*Euler and
    * a Ein(x), so the rounding errors are amplified by up to ~6 at x = 1
-   * (~3 at x = 0.5).  The continued fraction is accurate there, so it is
-   * used for x >= 1.1, and for x >= 0.5 when a < 0.25; it needs ~250 terms
-   * at x = 0.5.  For a >= 0.25 the amplification is small.
+   * (~3 at x = 0.5); for 0.25 <= a <= 2 the series still reaches ~9 ulp
+   * just below x = 1.1.  The continued fraction is accurate there (<= 4 ulp
+   * from x ~ 0.8 on, better than the series beyond), so it is used for
+   * x >= 0.8, and for x >= 0.5 when a < 0.25; it needs ~250 terms at x = 0.5.
    */
   double j, jerr, z, h;
   int status;
 
-  if (x >= 1.1 || (a < 0.25 && x >= 0.5))
+  if (x >= 0.8 || (a < 0.25 && x >= 0.5))
     return gamma_inc_Q_cf(a, x, result);
 
   status = gamma_inc_P_taylor_x_sum(a, x, &j, &jerr);

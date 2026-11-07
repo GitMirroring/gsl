@@ -36,85 +36,6 @@ isnegint (const double x)
 }
 
 int
-gsl_sf_lnbeta_e(const double x, const double y, gsl_sf_result * result)
-{
-  double sgn;
-  int status = gsl_sf_lnbeta_sgn_e(x,y,result,&sgn);
-  if (sgn == -1) {
-    DOMAIN_ERROR(result);
-  }
-  return status;
-}
-
-int
-gsl_sf_lnbeta_sgn_e(const double x, const double y, gsl_sf_result * result, double * sgn)
-{
-  /* CHECK_POINTER(result) */
-
-  if(x == 0.0 || y == 0.0) {
-    *sgn = 0.0;
-    DOMAIN_ERROR(result);
-  } else if (isnegint(x) || isnegint(y)) {
-    *sgn = 0.0;
-    DOMAIN_ERROR(result); /* not defined for negative integers */
-  }
-
-  /* See if we can handle the postive case with min/max < 0.2 */
-
-  if (x > 0 && y > 0) {
-    const double max = GSL_MAX(x,y);
-    const double min = GSL_MIN(x,y);
-    const double rat = min/max;
-    
-    if(rat < 0.2) {
-      /* min << max, so be careful
-       * with the subtraction
-       */
-      double lnpre_val;
-      double lnpre_err;
-      double lnpow_val;
-      double lnpow_err;
-      double t1, t2, t3;
-      gsl_sf_result lnopr;
-      gsl_sf_result gsx, gsy, gsxy;
-      gsl_sf_gammastar_e(x, &gsx);
-      gsl_sf_gammastar_e(y, &gsy);
-      gsl_sf_gammastar_e(x+y, &gsxy);
-      gsl_sf_log1p_e(rat, &lnopr);
-      lnpre_val = log(gsx.val*gsy.val/gsxy.val * M_SQRT2*M_SQRTPI);
-      lnpre_err = gsx.err/gsx.val + gsy.err/gsy.val + gsxy.err/gsxy.val;
-      t1 = min*log(rat);
-      t2 = 0.5*log(min);
-      t3 = (x+y-0.5)*lnopr.val;
-      lnpow_val  = t1 - t2 - t3;
-      lnpow_err  = GSL_DBL_EPSILON * (fabs(t1) + fabs(t2) + fabs(t3));
-      lnpow_err += fabs(x+y-0.5) * lnopr.err;
-      result->val  = lnpre_val + lnpow_val;
-      result->err  = lnpre_err + lnpow_err;
-      result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-      *sgn = 1.0;
-      return GSL_SUCCESS;
-    }
-  }
-
-  /* General case - Fallback */
-  {
-    gsl_sf_result lgx, lgy, lgxy;
-    double sgx, sgy, sgxy, xy = x+y;
-    int stat_gx  = gsl_sf_lngamma_sgn_e(x, &lgx, &sgx);
-    int stat_gy  = gsl_sf_lngamma_sgn_e(y, &lgy, &sgy);
-    int stat_gxy = gsl_sf_lngamma_sgn_e(xy, &lgxy, &sgxy);
-    *sgn = sgx * sgy * sgxy;
-    result->val  = lgx.val + lgy.val - lgxy.val;
-    result->err  = lgx.err + lgy.err + lgxy.err;
-    result->err += 2.0 * GSL_DBL_EPSILON * (fabs(lgx.val) + fabs(lgy.val) + fabs(lgxy.val));
-    result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
-    return GSL_ERROR_SELECT_3(stat_gx, stat_gy, stat_gxy);
-  }
-}
-
-
-int
 gsl_sf_beta_e(const double x, const double y, gsl_sf_result * result)
 {
   if((x > 0 && y > 0) && x < 50.0 && y < 50.0) {
@@ -157,11 +78,6 @@ gsl_sf_beta_e(const double x, const double y, gsl_sf_result * result)
 /*-*-*-*-*-*-*-*-*-* Functions w/ Natural Prototypes *-*-*-*-*-*-*-*-*-*-*/
 
 #include "eval.h"
-
-double gsl_sf_lnbeta(const double x, const double y)
-{
-  EVAL_RESULT(gsl_sf_lnbeta_e(x, y, &result));
-}
 
 double gsl_sf_beta(const double x, const double y)
 {
