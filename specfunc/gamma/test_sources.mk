@@ -9,6 +9,7 @@ GAMMA_TEST_SOURCES =        \
   gamma/test_gamma_inc_Q.c  \
   gamma/test_gammainv.c     \
   gamma/test_gammastar.c    \
+  gamma/test_beta.c         \
   gamma/test_lnbeta.c       \
   gamma/test_lndoublefact.c \
   gamma/test_lnfact.c       \

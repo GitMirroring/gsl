@@ -18,12 +18,16 @@
  */
 
 /*
+ * Provenance:
+ *
  * The large-argument Gamma reconstruction and recurrence-product
  * strategy are based on the glibc tgamma implementation
- * (sysdeps/ieee754/dbl-64/e_gamma_r.c).
- * The implementation here has been adapted to return a scaled
- * Gamma value, use GSL double-double arithmetic, and propagate
- * GSL error estimates.
+ * (sysdeps/ieee754/dbl-64/e_gamma_r.c, Copyright (C) 1997-2024 Free
+ * Software Foundation, Inc., as distributed e.g. in glibc 2.39; later
+ * glibc releases replaced that file with the CORE-MATH implementation).
+ * No coefficient tables were taken from it.  The implementation here has
+ * been adapted to return a scaled Gamma value, use GSL double-double
+ * arithmetic, and propagate GSL error estimates.
  */
 
 #include <config.h>

@@ -17,6 +17,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * Provenance:
+ *
+ * The negative-argument algorithm (lngamma_neg() and its helpers) is
+ * based on glibc's lgamma for binary64, which expands log|Gamma(x)|
+ * around its zeros (sysdeps/ieee754/dbl-64/lgamma_neg.c, Copyright (C)
+ * 2015-2024 Free Software Foundation, Inc., as distributed in glibc
+ * 2.39).  The tables lgamma_zeros, lgamma_coeff, lgamma_neg_poly_coeff,
+ * lgamma_neg_poly_deg, lgamma_neg_poly_end and the constants e_hi, e_lo
+ * are taken from that file (converted from hexadecimal to decimal
+ * floating-point literals); the error bound glibc_bound is the one
+ * documented there.
+ */
+
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>

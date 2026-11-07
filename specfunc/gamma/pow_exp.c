@@ -17,6 +17,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * References:
+ *
+ *   W. J. Cody and W. Waite, Software Manual for the Elementary
+ *   Functions, Prentice-Hall (1980) -- the argument reduction of exp();
+ *
+ *   T. J. Dekker, "A floating-point technique for extending the
+ *   available precision", Numer. Math. 18 (1971) 224-242 -- the exact
+ *   product (via gsl_dd_two_prod()) and the exact remainder of a
+ *   rounded division.
+ *
+ * No external code was used.
+ */
+
 #ifndef __GSL_SF_GAMMA_POW_EXP_C__
 #define __GSL_SF_GAMMA_POW_EXP_C__
 

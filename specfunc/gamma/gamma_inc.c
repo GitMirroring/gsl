@@ -17,6 +17,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * References:
+ *
+ * The algorithms are implemented independently (no code was copied)
+ * from the published descriptions in
+ *
+ *   A. R. DiDonato and A. H. Morris, Jr., "Computation of the
+ *   incomplete gamma function ratios and their inverse", ACM Trans.
+ *   Math. Software 12 (1986) 377-393 -- the small-x series ("grat1")
+ *   and the Taylor series of 1/Gamma(1+a) - 1 ("gam1");
+ *
+ *   N. M. Temme, "The asymptotic expansion of the incomplete gamma
+ *   functions", SIAM J. Math. Anal. 10 (1979) 757-766 -- the uniform
+ *   asymptotic expansion near x = a;
+ *
+ *   W. J. Cody and W. Waite, Software Manual for the Elementary
+ *   Functions, Prentice-Hall (1980) -- the argument reduction of exp().
+ *
+ * The coefficients used (Temme's d_k, the Taylor coefficients of
+ * 1/Gamma(1+a) - 1) are mathematical constants computed for GSL.
+ */
+
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>

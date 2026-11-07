@@ -17,6 +17,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * Provenance:
+ *
+ * The positive-argument double-precision algorithm (lnbeta_pos() and
+ * the helpers lnbeta_dlgdiv(), lnbeta_dbcorr(), lnbeta_dgsmln()) is a
+ * port of the routines DBETLN, DLGDIV, DBCORR and DGSMLN of the NSWC
+ * Library of Mathematics Subroutines (A. H. Morris, Jr., Naval Surface
+ * Warfare Center), including the DELTA coefficients of DLGDIV/DBCORR.
+ * The NSWC library is a work of the U.S. Government and is in the
+ * public domain.  The same algorithm is published as BETALN in
+ *
+ *   A. R. DiDonato and A. H. Morris, Jr., "Algorithm 708: Significant
+ *   digit computation of the incomplete beta function ratios", ACM
+ *   Trans. Math. Software 18 (1992) 360-373;
+ *
+ * no code was taken from the ACM (TOMS) distribution.  The
+ * double-double refinement near log B = 0, the local expansion about
+ * (1,1) and the reflection formulas for negative arguments are original
+ * to GSL; their coefficients (Bernoulli numbers, zeta(n)/n) are
+ * mathematical constants computed for GSL.
+ */
+
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>

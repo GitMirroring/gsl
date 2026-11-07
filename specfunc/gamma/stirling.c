@@ -17,6 +17,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * References: Stirling's asymptotic series, NIST Digital Library of
+ * Mathematical Functions, eq. 5.11.1; the coefficients B_{2k}/(2k(2k-1))
+ * are mathematical constants.
+ */
+
 #ifndef __GSL_SF_GAMMA_STIRLING_C__
 #define __GSL_SF_GAMMA_STIRLING_C__
 

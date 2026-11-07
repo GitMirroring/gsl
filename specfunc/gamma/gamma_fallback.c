@@ -17,6 +17,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/*
+ * Provenance: this portable Gamma(x) uses the kernels of gamma_kernels.c,
+ * whose large-argument strategy is derived from glibc's tgamma (see
+ * gamma_kernels.c).
+ */
+
 #include <config.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
