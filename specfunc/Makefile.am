@@ -111,21 +111,15 @@ libgslspecfunc_la_SOURCES = \
 
 TESTS = $(check_PROGRAMS)
 
-check_PROGRAMS = test test_new
+check_PROGRAMS = test
 
-test_SOURCES = test_sf.c test_sf.h test_airy.c test_alf.c test_bessel.c test_coulomb.c test_dilog.c test_gamma.c test_hermite.c test_hyperg.c test_legendre.c test_mathieu.c test_sincos_pi.c
-test_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la  ../sort/libgslsort.la ../matrix/libgslmatrix.la ../vector/libgslvector.la ../blas/libgslblas.la ../cblas/libgslcblas.la ../block/libgslblock.la ../complex/libgslcomplex.la ../poly/libgslpoly.la ../dd/libgsldd.la ../ieee-utils/libgslieeeutils.la  ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
-
-test_new_SOURCES =      \
-  test_new.c            \
-  test_sf_new.c         \
+test_SOURCES = test_sf.c test_sf.h test_airy.c test_alf.c test_bessel.c test_coulomb.c test_dilog.c test_gamma.c test_hermite.c test_hyperg.c test_legendre.c test_mathieu.c test_sincos_pi.c \
   ${ERF_TEST_SOURCES}   \
   ${EXP_TEST_SOURCES}   \
   ${GAMMA_TEST_SOURCES} \
   ${LOG_TEST_SOURCES}   \
   ${TRIG_TEST_SOURCES}
-
-test_new_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la  ../sort/libgslsort.la ../matrix/libgslmatrix.la ../vector/libgslvector.la ../blas/libgslblas.la ../cblas/libgslcblas.la ../block/libgslblock.la ../complex/libgslcomplex.la ../poly/libgslpoly.la ../dd/libgsldd.la ../ieee-utils/libgslieeeutils.la  ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
+test_LDADD = libgslspecfunc.la ../eigen/libgsleigen.la ../linalg/libgsllinalg.la  ../sort/libgslsort.la ../matrix/libgslmatrix.la ../vector/libgslvector.la ../blas/libgslblas.la ../cblas/libgslcblas.la ../block/libgslblock.la ../complex/libgslcomplex.la ../poly/libgslpoly.la ../dd/libgsldd.la ../ieee-utils/libgslieeeutils.la  ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
 
 pkginclude_HEADERS = gsl_sf.h gsl_sf_airy.h gsl_sf_alf.h gsl_sf_bessel.h gsl_sf_clausen.h gsl_sf_coulomb.h gsl_sf_coupling.h gsl_sf_dawson.h gsl_sf_debye.h gsl_sf_dilog.h gsl_sf_elementary.h gsl_sf_ellint.h gsl_sf_elljac.h gsl_sf_erf.h gsl_sf_exp.h gsl_sf_expint.h gsl_sf_fermi_dirac.h gsl_sf_gamma.h gsl_sf_gegenbauer.h gsl_sf_hermite.h gsl_sf_hyperg.h gsl_sf_laguerre.h gsl_sf_lambert.h gsl_sf_legendre.h gsl_sf_log.h gsl_sf_mathieu.h gsl_sf_pow_int.h gsl_sf_psi.h gsl_sf_result.h gsl_sf_sincos_pi.h gsl_sf_synchrotron.h gsl_sf_transport.h gsl_sf_trig.h gsl_sf_zeta.h gsl_specfunc.h
 
@@ -145,6 +139,7 @@ noinst_HEADERS =     \
   cheb_eval.c        \
   cheb_eval_mode.c   \
   check.h error.h    \
+  constants.h        \
   legendre_source.c  \
   test_alf_e.c       \
   test_alf_theta_e.c

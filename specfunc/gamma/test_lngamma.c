@@ -23,7 +23,7 @@
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_test.h>
 
-#include "../test_sf_new.h"
+#include "../test_sf.h"
 #include "lngamma1p_kernels.c"
 #include "lngamma_fallback.c"
 #include "lngamma_sgn_fallback.c"
@@ -43,7 +43,7 @@ lngamma_expected_sign(const double x)
     double sgn;                                                            \
     int status_sgn;                                                        \
                                                                            \
-    TEST_SF(s, func, ((x), &r),                                            \
+    TEST_SF_RESULT(s, func, ((x), &r),                                            \
             expected, tol, expected_status);                               \
                                                                            \
     status_sgn = func_sgn((x), &r_sgn, &sgn);                              \
@@ -402,5 +402,26 @@ test_lngamma(void)
   TEST_LNGAMMA_FUNC(gsl_sf_lngamma_e, gsl_sf_lngamma_sgn_e);
   TEST_LNGAMMA_FUNC(lngamma_fallback_e, lngamma_sgn_fallback_e);
 
+
+  /* cases carried over from the original specfunc test suite */
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-0.1, &r), 2.368961332728788655 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-1.0/256.0, &r), 5.547444766967471595  , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (1.0e-08, &r), 18.420680738180208905 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (0.1, &r), 2.252712651734205 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (1.0 + 1.0/256.0, &r), -0.0022422226599611501448 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (2.0 + 1.0/256.0, &r), 0.0016564177556961728692 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (100.0, &r), 359.1342053695753 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-1.0-1.0/65536.0, &r), 11.090348438090047844 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-1.0-1.0/268435456.0, &r), 19.408121054103474300 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-100.5, &r), -364.9009683094273518 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lngamma_e, (-100-1.0/65536.0, &r), -352.6490910117097874 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (0.7, &r, &sgn), 0.26086724653166651439, TEST_TOL1, 1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (0.1, &r, &sgn), 2.2527126517342059599, TEST_TOL0, 1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-0.1, &r, &sgn), 2.368961332728788655, TEST_TOL0, -1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-1.0-1.0/65536.0, &r, &sgn), 11.090348438090047844, TEST_TOL0, 1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-2.0-1.0/256.0, &r, &sgn), 4.848447725860607213, TEST_TOL0, -1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-2.0-1.0/65536.0, &r, &sgn), 10.397193628164674967, TEST_TOL0, -1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-3.0-1.0/8.0, &r, &sgn), 0.15431112768404182427, TEST_TOL2, 1.0, GSL_SUCCESS);
+  TEST_SF_RESULT_SGN(s, gsl_sf_lngamma_sgn_e, (-100.5, &r, &sgn), -364.9009683094273518, TEST_TOL0, -1.0, GSL_SUCCESS);
   return s;
 }

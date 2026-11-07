@@ -23,7 +23,7 @@
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_test.h>
 
-#include "../test_sf_new.h"
+#include "../test_sf.h"
 #include "chebyshev.h"
 #include "cheb_eval.c"
 #include "gamma_kernels.c"
@@ -34,7 +34,7 @@
 
 #define TEST_GAMMA(s, func, x, expected, tol, expected_status) \
   do { \
-    TEST_SF(s, func, ((x), &r), expected, tol, expected_status); \
+    TEST_SF_RESULT(s, func, ((x), &r), expected, tol, expected_status); \
   } while (0)
 
 #define TEST_GAMMA_FUNC(FUNC) \
@@ -153,5 +153,19 @@ test_gamma(void)
   TEST_GAMMA_FUNC(gsl_sf_gamma_e);
   TEST_GAMMA_FUNC(gamma_fallback_e);
 
+
+  /* cases carried over from the original specfunc test suite */
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (1.0 + 1.0/4096.0, &r), 0.9998591371459403421 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (1.0 + 1.0/32.0, &r), 0.9829010992836269148 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (2.0 + 1.0/256.0, &r), 1.0016577903733583299 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (9.0, &r), 40320.0                   , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (10.0, &r), 362880.0                  , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (100.0, &r), 9.332621544394415268e+155 , TEST_TOL2, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (170.0, &r), 4.269068009004705275e+304 , TEST_TOL2, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (171.0, &r), 7.257415615307998967e+306 , TEST_TOL2, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (-10.5, &r), -2.640121820547716316e-07  , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (-11.25, &r), 6.027393816261931672e-08  , TEST_TOL0, GSL_SUCCESS);
+  /* exp()... not my fault */
+  TEST_SF_RESULT(s,  gsl_sf_gamma_e, (-1.0+1.0/65536.0, &r), -65536.42280587818970 , TEST_TOL0, GSL_SUCCESS);
   return s;
 }

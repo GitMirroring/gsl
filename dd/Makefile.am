@@ -11,9 +11,8 @@ TESTS = $(check_PROGRAMS)
 test_SOURCES = test.c
 test_LDADD = libgsldd.la ../ieee-utils/libgslieeeutils.la ../test/libgsltest.la ../sys/libgslsys.la ../err/libgslerr.la
 
-pkginclude_HEADERS = gsl_dd.h
-
 noinst_HEADERS =         \
+  gsl_dd.h               \
   internal.h             \
   internal_common.c      \
   internal_exp.c         \

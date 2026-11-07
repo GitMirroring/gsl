@@ -1,7 +1,5 @@
 * What is new in gsl-2.9:
 
-** new double-double arithmetic module (gsl_dd)
-
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
@@ -34,14 +32,23 @@
    and Liberty, 2016) instead of the P^2 algorithm
 
 ** new or overhauled special functions:
-   - gsl_sf_erf*
+   - gsl_sf_erfc, gsl_sf_log_erfc, gsl_sf_hazard
+   - gsl_sf_erfcx (new)
+   - gsl_sf_exp2 (new)
    - gsl_sf_expm1
-   - gsl_sf_gamma*
-   - gsl_sf_lngamma
-   - gsl_sf_lngamma_1p
+   - gsl_sf_gamma*, including gsl_sf_gammastar, gsl_sf_gammainv
+     and the incomplete gamma functions gsl_sf_gamma_inc{,_P,_Q}
+   - gsl_sf_lngamma, gsl_sf_lngamma_sgn
+   - gsl_sf_lngamma1p (new)
+   - gsl_sf_{fact,doublefact,lnfact,lndoublefact}
+   - gsl_sf_taylorcoeff
+   - gsl_sf_beta, gsl_sf_lnbeta, gsl_sf_lnbeta_sgn (all now
+     handle negative arguments)
+   - gsl_sf_psi, gsl_sf_psi_int, gsl_sf_psi_1, gsl_sf_psi_1_int,
+     gsl_sf_psi_1piy
    - gsl_sf_sinc
-   - gsl_sf_log1p
-   - gsl_sf_log1pmx
+   - gsl_sf_log1p (new)
+   - gsl_sf_log1pmx (new)
 
 ** add functions:
    - gsl_matrix_axpby

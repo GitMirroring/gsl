@@ -109,8 +109,8 @@ gsl_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result)
  * Compute log|B(a,b)| and the sign of B(a,b).
  *
  * B(a,b) = Gamma(a) Gamma(b) / Gamma(a+b) has poles where a or b is a
- * non-positive integer (GSL_EDOM) and vanishes where only a+b is one
- * (log|B| = -inf: GSL_EDOM with sgn = 0).
+ * non-positive integer (GSL_EDOM) and vanishes where only a+b is a
+ * non-positive integer (log|B| = -inf: GSL_EDOM with sgn = 0).
  *
  * Positive arguments are handled by lnbeta_pos().  Otherwise, with
  * a <= b, the reflection formula Gamma(x) = pi / (sin(pi x) Gamma(1-x))

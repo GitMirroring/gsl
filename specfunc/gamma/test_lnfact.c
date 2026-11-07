@@ -22,7 +22,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_sf_gamma.h>
 
-#include "../test_sf_new.h"
+#include "../test_sf.h"
 
 int
 test_lnfact(void)
@@ -32,35 +32,41 @@ test_lnfact(void)
   /*
    * Shared factorial-table branch: n <= 300.
    */
-  TEST_SF(s, gsl_sf_lnfact_e, (0U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (0U, &r),
           0.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (1U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (1U, &r),
           0.00000000000000000000e+00, TEST_TOL0, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (2U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (2U, &r),
           6.93147180559945286227e-01, TEST_TOL1, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (22U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (22U, &r),
           4.84711813518352272467e+01, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (100U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (100U, &r),
           3.63739375555563469788e+02, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (300U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (300U, &r),
           1.41490584994506798466e+03, TEST_TOL2, GSL_SUCCESS);
 
   /*
    * Large-n lngamma fallback: n > 300.
    */
-  TEST_SF(s, gsl_sf_lnfact_e, (301U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (301U, &r),
           1.42061296020981694710e+03, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (333U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (333U, &r),
           1.60493470919185779167e+03, TEST_TOL2, GSL_SUCCESS);
 
-  TEST_SF(s, gsl_sf_lnfact_e, (1000U, &r),
+  TEST_SF_RESULT(s, gsl_sf_lnfact_e, (1000U, &r),
           5.91212817848816303012e+03, TEST_TOL2, GSL_SUCCESS);
 
+
+  /* cases carried over from the original specfunc test suite */
+  TEST_SF_RESULT(s,  gsl_sf_lnfact_e, (0, &r), 0.0 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lnfact_e, (1, &r), 0.0 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lnfact_e, (7, &r), 8.525161361065414300 , TEST_TOL0, GSL_SUCCESS);
+  TEST_SF_RESULT(s,  gsl_sf_lnfact_e, (33, &r), 85.05446701758151741 , TEST_TOL0, GSL_SUCCESS);
   return s;
 }

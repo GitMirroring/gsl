@@ -269,7 +269,7 @@ Beta Functions
               int gsl_sf_beta_e (double a, double b, gsl_sf_result * result)
 
    These routines compute the Beta Function, :math:`B(a,b) = \Gamma(a)\Gamma(b)/\Gamma(a+b)`
-   subject to :math:`a` and :math:`b` not being negative integers.
+   subject to :math:`a` and :math:`b` not being negative integers or zero.
 .. exceptions: GSL_EDOM, GSL_EOVRFLW, GSL_EUNDRFLW
 
 .. index:: logarithm of Beta function
@@ -278,7 +278,22 @@ Beta Functions
               int gsl_sf_lnbeta_e (double a, double b, gsl_sf_result * result)
 
    These routines compute the logarithm of the Beta Function, :math:`\log(B(a,b))`
-   subject to :math:`a` and :math:`b` not being negative integers.
+   subject to :math:`a` and :math:`b` not being negative integers or zero.
+   Negative arguments are allowed where :math:`B(a,b) > 0`; where
+   :math:`B(a,b) < 0` a domain error is returned, and
+   :func:`gsl_sf_lnbeta_sgn_e` should be used instead.
+.. exceptions: GSL_EDOM
+
+.. function:: int gsl_sf_lnbeta_sgn_e (const double a, const double b, gsl_sf_result * result, double * sgn)
+
+   This routine computes the sign of the Beta function and the logarithm
+   of its magnitude, :math:`\log|B(a,b)|`, subject to :math:`a` and
+   :math:`b` not being negative integers or zero. The value of the Beta
+   function and its error can be reconstructed using the relation
+   :math:`B(a,b) = sgn * \exp(result)`, taking into account the two
+   components of :data:`result`. If :math:`a+b` is a negative integer
+   or zero (and :math:`a`, :math:`b` are not), then :math:`B(a,b) = 0`;
+   a domain error is returned with :data:`sgn` set to zero.
 .. exceptions: GSL_EDOM
 
 Incomplete Beta Function
