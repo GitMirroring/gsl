@@ -30,6 +30,7 @@
 #include "error.h"
 #include "eval.h"
 #include "stirling.c"
+#include "pow_exp.c"
 
 #define GAMMA_INC_MAXITER         10000
 
@@ -68,7 +69,6 @@ static int gamma_inc_temme_eval(const double a, const double x, const int target
 /* rgammax primitive functions */
 static gsl_dd gamma_inc_log_ratio_m_ratio_p1(const double a, const double x);
 static gsl_dd gamma_inc_phi_dd(const double a, const double x);
-static double gamma_inc_div_rem(const double x, const double a, const double q);
 static int gamma_inc_exp_aphi(const double a, const double x, const double c,
                               double * m_out, double * dm_out, int * k_out);
 static double gamma_inc_rgammax_large(const double a, const double x);
@@ -1053,7 +1053,7 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
   const int N = 24;
   const double d = x - a;  /* exact in the Temme region (Sterbenz) */
   const double s = d / a;
-  const double s_lo = gamma_inc_div_rem(d, a, s) / a;
+  const double s_lo = gamma_div_rem(d, a, s) / a;
   /* phi(s + s_lo) = phi(s) + s/(1+s) s_lo: keeps the rounding of s out of z */
   const double phi = GSL_MAX(-gsl_sf_log1pmx(s) + s / (1.0 + s) * s_lo, 0.0);
   const double eta = (x < a) ? -sqrt(2.0 * phi) : sqrt(2.0 * phi);
@@ -1167,103 +1167,21 @@ gamma_inc_phi_dd(const double a, const double x)
 }
 
 /*
- * Compute x - q*a exactly, where q = fl(x/a).  The remainder of a
- * rounded division is representable, and x - fl(q*a) is exact by
- * Sterbenz's lemma.
- */
-static double
-gamma_inc_div_rem(const double x, const double a, const double q)
-{
-  const gsl_dd p = gsl_dd_two_prod(q, a);
-  return (x - p.hi) - p.lo;
-}
-
-/*
  * Compute
  *
- *   exp(c - a phi) = (x/a)^a exp(a-x) exp(c) = m 2^k,
+ *   exp(c - a phi) = (x/a)^a exp(a-x) exp(c) = m (1 + dm) 2^k,
  *
- * with phi = s - log(1+s), s = (x-a)/a, and |c| < 1.  The large
- * exponents a log(x/a) and a - x nearly cancel, so neither may be
- * rounded:
- *
- *   - q = fl(x/a) and the exact remainder rho = x - q a give
- *     (x/a)^a = q^a exp(rho/q) to within rounding, and q^a is formed
- *     by pow() with a single rounding error (or as the scaled square
- *     of q^(a/2) when q^a itself is outside the double range);
- *
- *   - a - x = d + d_lo exactly (two-sum), and exp(d) = 2^k exp(r) with
- *     the Cody-Waite reduction r = d - k log(2), |r| <= log(2)/2.
- *
- * The small terms and c are collected into one exponential, so m
- * carries a few rounding errors independent of the size of a and x.
- * The rounding errors of the products forming m are returned as the
- * relative correction dm, exp(c - a phi) = m (1 + dm) 2^k, for the
- * caller to apply after its own (compensated) product.  A result below
- * exp(GSL_SF_LOG_TRUE_MIN - 50) is returned as m = 0.
- *
- * Returns 0 when a >= 1e20 or q^(a/2) is outside the double range, in
- * which case the caller must form a phi in double-double.
+ * with phi = s - log(1+s), s = (x-a)/a, and |c| < 1, by
+ * gamma_pow_exp_scaled() (pow_exp.c) with the exact exponent
+ * a - x = d + d_lo (two-sum).  Returns 0 when the caller must form
+ * a phi in double-double instead.
  */
 static int
 gamma_inc_exp_aphi(const double a, const double x, const double c,
                    double * m_out, double * dm_out, int * k_out)
 {
-  double q, m, dm = 0.0;
-  int e = 0;
-
-  *m_out = 0.0;
-  *dm_out = 0.0;
-  *k_out = 0;
-
-  if (!(a < 1.0e20))
-    return 0;
-
-  q = x / a;
-  m = pow(q, a);
-
-  if (!(m > 1.0e-280 && m < 1.0e280))
-    {
-      /* q^a = 2^e (q^(a/2) 2^(-e/2))^2, at the cost of one rounding */
-      const double h = pow(q, 0.5 * a);
-
-      if (h > 1.0e-280 && h < 1.0e280)
-        {
-          const double f = frexp(h, &e);
-          const gsl_dd f2 = gsl_dd_two_prod(f, f);
-
-          m = f2.hi;
-          dm = f2.lo / m;
-          e *= 2;
-        }
-      else
-        {
-          /* a (log(q) - q + 1) in double is accurate to well within
-             the margin for a < 1e20: skip the slow path on underflow */
-          return (a * (log(q) - q + 1.0) < GSL_SF_LOG_TRUE_MIN - 50.0);
-        }
-    }
-
-  {
-    const double rho = gamma_inc_div_rem(x, a, q);
-    const gsl_dd d = gsl_dd_two_sum(a, -x);
-    gsl_dd p;
-    double k, t;
-
-    /* exponent below log(q^a) - 2200 < -800: underflow */
-    if (d.hi < -2200.0)
-      return 1;
-
-    k = floor(d.hi / M_LN2 + 0.5);
-    t = ((d.hi - k * GSL_SF_LN2_HI) - k * GSL_SF_LN2_LO) + (d.lo + rho / q) + c;
-    p = gsl_dd_two_prod(m, exp(t));
-
-    *m_out = p.hi;
-    *dm_out = dm + p.lo / p.hi;
-    *k_out = (int) k + e;
-  }
-
-  return 1;
+  const gsl_dd d = gsl_dd_two_sum(a, -x);
+  return gamma_pow_exp_scaled(a, x, d.hi, d.lo + c, m_out, dm_out, k_out);
 }
 
 /*
@@ -1352,19 +1270,27 @@ gamma_inc_rgammax(const double a, const double x)
 
   if (x > 700.0)
     {
-      /* exp(-x) alone would lose precision or underflow before the product
-         does: form log(x^a e^-x) = a log(x) - x in double-double */
-      gsl_dd xd, lr, er;
+      /*
+       * exp(-x) alone would underflow before the product does: apply
+       * exp(-x) = 2^(-k) exp(-r), with the Cody-Waite reduction
+       * r = x - k log(2), at the end with ldexp().  For x >= 2000 the result
+       * is below 2000^20 exp(-2000), far below the smallest subnormal.
+       */
+      double k, r, v;
 
-      xd.hi = x;
-      xd.lo = 0.0;
-      lr = gsl_dd_sub_d(gsl_dd_mul_d(gsl_dd_log(xd), a), x);
-
-      if (lr.hi <= GSL_SF_LOG_TRUE_MIN)
+      if (x >= 2000.0)
         return 0.0;
 
-      er = gsl_dd_exp(lr);
-      return (er.hi + er.lo) / gsl_sf_gamma(a);
+      k = floor(x / M_LN2 + 0.5);
+      r = (x - k * GSL_SF_LN2_HI) - k * GSL_SF_LN2_LO;
+      v = pow(x, a) * exp(-r);
+
+      if (a < 0.25)
+        v *= a + a * gamma_inc_rgamma1pm1(a);
+      else
+        v /= gsl_sf_gamma(a);
+
+      return ldexp(v, -(int) k);
     }
 
   if (a < 0.25)

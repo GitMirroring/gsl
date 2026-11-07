@@ -28,6 +28,7 @@
 #include "error.h"
 #include "eval.h"
 #include "stirling.c"
+#include "pow_exp.c"
 
 #include "chebyshev.h"
 #include "cheb_eval.c"
@@ -54,9 +55,6 @@ static int gamma_system_e(const double x, gsl_sf_result * result);
  */
 
 #define GSL_SF_FACT_TABLE_NMAX 300
-
-/* largest n for which taylorcoeff avoids double-double (see below) */
-#define TAYLORCOEFF_DOUBLE_NMAX 2000
 static const double fact_mant[GSL_SF_FACT_TABLE_NMAX + 1] = {
   5.00000000000000000000e-01, 5.00000000000000000000e-01, 5.00000000000000000000e-01,
   7.50000000000000000000e-01, 7.50000000000000000000e-01, 9.37500000000000000000e-01,
@@ -536,7 +534,8 @@ gsl_sf_gammastar_e(const double x, gsl_sf_result * result)
  * 2 <= n <= GSL_SF_FACT_TABLE_NMAX, a scaled power representation is
  * used to reduce accumulated rounding error and avoid intermediate
  * overflow in x^n.  Larger orders use Stirling's formula, in double
- * precision up to TAYLORCOEFF_DOUBLE_NMAX and in double-double beyond.
+ * precision where gamma_pow_exp_scaled() applies (n up to about 3700)
+ * and in double-double beyond.
  */
 
 int
@@ -589,7 +588,7 @@ gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
           return GSL_SUCCESS;
         }
     }
-  else if (n <= TAYLORCOEFF_DOUBLE_NMAX)
+  else
     {
       /*
        * n beyond the factorial table: Stirling's formula
@@ -597,107 +596,89 @@ gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
        *   x^n / n! = (x/n)^n e^n exp(-Delta(n)) / sqrt(2 pi n),
        *
        * with Delta the Stirling correction (stirling.c).  The large
-       * exponents n log(x/n) and n nearly cancel, so neither is rounded:
-       *
-       *   - q = fl(x/n) and the exact remainder rho = x - q n give
-       *     (x/n)^n = q^n exp(rho/q); with q = f 2^e, f in [1/sqrt(2), sqrt(2)),
-       *     q^n = f^n 2^(e n) exactly, and f^n = pow(f,n) is in range for
-       *     n <= TAYLORCOEFF_DOUBLE_NMAX;
-       *
-       *   - e^n = 2^k exp(r), with the Cody-Waite reduction r = n - k log(2).
-       *
-       * The products are compensated with gsl_dd_two_prod().
-       */
-      const double nd = (double) n;
-      const double q = x / nd;
-      const gsl_dd qn = gsl_dd_two_prod(q, nd);
-      const double rho = (x - qn.hi) - qn.lo;
-      const double k = floor(nd / M_LN2 + 0.5);
-      const double t = ((nd - k * GSL_SF_LN2_HI) - k * GSL_SF_LN2_LO) + rho / q
-                       - gamma_stirling_delta(nd);
-      gsl_dd v, w, p;
-      double f, y, sq, s, ds;
-      int e;
-
-      f = frexp(q, &e);
-      if (f < M_SQRT1_2)
-        {
-          f *= 2.0;
-          --e;
-        }
-
-      /*
-       * 1/sqrt(2 pi n) = s (1 + ds): with sq = fl(sqrt(n)) and
-       * s = fl(C/sq), C = 1/sqrt(2 pi), the residuals n - sq^2 and
-       * C - s sq are exact
-       */
-      sq = sqrt(nd);
-      s = GSL_SF_INV_SQRT_2PI / sq;
-      p = gsl_dd_two_prod(sq, sq);
-      ds = (nd - p.hi) - p.lo;
-      p = gsl_dd_two_prod(s, sq);
-      ds = (((GSL_SF_INV_SQRT_2PI - p.hi) - p.lo) + GSL_SF_INV_SQRT_2PI_LO) / GSL_SF_INV_SQRT_2PI
-           - ds / (2.0 * nd);
-
-      v = gsl_dd_two_prod(pow(f, nd), exp(t));
-      w = gsl_dd_two_prod(v.hi, s);
-
-      /* |e n| <= 1075 TAYLORCOEFF_DOUBLE_NMAX fits in an int */
-      y = ldexp(w.hi + (w.lo + w.hi * (v.lo / v.hi + ds)), (int) k + e * n);
-
-      if (gsl_isinf(y))
-        OVERFLOW_ERROR(result);
-      else if (y == 0.0)
-        UNDERFLOW_ERROR(result);
-
-      result->val = y;
-
-      if (fabs(y) < GSL_DBL_MIN)
-        result->err = 2.0 * GSL_SF_TRUE_MIN;
-      else
-        result->err = 4.0 * GSL_DBL_EPSILON * fabs(y);
-
-      return GSL_SUCCESS;
-    }
-  else
-    {
-      /*
-       * large n: Stirling's formula
-       *
-       *   x^n / n! = exp(L) / sqrt(2 pi n),   L = n (log(x/n) + 1) - Delta(n),
-       *
-       * with Delta the Stirling correction (stirling.c).  The relative error of the result
-       * is the absolute error of the exponent, so L and log(2 pi n)/2 are formed in
-       * double-double arithmetic.
+       * exponents n log(x/n) and n nearly cancel; (x/n)^n e^(n - Delta)
+       * is formed without rounding either by gamma_pow_exp_scaled()
+       * (pow_exp.c), and the products are compensated with
+       * gsl_dd_two_prod().
        */
       const double nd = (double) n;
       const double delta = gamma_stirling_delta(nd);
-      const gsl_dd log_sqrt_2pi = { GSL_SF_LOG_SQRT_2PI, GSL_SF_LOG_SQRT_2PI_LO };
-      gsl_dd xd, L, h, y;
+      double m, dm;
+      int k;
 
-      xd.hi = x;
-      xd.lo = 0.0;
-      L = gsl_dd_mul_d(gsl_dd_add_d(gsl_dd_log(gsl_dd_div_d(xd, nd)), 1.0), nd);
+      if (gamma_pow_exp_scaled(nd, x, nd, -delta, &m, &dm, &k))
+        {
+          /*
+           * 1/sqrt(2 pi n) = s (1 + ds): with sq = fl(sqrt(n)) and
+           * s = fl(C/sq), C = 1/sqrt(2 pi), the residuals n - sq^2 and
+           * C - s sq are exact
+           */
+          const double sq = sqrt(nd);
+          const double s = GSL_SF_INV_SQRT_2PI / sq;
+          gsl_dd p, w;
+          double ds, y;
 
-      xd.hi = nd;
-      h = gsl_dd_add(gsl_dd_mul_d(gsl_dd_log(xd), 0.5), log_sqrt_2pi);   /* log(sqrt(2 pi n)) */
-      L = gsl_dd_sub_d(gsl_dd_sub(L, h), delta);
+          p = gsl_dd_two_prod(sq, sq);
+          ds = (nd - p.hi) - p.lo;
+          p = gsl_dd_two_prod(s, sq);
+          ds = (((GSL_SF_INV_SQRT_2PI - p.hi) - p.lo) + GSL_SF_INV_SQRT_2PI_LO) / GSL_SF_INV_SQRT_2PI
+               - ds / (2.0 * nd);
 
-      if (L.hi > GSL_LOG_DBL_MAX)
-        OVERFLOW_ERROR(result);
-      else if (L.hi < GSL_LOG_DBL_MIN - 37.0)     /* below log(smallest subnormal) */
-        UNDERFLOW_ERROR(result);
+          w = gsl_dd_two_prod(m, s);
+          y = ldexp(w.hi + (w.lo + w.hi * (dm + ds)), k);
 
-      y = gsl_dd_exp(L);
-      result->val = y.hi + y.lo;
+          if (gsl_isinf(y))
+            OVERFLOW_ERROR(result);
+          else if (y == 0.0)
+            UNDERFLOW_ERROR(result);
 
-      /* subnormal results are returned like those of the table branch above */
-      if (fabs(result->val) < GSL_DBL_MIN)
-        result->err = 2.0 * GSL_SF_TRUE_MIN;
-      else
-        result->err = 4.0 * GSL_DBL_EPSILON * fabs(result->val);
+          result->val = y;
 
-      return GSL_SUCCESS;
+          if (fabs(y) < GSL_DBL_MIN)
+            result->err = 2.0 * GSL_SF_TRUE_MIN;
+          else
+            result->err = 4.0 * GSL_DBL_EPSILON * fabs(y);
+
+          return GSL_SUCCESS;
+        }
+
+      {
+        /*
+         * Otherwise Stirling's formula
+         *
+         *   x^n / n! = exp(L) / sqrt(2 pi n),   L = n (log(x/n) + 1) - Delta(n),
+         *
+         * with Delta the Stirling correction (stirling.c).  The relative error of the result
+         * is the absolute error of the exponent, so L and log(2 pi n)/2 are formed in
+         * double-double arithmetic.
+         */
+        const gsl_dd log_sqrt_2pi = { GSL_SF_LOG_SQRT_2PI, GSL_SF_LOG_SQRT_2PI_LO };
+        gsl_dd xd, L, h, y;
+
+        xd.hi = x;
+        xd.lo = 0.0;
+        L = gsl_dd_mul_d(gsl_dd_add_d(gsl_dd_log(gsl_dd_div_d(xd, nd)), 1.0), nd);
+
+        xd.hi = nd;
+        h = gsl_dd_add(gsl_dd_mul_d(gsl_dd_log(xd), 0.5), log_sqrt_2pi);   /* log(sqrt(2 pi n)) */
+        L = gsl_dd_sub_d(gsl_dd_sub(L, h), delta);
+
+        if (L.hi > GSL_LOG_DBL_MAX)
+          OVERFLOW_ERROR(result);
+        else if (L.hi < GSL_LOG_DBL_MIN - 37.0)     /* below log(smallest subnormal) */
+          UNDERFLOW_ERROR(result);
+
+        y = gsl_dd_exp(L);
+        result->val = y.hi + y.lo;
+
+        /* subnormal results are returned like those of the table branch above */
+        if (fabs(result->val) < GSL_DBL_MIN)
+          result->err = 2.0 * GSL_SF_TRUE_MIN;
+        else
+          result->err = 4.0 * GSL_DBL_EPSILON * fabs(result->val);
+
+        return GSL_SUCCESS;
+      }
     }
 }
 

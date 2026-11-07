@@ -6,4 +6,5 @@ GAMMA_HDRS =                   \
   gamma/lngamma1p_kernels.c    \
   gamma/lngamma_fallback.c     \
   gamma/lngamma_sgn_fallback.c \
+  gamma/pow_exp.c              \
   gamma/stirling.c
