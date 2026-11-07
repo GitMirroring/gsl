@@ -22,6 +22,8 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_sf_exp.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 #include "error.h"
@@ -49,7 +51,7 @@ gsl_cdf_geometric_P (const unsigned int k, const double p)
 
   if (p < 0.5)
     {
-      P = -expm1 (a * log1p (-p));
+      P = -gsl_sf_expm1 (a * gsl_sf_log1p (-p));
     }
   else
     {
@@ -79,7 +81,7 @@ gsl_cdf_geometric_Q (const unsigned int k, const double p)
 
   if (p < 0.5)
     {
-      Q = exp (a * log1p (-p));
+      Q = exp (a * gsl_sf_log1p (-p));
     }
   else
     {

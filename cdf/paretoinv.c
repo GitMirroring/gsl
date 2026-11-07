@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 double
@@ -36,7 +37,7 @@ gsl_cdf_pareto_Pinv (const double P, const double a, const double b)
       return b;
     }
 
-  x = b * exp(-log1p(-P)/a);
+  x = b * exp(-gsl_sf_log1p(-P)/a);
 
   return x;
 }

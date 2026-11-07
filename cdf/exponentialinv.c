@@ -20,12 +20,13 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf_log.h>
 #include <gsl/gsl_cdf.h>
 
 double
 gsl_cdf_exponential_Pinv (const double P, const double mu)
 {
-  double x = -mu * log1p (-P);
+  double x = -mu * gsl_sf_log1p (-P);
 
   return x;
 }

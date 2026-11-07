@@ -21,6 +21,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_multimin.h>
+#include <gsl/gsl_sf_exp.h>
 
 #include "test_funcs.h"
 
@@ -334,7 +335,7 @@ spring_f (const gsl_vector * x, void *params)
   {
     double tmz = theta - z;
     double rm1 = r - 1.0;
-    double ret = 0.1 * (expm1 (tmz * tmz + rm1 * rm1) + fabs (x2 / 10.0));
+    double ret = 0.1 * (gsl_sf_expm1 (tmz * tmz + rm1 * rm1) + fabs (x2 / 10.0));
     return ret;
   }
 }

@@ -38,8 +38,8 @@ Circular Trigonometric Functions
 .. index::
    single: complex sinc function, special functions
 
-.. function:: double gsl_sf_sinc (double x)
-              int gsl_sf_sinc_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_sinc (const double x)
+              int gsl_sf_sinc_e (const double x, gsl_sf_result * result)
 
    These routines compute :math:`\sinc(x) = \sin(\pi x) / (\pi x)` for any
    value of :data:`x`.

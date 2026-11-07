@@ -36,27 +36,13 @@
 
 __BEGIN_DECLS
 
+/* gamma/lngamma.c */
+int gsl_sf_lngamma_e(const double x, gsl_sf_result * result);
+int gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn);
+int gsl_sf_lngamma1p_e(const double x, gsl_sf_result * result);
 
-/* Log[Gamma(x)], x not a negative integer
- * Uses real Lanczos method.
- * Returns the real part of Log[Gamma[x]] when x < 0,
- * i.e. Log[|Gamma[x]|].
- *
- * exceptions: GSL_EDOM, GSL_EROUND
- */
-int gsl_sf_lngamma_e(double x, gsl_sf_result * result);
 double gsl_sf_lngamma(const double x);
-
-
-/* Log[Gamma(x)], x not a negative integer
- * Uses real Lanczos method. Determines
- * the sign of Gamma[x] as well as Log[|Gamma[x]|] for x < 0.
- * So Gamma[x] = sgn * Exp[result_lg].
- *
- * exceptions: GSL_EDOM, GSL_EROUND
- */
-int gsl_sf_lngamma_sgn_e(double x, gsl_sf_result * result_lg, double *sgn);
-
+double gsl_sf_lngamma1p(const double x);
 
 /* Gamma(x), x not a negative integer
  * Uses real Lanczos method.
@@ -231,7 +217,6 @@ double gsl_sf_gamma_inc_Q(const double a, const double x);
 int gsl_sf_gamma_inc_P_e(const double a, const double x, gsl_sf_result * result);
 double gsl_sf_gamma_inc_P(const double a, const double x);
 
-
 /* Non-normalized Incomplete Gamma Function
  *
  * Gamma(a,x) := Integral[ t^(a-1) e^(-t), {t,x,Infinity} ]
@@ -248,13 +233,19 @@ double gsl_sf_gamma_inc(const double a, const double x);
 /* Logarithm of Beta Function
  * Log[B(a,b)]
  *
- * a > 0, b > 0
+ * a, b, a+b not zero or negative integers; gsl_sf_lnbeta_e()
+ * additionally requires B(a,b) > 0
  * exceptions: GSL_EDOM
  */
 int gsl_sf_lnbeta_e(const double a, const double b, gsl_sf_result * result);
 double gsl_sf_lnbeta(const double a, const double b);
 
-int gsl_sf_lnbeta_sgn_e(const double x, const double y, gsl_sf_result * result, double * sgn);
+/* Logarithm of |B(a,b)| and the sign of B(a,b)
+ *
+ * a, b, a+b not zero or negative integers
+ * exceptions: GSL_EDOM
+ */
+int gsl_sf_lnbeta_sgn_e(const double a, const double b, gsl_sf_result * result, double * sgn);
 
 
 /* Beta Function
@@ -286,7 +277,7 @@ double gsl_sf_beta_inc(const double a, const double b, const double x);
 #define GSL_SF_FACT_NMAX 170
 
 /* The maximum n such that gsl_sf_doublefact(n) does not give an overflow. */
-#define GSL_SF_DOUBLEFACT_NMAX 297
+#define GSL_SF_DOUBLEFACT_NMAX 300
 
 __END_DECLS
 

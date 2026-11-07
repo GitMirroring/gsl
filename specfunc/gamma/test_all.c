@@ -1,50 +1,49 @@
-/* sys/expm1.c
- * 
- * Copyright (C) 1996, 1997, 1998, 1999, 2000, 2007 Gerard Jungman, Brian Gough
- * 
+/* specfunc/gamma/test_all.c
+ *
+ * Copyright (C) 2026 Patrick Alken
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include <config.h>
-#include <math.h>
-#include <gsl/gsl_math.h>
+#include "test_all.h"
 
-double gsl_expm1 (const double x)
+int
+test_gamma_all(void)
 {
-  /* FIXME: this should be improved */
+  int status = 0;
 
-  if (fabs(x) < M_LN2)
-    {
-      /* Compute the taylor series S = x + (1/2!) x^2 + (1/3!) x^3 + ... */
+  status += test_gamma();
+  status += test_gammainv();
+  status += test_gammastar();
+  status += test_fact();
+  status += test_doublefact();
+  status += test_lnfact();
+  status += test_lndoublefact();
+  status += test_taylorcoeff();
 
-      double i = 1.0;
-      double sum = x;
-      double term = x / 1.0;
+  status += test_lngamma();
+  status += test_lngamma1p();
 
-      do
-        {
-          i++ ;
-          term *= x/i;
-          sum += term;
-        }
-      while (fabs(term) > fabs(sum) * GSL_DBL_EPSILON) ;
-      
-      return sum ;
-    }
-  else
-    {
-      return exp(x) - 1;
-    }
+  status += test_gamma_inc();
+  status += test_gamma_inc_P();
+  status += test_gamma_inc_Q();
+
+  status += test_beta();
+  status += test_lnbeta();
+  status += test_psi();
+
+  return status;
 }

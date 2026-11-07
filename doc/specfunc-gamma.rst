@@ -27,25 +27,28 @@ can be found in Abramowitz & Stegun, Chapter 6.
 
 .. index:: logarithm of Gamma function
 
-.. function:: double gsl_sf_lngamma (double x)
-              int gsl_sf_lngamma_e (double x, gsl_sf_result * result)
+.. function:: double gsl_sf_lngamma (const double x)
+              int gsl_sf_lngamma_e (const double x, gsl_sf_result * result)
 
    These routines compute the logarithm of the Gamma function,
    :math:`\log(\Gamma(x))`, subject to :math:`x` not being a negative
    integer or zero.  For :math:`x < 0` the real part of :math:`\log(\Gamma(x))` is
-   returned, which is equivalent to :math:`\log(|\Gamma(x)|)`.  The function
-   is computed using the real Lanczos method.
-.. exceptions: GSL_EDOM, GSL_EROUND
+   returned, which is equivalent to :math:`\log(|\Gamma(x)|)`.
 
-.. function:: int gsl_sf_lngamma_sgn_e (double x, gsl_sf_result * result_lg, double * sgn)
+.. function:: int gsl_sf_lngamma_sgn_e (const double x, gsl_sf_result * result, double * sgn)
 
    This routine computes the sign of the gamma function and the logarithm of
-   its magnitude, subject to :math:`x` not being a negative integer or zero.  The
-   function is computed using the real Lanczos method.  The value of the
-   gamma function and its error can be reconstructed using the relation 
-   :math:`\Gamma(x) = sgn * \exp(result\_lg)`, taking into account the two 
-   components of :data:`result_lg`.
+   its magnitude, subject to :math:`x` not being a negative integer or zero.
+   The value of the gamma function and its error can be reconstructed using the relation 
+   :math:`\Gamma(x) = sgn * \exp(result)`, taking into account the two 
+   components of :data:`result`.
 .. exceptions: GSL_EDOM, GSL_EROUND
+
+.. function:: double gsl_sf_lngamma1p (const double x)
+              int gsl_sf_lngamma1p_e (const double x, gsl_sf_result * result)
+
+   These routines compute the logarithm of the Gamma function,
+   :math:`\log(\Gamma(x+1))` for :math:`x > -1`.
 
 .. index:: Regulated Gamma function
 
@@ -266,7 +269,7 @@ Beta Functions
               int gsl_sf_beta_e (double a, double b, gsl_sf_result * result)
 
    These routines compute the Beta Function, :math:`B(a,b) = \Gamma(a)\Gamma(b)/\Gamma(a+b)`
-   subject to :math:`a` and :math:`b` not being negative integers.
+   subject to :math:`a` and :math:`b` not being negative integers or zero.
 .. exceptions: GSL_EDOM, GSL_EOVRFLW, GSL_EUNDRFLW
 
 .. index:: logarithm of Beta function
@@ -275,7 +278,22 @@ Beta Functions
               int gsl_sf_lnbeta_e (double a, double b, gsl_sf_result * result)
 
    These routines compute the logarithm of the Beta Function, :math:`\log(B(a,b))`
-   subject to :math:`a` and :math:`b` not being negative integers.
+   subject to :math:`a` and :math:`b` not being negative integers or zero.
+   Negative arguments are allowed where :math:`B(a,b) > 0`; where
+   :math:`B(a,b) < 0` a domain error is returned, and
+   :func:`gsl_sf_lnbeta_sgn_e` should be used instead.
+.. exceptions: GSL_EDOM
+
+.. function:: int gsl_sf_lnbeta_sgn_e (const double a, const double b, gsl_sf_result * result, double * sgn)
+
+   This routine computes the sign of the Beta function and the logarithm
+   of its magnitude, :math:`\log|B(a,b)|`, subject to :math:`a` and
+   :math:`b` not being negative integers or zero. The value of the Beta
+   function and its error can be reconstructed using the relation
+   :math:`B(a,b) = sgn * \exp(result)`, taking into account the two
+   components of :data:`result`. If :math:`a+b` is a negative integer
+   or zero (and :math:`a`, :math:`b` are not), then :math:`B(a,b) = 0`;
+   a domain error is returned with :data:`sgn` set to zero.
 .. exceptions: GSL_EDOM
 
 Incomplete Beta Function

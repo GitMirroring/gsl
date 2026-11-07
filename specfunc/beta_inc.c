@@ -146,7 +146,7 @@ gsl_sf_beta_inc_e(
     gsl_sf_result ln_1mx;
     gsl_sf_result prefactor;
     const int stat_ln_beta = gsl_sf_lnbeta_e(a, b, &ln_beta);
-    const int stat_ln_1mx = gsl_sf_log_1plusx_e(-x, &ln_1mx);
+    const int stat_ln_1mx = gsl_sf_log1p_e(-x, &ln_1mx);
     const int stat_ln_x = gsl_sf_log_e(x, &ln_x);
     const int stat_ln = GSL_ERROR_SELECT_3(stat_ln_beta, stat_ln_1mx, stat_ln_x);
 

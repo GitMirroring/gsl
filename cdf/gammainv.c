@@ -23,6 +23,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 #include <stdio.h>
 
@@ -57,7 +58,7 @@ gsl_cdf_gamma_Pinv (const double P, const double a, const double b)
     }
   else if (P > 0.95)
     {
-      double x0 = -log1p (-P) + gsl_sf_lngamma (a);
+      double x0 = -gsl_sf_log1p (-P) + gsl_sf_lngamma (a);
       x = x0;
     }
   else
@@ -140,7 +141,7 @@ gsl_cdf_gamma_Qinv (const double Q, const double a, const double b)
     }
   else if (Q > 0.95)
     {
-      double x0 = exp ((gsl_sf_lngamma (a) + log1p (-Q)) / a);
+      double x0 = exp ((gsl_sf_lngamma (a) + gsl_sf_log1p (-Q)) / a);
       x = x0;
     }
   else

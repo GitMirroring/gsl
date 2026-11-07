@@ -23,6 +23,7 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 /* The binomial distribution has the form,
 
@@ -91,7 +92,7 @@ gsl_ran_binomial_pdf (const unsigned int k, const double p,
       else
         {
           double ln_Cnk = gsl_sf_lnchoose (n, k);
-          P = ln_Cnk + k * log (p) + (n - k) * log1p (-p);
+          P = ln_Cnk + k * log (p) + (n - k) * gsl_sf_log1p (-p);
           P = exp (P);
         }
 

@@ -96,12 +96,50 @@ int test_sf_return (int status, int expect_return, const char * desc);
 
 #define TEST_SF_RETURN(stat, func, args, expect_return) { int status = func args; stat += test_sf_return(status, expect_return, #func #args); }
 
+/*
+ * Self-contained variants: the macro owns its gsl_sf_result r (and sgn),
+ * which the argument list refers to as &r (&sgn).  The value must agree
+ * with the expected one to within tol (relative), and the reported
+ * error must cover the actual error.
+ *
+ * Example:
+ *
+ *   TEST_SF_RESULT(s, gsl_sf_lngamma1p_e, (0.01, &r),
+ *                  expected, TEST_TOL1, GSL_SUCCESS);
+ */
+int test_sf_result (gsl_sf_result result, double expected, double tol, int status, int expected_status, const char * desc);
+
+#define TEST_SF_RESULT(stat, func, args, expected, tol, expected_status) \
+  do {                                                                  \
+    gsl_sf_result r;                                                    \
+    int test_sf_status_;                                                \
+    r.val = GSL_NAN;                                                    \
+    r.err = GSL_NAN;                                                    \
+    test_sf_status_ = func args;                                        \
+    stat += test_sf_result(r, (expected), (tol), test_sf_status_,       \
+                           (expected_status), #func #args);             \
+  } while (0)
+
+#define TEST_SF_RESULT_SGN(stat, func, args, expected, tol, expected_sgn, expected_status) \
+  do {                                                                  \
+    gsl_sf_result r;                                                    \
+    double sgn = GSL_NAN;                                               \
+    int test_sf_status_;                                                \
+    r.val = GSL_NAN;                                                    \
+    r.err = GSL_NAN;                                                    \
+    test_sf_status_ = func args;                                        \
+    stat += test_sf_result(r, (expected), (tol), test_sf_status_,       \
+                           (expected_status), #func #args);             \
+    gsl_test(sgn != (expected_sgn), "%s sign", #func #args);            \
+    stat += (sgn != (expected_sgn));                                    \
+  } while (0)
+
 int test_airy(void);
 int test_alf(void);
 int test_bessel(void);
 int test_coulomb(void);
 int test_dilog(void);
-int test_gamma(void);
+int test_gamma_misc(void);
 int test_mathieu(void);
 int test_hermite(void);
 int test_hyperg(void);

@@ -37,6 +37,14 @@
 
 __BEGIN_DECLS
 
+/* exp/exp2.c */
+int gsl_sf_exp2_e(const double x, gsl_sf_result * result);
+double gsl_sf_exp2(const double x);
+
+/* exp/expm1.c */
+int gsl_sf_expm1_e(const double x, gsl_sf_result * result);
+double gsl_sf_expm1(const double x);
+
 /* Provide an exp() function with GSL semantics,
  * i.e. with proper error checking, etc.
  *
@@ -66,14 +74,6 @@ double gsl_sf_exp_mult(const double x, const double y);
  * exceptions: GSL_EOVRFLW, GSL_EUNDRFLW
  */
 int gsl_sf_exp_mult_e10_e(const double x, const double y, gsl_sf_result_e10 * result);
-
-
-/* exp(x)-1
- *
- * exceptions: GSL_EOVRFLW
- */
-int gsl_sf_expm1_e(const double x, gsl_sf_result * result);
-double gsl_sf_expm1(const double x);
 
 
 /* (exp(x)-1)/x = 1 + x/2 + x^2/(2*3) + x^3/(2*3*4) + ...

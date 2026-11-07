@@ -17,6 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#ifndef __CHEBYSHEV_H__
+#define __CHEBYSHEV_H__
+
 /* data for a Chebyshev series over a given interval */
 
 struct cheb_series_struct {
@@ -28,4 +31,4 @@ struct cheb_series_struct {
 };
 typedef struct cheb_series_struct cheb_series;
 
-
+#endif /* __CHEBYSHEV_H__ */

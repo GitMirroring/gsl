@@ -31,4 +31,3 @@ cheb_eval_e(const cheb_series * cs,
 
   return GSL_SUCCESS;
 }
-

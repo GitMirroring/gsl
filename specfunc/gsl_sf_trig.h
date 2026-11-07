@@ -83,7 +83,7 @@ int gsl_sf_complex_logsin_e(const double zr, const double zi, gsl_sf_result * ls
  *
  * exceptions: none
  */
-int gsl_sf_sinc_e(double x, gsl_sf_result * result);
+int gsl_sf_sinc_e(const double x, gsl_sf_result * result);
 double gsl_sf_sinc(const double x);
 
 

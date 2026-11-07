@@ -21,6 +21,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_cdf.h>
+#include <gsl/gsl_sf_exp.h>
 
 double
 gsl_cdf_gumbel1_P (const double x, const double a, const double b)
@@ -43,7 +44,7 @@ gsl_cdf_gumbel1_Q (const double x, const double a, const double b)
     }
   else
     {
-      Q = -expm1 (-exp (-u));
+      Q = -gsl_sf_expm1 (-exp (-u));
     }
 
   return Q;

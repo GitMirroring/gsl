@@ -396,7 +396,7 @@ gsl_sf_legendre_sphPlm_e(const int l, int m, const double x, gsl_sf_result * res
     const double y_mmp1_factor = x * sqrt(2.0*m + 3.0);
     double y_mm, y_mm_err;
     double y_mmp1, y_mmp1_err;
-    gsl_sf_log_1plusx_e(-x*x, &lncirc);
+    gsl_sf_log1p_e(-x*x, &lncirc);
     gsl_sf_lnpoch_e(m, 0.5, &lnpoch);  /* Gamma(m+1/2)/Gamma(m) */
     lnpre_val = -0.25*M_LNPI + 0.5 * (lnpoch.val + m*lncirc.val);
     lnpre_err = 0.25*M_LNPI*GSL_DBL_EPSILON + 0.5 * (lnpoch.err + abs(m)*lncirc.err);
@@ -619,7 +619,7 @@ gsl_sf_legendre_sphPlm_array(const int lmax, int m, const double x, double * res
       gsl_sf_result lnpoch;
       double lnpre;
       const double sgn = ( GSL_IS_ODD(m) ? -1.0 : 1.0);
-      gsl_sf_log_1plusx_e(-x*x, &lncirc);
+      gsl_sf_log1p_e(-x*x, &lncirc);
       gsl_sf_lnpoch_e(m, 0.5, &lnpoch);  /* Gamma(m+1/2)/Gamma(m) */
       lnpre = -0.25*M_LNPI + 0.5 * (lnpoch.val + m*lncirc.val);
       y_mm   = sqrt((2.0+1.0/m)/(4.0*M_PI)) * sgn * exp(lnpre);
