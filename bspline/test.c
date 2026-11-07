@@ -102,6 +102,46 @@ test_bspline(gsl_bspline_workspace * w)
 
     }
 
+  /* the older *_nonzero interface (declared in gsl_bspline.h, bug #65868)
+     agrees with the full basis and its derivative */
+  {
+    gsl_vector *Bk = gsl_vector_alloc(order);
+    gsl_matrix *dBk = gsl_matrix_alloc(order, 2);
+    gsl_matrix *dB2 = gsl_matrix_alloc(ncoeffs, 2);
+
+    for (i = 0; i < n; i++)
+      {
+        double xi = a + (b - a) * (i / (n - 1.0));
+        size_t istart, iend;
+        int s;
+
+        gsl_bspline_eval_basis(xi, B, w);
+        gsl_bspline_eval_deriv_basis(xi, 1, dB2, w);
+
+        s = gsl_bspline_eval_nonzero(xi, Bk, &istart, &iend, w);
+        gsl_test(s || iend != istart + order - 1,
+                 "gsl_bspline_eval_nonzero order %u x=%g status and range", order, xi);
+        for (j = 0; j < order; j++)
+          gsl_test_abs(gsl_vector_get(Bk, j), gsl_vector_get(B, istart + j), 0.0,
+                       "gsl_bspline_eval_nonzero order %u basis #%u x=%g", order, istart + j, xi);
+
+        s = gsl_bspline_deriv_eval_nonzero(xi, 1, dBk, &istart, &iend, w);
+        gsl_test(s || iend != istart + order - 1,
+                 "gsl_bspline_deriv_eval_nonzero order %u x=%g status and range", order, xi);
+        for (j = 0; j < order; j++)
+          {
+            gsl_test_abs(gsl_matrix_get(dBk, j, 0), gsl_matrix_get(dB2, istart + j, 0), 0.0,
+                         "gsl_bspline_deriv_eval_nonzero order %u basis #%u x=%g", order, istart + j, xi);
+            gsl_test_abs(gsl_matrix_get(dBk, j, 1), gsl_matrix_get(dB2, istart + j, 1), 0.0,
+                         "gsl_bspline_deriv_eval_nonzero order %u basis #%u 1st deriv x=%g", order, istart + j, xi);
+          }
+      }
+
+    gsl_vector_free(Bk);
+    gsl_matrix_free(dBk);
+    gsl_matrix_free(dB2);
+  }
+
   gsl_vector_free(B);
   gsl_matrix_free(dB);
 }

@@ -3,6 +3,10 @@
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 
+** fix for bug #65868 (gsl_bspline_eval_nonzero and
+   gsl_bspline_deriv_eval_nonzero were no longer declared in
+   gsl_bspline.h since 2.8; reported by A. Bhattacharya)
+
 ** fix for bug #68068 (quad_golden minimizer stored f(x_minimum) in
    f_upper instead of f_lower when moving the lower bracket point;
    reported by Fermé le Lundi)
