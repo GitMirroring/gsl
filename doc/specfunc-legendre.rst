@@ -60,34 +60,6 @@ Legendre Polynomials
    :math:`x > -1`, :math:`x \ne 1` and :math:`l \ge 0`.
 .. Exceptional Return Values: GSL_EDOM
 
-Associated Legendre Polynomials and Spherical Harmonics
--------------------------------------------------------
-
-The functions below compute a single associated Legendre polynomial
-:math:`P_l^m(x)` or its spherical harmonic normalization.  To compute all
-of them up to a maximum degree and order, in any of the common
-normalizations, and their derivatives, use the functions of
-:ref:`sec_alf`.
-
-.. function:: double gsl_sf_legendre_Plm (int l, int m, double x)
-              int gsl_sf_legendre_Plm_e (int l, int m, double x, gsl_sf_result * result)
-
-   These routines compute the associated Legendre polynomial
-   :math:`P_l^m(x)` for :math:`m \ge 0`,
-   :math:`l \ge m`, and :math:`|x| \le 1`.
-.. Exceptional Return Values: GSL_EDOM, GSL_EOVRFLW
-
-.. function:: double gsl_sf_legendre_sphPlm (int l, int m, double x)
-              int gsl_sf_legendre_sphPlm_e (int l, int m, double x, gsl_sf_result * result)
-
-   These routines compute the normalized associated Legendre polynomial
-   :math:`\sqrt{(2l+1)/(4\pi)} \sqrt{(l-m)!/(l+m)!} P_l^m(x)` suitable
-   for use in spherical harmonics.  The parameters must satisfy :math:`m \ge 0`,
-   :math:`l \ge m`, and :math:`|x| \le 1`.
-   These routines avoid the overflows
-   that occur for the standard normalization of :math:`P_l^m(x)`.
-.. Exceptional Return Values: GSL_EDOM
-
 Conical Functions
 -----------------
 

@@ -404,3 +404,32 @@ code demonstrates how to access the array elements in order,
 
    An inline version of this function is used if :macro:`HAVE_INLINE` is
    defined.
+
+Single Associated Legendre Functions
+------------------------------------
+
+The following functions compute a single associated Legendre polynomial
+:math:`P_l^m(x)`, unnormalized or with the spherical harmonic
+normalization, without precomputation.  They are declared in the header
+file :file:`gsl_sf_legendre.h`.  To compute all degrees and orders up to
+a maximum, in any normalization, or their derivatives, the array
+functions above are more efficient.
+
+.. function:: double gsl_sf_legendre_Plm (int l, int m, double x)
+              int gsl_sf_legendre_Plm_e (int l, int m, double x, gsl_sf_result * result)
+
+   These routines compute the associated Legendre polynomial
+   :math:`P_l^m(x)` for :math:`m \ge 0`,
+   :math:`l \ge m`, and :math:`|x| \le 1`.
+.. Exceptional Return Values: GSL_EDOM, GSL_EOVRFLW
+
+.. function:: double gsl_sf_legendre_sphPlm (int l, int m, double x)
+              int gsl_sf_legendre_sphPlm_e (int l, int m, double x, gsl_sf_result * result)
+
+   These routines compute the normalized associated Legendre polynomial
+   :math:`\sqrt{(2l+1)/(4\pi)} \sqrt{(l-m)!/(l+m)!} P_l^m(x)` suitable
+   for use in spherical harmonics.  The parameters must satisfy :math:`m \ge 0`,
+   :math:`l \ge m`, and :math:`|x| \le 1`.
+   These routines avoid the overflows
+   that occur for the standard normalization of :math:`P_l^m(x)`.
+.. Exceptional Return Values: GSL_EDOM
