@@ -2,7 +2,7 @@ noinst_LTLIBRARIES = libgslspmatrix.la
 
 check_PROGRAMS = test
 
-pkginclude_HEADERS = gsl_spmatrix.h gsl_spmatrix_char.h gsl_spmatrix_double.h gsl_spmatrix_float.h gsl_spmatrix_int.h gsl_spmatrix_long_double.h gsl_spmatrix_long.h gsl_spmatrix_short.h gsl_spmatrix_uchar.h gsl_spmatrix_uint.h gsl_spmatrix_ulong.h gsl_spmatrix_ushort.h gsl_spmatrix_complex_float.h gsl_spmatrix_complex_double.h gsl_spmatrix_complex_long_double.h
+pkginclude_HEADERS = gsl_spmatrix.h gsl_spmatrix_types.h gsl_spmatrix_char.h gsl_spmatrix_double.h gsl_spmatrix_float.h gsl_spmatrix_int.h gsl_spmatrix_long_double.h gsl_spmatrix_long.h gsl_spmatrix_short.h gsl_spmatrix_uchar.h gsl_spmatrix_uint.h gsl_spmatrix_ulong.h gsl_spmatrix_ushort.h gsl_spmatrix_complex_float.h gsl_spmatrix_complex_double.h gsl_spmatrix_complex_long_double.h
 
 libgslspmatrix_la_SOURCES = compress.c copy.c file.c getset.c init.c minmax.c oper.c prop.c util.c swap.c
 

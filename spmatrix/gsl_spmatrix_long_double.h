@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_bst.h>
+#include <gsl/gsl_spmatrix_types.h>
 #include <gsl/gsl_vector_long_double.h>
 #include <gsl/gsl_matrix_long_double.h>
 

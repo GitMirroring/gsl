@@ -48,6 +48,11 @@
 
 ** gsl_expm1 is deprecated: use gsl_sf_expm1
 
+** gsl_spmatrix_cumsum was declared without C linkage in
+   gsl_spmatrix.h, so C++ programs calling it failed to link; the
+   gsl_spmatrix headers can now also be included individually (new
+   header gsl_spmatrix_types.h)
+
 ** fix for bug #59834 (gsl_movstat misalignment; reported by Z. Fu)
 
 ** fix for bug #44612 (reported by D. Zaslavsky)
