@@ -855,12 +855,14 @@ test_wrstat(gsl_rng * r)
     test_wrstat_basic(tol1, 10000, weights, data, "wrstat test2");
     test_wrstat_basic(tol1, N, weights, data, "wrstat test2");
 
-    /* test3: add large constant */
+    /* test3: add large constant; the reference gsl_stats_wskew() is accurate
+     * only to about 1e-6 here, since it uses the mean rounded to double, and
+     * is worse where long double is double (e.g. valgrind) */
 
     for (i = 0; i < 5; ++i)
       data2[i] += 1.0e9;
 
-    test_wrstat_basic(1.0e-6, 5, weights2, data2, "wrstat test3");
+    test_wrstat_basic(1.0e-5, 5, weights2, data2, "wrstat test3");
 
     free(data);
     free(weights);
