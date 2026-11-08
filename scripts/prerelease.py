@@ -996,6 +996,13 @@ QEMU_TARGETS = {
     "i686-linux-gnu": "qemu-i386-static",
 }
 
+# CPU models for targets whose QEMU default is unsuitable: on the default
+# mips64el CPU (QEMU 8.2), fesetround() has no effect, so glibc's fma(),
+# which changes the rounding mode, is inexact and the dd tests fail
+QEMU_CPUS = {
+    "mips64el-linux-gnuabi64": "MIPS64R2-generic",
+}
+
 
 def qemu_available(target):
     q = QEMU_TARGETS[target]
@@ -1012,8 +1019,10 @@ def check_qemu(ctx, target):
         return Result("SKIP", why)
     q = QEMU_TARGETS[target]
     bdir = configure_and_build(ctx, "qemu-" + target, ["--disable-shared"], host=target)
-    return run_programs(ctx, bdir, target, lambda prog: [q, "./" + os.path.basename(prog)],
-                        env={"QEMU_LD_PREFIX": "/usr/%s" % target})
+    env = {"QEMU_LD_PREFIX": "/usr/%s" % target}
+    if target in QEMU_CPUS:
+        env["QEMU_CPU"] = QEMU_CPUS[target]
+    return run_programs(ctx, bdir, target, lambda prog: [q, "./" + os.path.basename(prog)], env=env)
 
 
 # ---------------------------------------------------------------------------
