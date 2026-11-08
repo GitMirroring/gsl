@@ -22,6 +22,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_types.h>
+#include <gsl/gsl_deriv_constants.h>
 
 #undef __BEGIN_DECLS
 #undef __END_DECLS

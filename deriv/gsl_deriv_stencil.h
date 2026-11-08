@@ -19,6 +19,7 @@
 
 #ifndef __GSL_DERIV_STENCIL_H__
 #define __GSL_DERIV_STENCIL_H__
+#include <stdlib.h>
 #include <gsl/gsl_math.h>
 
 #undef __BEGIN_DECLS

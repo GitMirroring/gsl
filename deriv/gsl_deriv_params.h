@@ -19,7 +19,9 @@
 
 #ifndef __GSL_DERIV_PARAMS_H__
 #define __GSL_DERIV_PARAMS_H__
+#include <stdlib.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_vector.h>
 #include <gsl/gsl_deriv_stencil.h>
 #include <gsl/gsl_deriv_step.h>
 
