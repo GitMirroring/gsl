@@ -387,7 +387,8 @@ gsl_wrstat_kurtosis(const gsl_wrstat_workspace * w)
 /*
 gsl_wrstat_cdf()
   Return estimate of the weighted empirical cumulative distribution
-function at x, the fraction of the total weight of data <= x
+function at x, the fraction of the total weight of data <= x; this is
+exactly 1 for x >= the largest retained data
 */
 
 double
@@ -404,6 +405,15 @@ gsl_wrstat_cdf(const double x, const gsl_wrstat_workspace * w)
   else
     {
       double lw[KLL_MAX_LEVELS];
+      double xmin = 0.0, xmax = 0.0;
+
+      /*
+       * the rank of x >= xmax is the total weight, but the two sums are
+       * formed separately and need not round identically
+       */
+      kll_extremes(w->buf_x, w->lev, w->nlevels, &xmin, &xmax);
+      if (x >= xmax)
+        return 1.0;
 
       kll_level_weights(lw);
 
@@ -416,7 +426,8 @@ gsl_wrstat_quantile()
   Return estimate of weighted p-quantile, p in [0,1],
 quantile(p) = (lo(pW) + hi(pW)) / 2; for unit weights this is the
 average of the two order statistics bracketing rank pn, which differs
-from the interpolation of gsl_rstat_quantile() except for the median
+from the interpolation of gsl_rstat_quantile() except for the median;
+p = 0 and p = 1 return the smallest and largest retained data
 */
 
 double
@@ -435,6 +446,18 @@ gsl_wrstat_quantile(const double p, const gsl_wrstat_workspace * w)
     {
       const double W = wrstat_total_weight(w);
       double lo, hi;
+
+      if (p == 0.0 || p == 1.0)
+        {
+          /*
+           * in exact arithmetic lo(W) = hi(W) is the largest datum, but
+           * kll_select() accumulates the weights in a different order than
+           * W, and with rounding (e.g. x87 extended precision) can reach W
+           * before the largest datum
+           */
+          kll_extremes(w->buf_x, w->lev, w->nlevels, &lo, &hi);
+          return (p == 0.0) ? lo : hi;
+        }
 
       kll_select(p * W, w->buf_x, w->buf_w, w->lev, w->nlevels, &lo, &hi);
 

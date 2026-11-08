@@ -18,6 +18,19 @@
  */
 
 /*
+test_round()
+  Round x to the element type ATOMIC; on x87, a reference value computed
+in extended precision would otherwise differ from the stored result
+*/
+
+static ATOMIC
+FUNCTION (test, round) (const ATOMIC x)
+{
+  volatile ATOMIC y = x;
+  return y;
+}
+
+/*
 test_random()
   Create a random sparse matrix with approximately
 M*N*density non-zero entries in [lower,upper]
@@ -451,7 +464,7 @@ FUNCTION (test, scale) (const size_t M, const size_t N, const int sptype,
       BASE bij = FUNCTION (gsl_spmatrix, get) (B, A->i[i], A->p[i]);
       BASE xj = FUNCTION (gsl_vector, get) (x, A->p[i]);
 
-      if (bij != (ATOMIC) (xj * aij))
+      if (bij != FUNCTION (test, round) (xj * aij))
         status = 1;
     }
 
@@ -477,7 +490,7 @@ FUNCTION (test, scale) (const size_t M, const size_t N, const int sptype,
       BASE bij = FUNCTION (gsl_spmatrix, get) (B, A->i[i], A->p[i]);
       BASE xi = FUNCTION (gsl_vector, get) (x, A->i[i]);
 
-      if (bij != (ATOMIC) (xi * aij))
+      if (bij != FUNCTION (test, round) (xi * aij))
         status = 1;
     }
 
@@ -511,7 +524,7 @@ FUNCTION (test, add) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_spmatrix, get) (C, i, j);
 
-          if (aij + bij != cij)
+          if (FUNCTION (test, round) (aij + bij) != cij)
             status = 1;
         }
     }
@@ -569,7 +582,7 @@ FUNCTION (test, dense_add) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_matrix, get) (A, i, j);
 
-          if (aij + bij != cij)
+          if (FUNCTION (test, round) (aij + bij) != cij)
             status = 1;
         }
     }
@@ -607,7 +620,7 @@ FUNCTION (test, dense_sub) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_matrix, get) (A, i, j);
 
-          if ((BASE) (aij - bij) != cij)
+          if (FUNCTION (test, round) (aij - bij) != cij)
             status = 1;
         }
     }

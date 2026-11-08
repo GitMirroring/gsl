@@ -18,6 +18,19 @@
  */
 
 /*
+test_round()
+  Round x to the element type ATOMIC; on x87, a reference value computed
+in extended precision would otherwise differ from the stored result
+*/
+
+static ATOMIC
+FUNCTION (test, round) (const ATOMIC x)
+{
+  volatile ATOMIC y = x;
+  return y;
+}
+
+/*
 test_random()
   Create a random sparse matrix with approximately
 M*N*density non-zero entries in [lower,upper]
@@ -569,8 +582,8 @@ FUNCTION (test, add) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_spmatrix, get) (C, i, j);
 
-          if ((GSL_REAL(aij) + GSL_REAL(bij) != GSL_REAL(cij)) ||
-              (GSL_IMAG(aij) + GSL_IMAG(bij) != GSL_IMAG(cij)))
+          if ((FUNCTION (test, round) (GSL_REAL(aij) + GSL_REAL(bij)) != GSL_REAL(cij)) ||
+              (FUNCTION (test, round) (GSL_IMAG(aij) + GSL_IMAG(bij)) != GSL_IMAG(cij)))
             status = 1;
         }
     }
@@ -629,8 +642,8 @@ FUNCTION (test, dense_add) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_matrix, get) (A, i, j);
 
-          if ((GSL_REAL(aij) + GSL_REAL(bij) != GSL_REAL(cij)) ||
-              (GSL_IMAG(aij) + GSL_IMAG(bij) != GSL_IMAG(cij)))
+          if ((FUNCTION (test, round) (GSL_REAL(aij) + GSL_REAL(bij)) != GSL_REAL(cij)) ||
+              (FUNCTION (test, round) (GSL_IMAG(aij) + GSL_IMAG(bij)) != GSL_IMAG(cij)))
             status = 1;
         }
     }
@@ -668,8 +681,8 @@ FUNCTION (test, dense_sub) (const size_t M, const size_t N, const int sptype,
           BASE bij = FUNCTION (gsl_spmatrix, get) (B, i, j);
           BASE cij = FUNCTION (gsl_matrix, get) (A, i, j);
 
-          if ((GSL_REAL(aij) - GSL_REAL(bij) != GSL_REAL(cij)) ||
-              (GSL_IMAG(aij) - GSL_IMAG(bij) != GSL_IMAG(cij)))
+          if ((FUNCTION (test, round) (GSL_REAL(aij) - GSL_REAL(bij)) != GSL_REAL(cij)) ||
+              (FUNCTION (test, round) (GSL_IMAG(aij) - GSL_IMAG(bij)) != GSL_IMAG(cij)))
             status = 1;
         }
     }

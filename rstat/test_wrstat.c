@@ -665,6 +665,15 @@ test_wrstat_small(const size_t k, const size_t nmax, const int scheme, gsl_rng *
 
       gsl_test_rel(gsl_wrstat_cdf(xmax, w), 1.0, 0.0, "wrstat small %s n=%zu cdf at max", wname, n);
       gsl_test_rel(gsl_wrstat_cdf(xmin - 1.0, w), 0.0, 0.0, "wrstat small %s n=%zu cdf below min", wname, n);
+      gsl_test_rel(gsl_wrstat_cdf(gsl_wrstat_quantile(1.0, w), w), 1.0, 0.0,
+                   "wrstat small %s n=%zu cdf at quantile p=1", wname, n);
+
+      if (n <= k)
+        {
+          /* all data retained: the extreme quantiles are the exact extremes */
+          gsl_test_rel(gsl_wrstat_quantile(0.0, w), xmin, 0.0, "wrstat small %s n=%zu quantile p=0", wname, n);
+          gsl_test_rel(gsl_wrstat_quantile(1.0, w), xmax, 0.0, "wrstat small %s n=%zu quantile p=1", wname, n);
+        }
 
       gsl_test_rel(gsl_wrstat_median(wu), gsl_rstat_median(u), 0.0, "wrstat small unit n=%zu median", n);
       gsl_test_rel(gsl_wrstat_mad0(wu), gsl_rstat_mad0(u), 0.0, "wrstat small unit n=%zu mad0", n);

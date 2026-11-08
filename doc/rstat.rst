@@ -360,7 +360,9 @@ header file :file:`gsl_wrstat.h`.
    of the smallest data value :math:`x` with :math:`C(x) \ge pW` and the smallest
    data value with :math:`C(x) > pW`. The weighted median is the
    :math:`1/2`-quantile; for unit weights it equals the median of
-   :func:`gsl_stats_median`.
+   :func:`gsl_stats_median`. The values :math:`p = 0` and :math:`p = 1`
+   give the smallest and largest data value with positive weight, exactly
+   as long as at most :math:`k` data have been added.
 
 .. function:: double gsl_wrstat_mad0 (const gsl_wrstat_workspace * w)
               double gsl_wrstat_mad (const gsl_wrstat_workspace * w)
@@ -374,7 +376,9 @@ header file :file:`gsl_wrstat.h`.
 
    This function returns an estimate of the weighted empirical cumulative
    distribution function at :data:`x`, the fraction of the total weight of
-   the data which are less than or equal to :data:`x`.
+   the data which are less than or equal to :data:`x`. The result is
+   exactly :math:`1` when :data:`x` is at least the value returned by
+   :func:`gsl_wrstat_quantile` for :math:`p = 1`.
 
 .. _sec_rstat-quantile-estimation:
 

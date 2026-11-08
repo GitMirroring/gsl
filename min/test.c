@@ -130,15 +130,22 @@ test_f (const gsl_min_fminimizer_type * T,
 
       /* the stored function values must belong to the current bracket */
 
-      if (gsl_min_fminimizer_f_lower (s) != GSL_FN_EVAL (f, a))
-        gsl_test (GSL_FAILURE, "%s, %s: f_lower %g is not f(x_lower) = %g",
-                  gsl_min_fminimizer_name (s), description,
-                  gsl_min_fminimizer_f_lower (s), GSL_FN_EVAL (f, a));
+      {
+        /* volatile: compare the values rounded to double, as stored by
+           the minimizer (x87 returns them in extended precision) */
+        volatile double fa = GSL_FN_EVAL (f, a);
+        volatile double fb = GSL_FN_EVAL (f, b);
 
-      if (gsl_min_fminimizer_f_upper (s) != GSL_FN_EVAL (f, b))
-        gsl_test (GSL_FAILURE, "%s, %s: f_upper %g is not f(x_upper) = %g",
-                  gsl_min_fminimizer_name (s), description,
-                  gsl_min_fminimizer_f_upper (s), GSL_FN_EVAL (f, b));
+        if (gsl_min_fminimizer_f_lower (s) != fa)
+          gsl_test (GSL_FAILURE, "%s, %s: f_lower %g is not f(x_lower) = %g",
+                    gsl_min_fminimizer_name (s), description,
+                    gsl_min_fminimizer_f_lower (s), fa);
+
+        if (gsl_min_fminimizer_f_upper (s) != fb)
+          gsl_test (GSL_FAILURE, "%s, %s: f_upper %g is not f(x_upper) = %g",
+                    gsl_min_fminimizer_name (s), description,
+                    gsl_min_fminimizer_f_upper (s), fb);
+      }
 
       if (status) break ;
 

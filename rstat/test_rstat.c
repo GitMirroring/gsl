@@ -552,7 +552,13 @@ test_rstat_small(const size_t k, const size_t nmax, const int type, gsl_rng * r)
 
       gsl_test_rel(gsl_rstat_cdf(xmax, w), 1.0, 0.0, "small type=%d n=%zu cdf at max", type, n);
       gsl_test_rel(gsl_rstat_cdf(xmin - 1.0, w), 0.0, 0.0, "small type=%d n=%zu cdf below min", type, n);
-      gsl_test(gsl_rstat_cdf(median, w) < gsl_rstat_cdf(xmin, w), "small type=%d n=%zu cdf ordered", type, n);
+      {
+        /* volatile: compare the results rounded to double (x87 returns
+           them in extended precision) */
+        volatile double cdf_median = gsl_rstat_cdf(median, w);
+        volatile double cdf_min = gsl_rstat_cdf(xmin, w);
+        gsl_test(cdf_median < cdf_min, "small type=%d n=%zu cdf ordered", type, n);
+      }
 
       gsl_test_rel(gsl_rstat_median(w0), median, 0.0, "small type=%d n=%zu median without queries", type, n);
     }

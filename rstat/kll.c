@@ -193,6 +193,29 @@ kll_largest_level(const size_t * lev, const size_t nlevels)
   return L;
 }
 
+/* smallest and largest retained items; the levels must be sorted and not all empty */
+static void
+kll_extremes(const double * buf, const size_t * lev, const size_t nlevels,
+             double * xmin, double * xmax)
+{
+  int found = 0;
+  size_t h;
+
+  for (h = 0; h < nlevels; ++h)
+    {
+      if (lev[h] == lev[h + 1])
+        continue;
+
+      if (!found || buf[lev[h]] < *xmin)
+        *xmin = buf[lev[h]];
+
+      if (!found || buf[lev[h + 1] - 1] > *xmax)
+        *xmax = buf[lev[h + 1] - 1];
+
+      found = 1;
+    }
+}
+
 /*
 kll_bound()
   Return the index of the first item of the sorted range buf[a .. b-1]

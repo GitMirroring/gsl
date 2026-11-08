@@ -55,7 +55,6 @@
 static int rstat_insert(const double x, const size_t h, gsl_rstat_workspace *w);
 static int rstat_compress(gsl_rstat_workspace *w);
 static void rstat_merge_moments(const gsl_rstat_workspace *src, gsl_rstat_workspace *dest);
-static void rstat_extremes(const gsl_rstat_workspace *w, double *xmin, double *xmax);
 static size_t rstat_count(const gsl_rstat_workspace *w);
 
 gsl_rstat_workspace *
@@ -341,7 +340,7 @@ gsl_rstat_quantile(const double p, const gsl_rstat_workspace *w)
       const double delta = index - lhs;
       double xmin = 0.0, xmax = 0.0, x1, x2;
 
-      rstat_extremes(w, &xmin, &xmax);
+      kll_extremes(w->buf, w->lev, w->nlevels, &xmin, &xmax);
 
       /*
        * the extreme order statistics are known exactly, from w->min and
@@ -621,30 +620,6 @@ rstat_compress(gsl_rstat_workspace *w)
   }
 
   return GSL_SUCCESS;
-}
-
-/* smallest and largest retained data; the levels must be sorted and not all empty */
-static void
-rstat_extremes(const gsl_rstat_workspace *w, double *xmin, double *xmax)
-{
-  const double *buf = w->buf;
-  const size_t *lev = w->lev;
-  int found = 0;
-  size_t h;
-
-  for (h = 0; h < w->nlevels; ++h)
-    {
-      if (lev[h] == lev[h + 1])
-        continue;
-
-      if (!found || buf[lev[h]] < *xmin)
-        *xmin = buf[lev[h]];
-
-      if (!found || buf[lev[h + 1] - 1] > *xmax)
-        *xmax = buf[lev[h + 1] - 1];
-
-      found = 1;
-    }
 }
 
 /* number of data represented by the retained data (n, excluding NaN) */
