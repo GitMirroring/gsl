@@ -129,7 +129,7 @@ test_value(const size_t lmax, const size_t mmax, const size_t l, const size_t m,
 
   va_start(args, desc);
 
-  vsnprintf(buf, sizeof(buf), desc, args);
+  vsprintf(buf, desc, args);   /* C89; the descriptions are short */
 
   gsl_test_rel(p[idx], expected, tol, "%s lmax=%zu mmax=%zu l=%zu m=%zu", buf, lmax, mmax, l, m);
 

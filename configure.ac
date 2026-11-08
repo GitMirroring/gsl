@@ -241,15 +241,28 @@ if test "x$LIBS" = "x" ; then
   AC_CHECK_LIB(m, cos)
 fi
 
-AC_CHECK_FUNCS([erf])
-AC_CHECK_FUNCS([erfc])
-AC_CHECK_FUNCS([exp2])
-AC_CHECK_FUNCS([expm1])
-AC_CHECK_FUNCS([fma])
-AC_CHECK_FUNCS([lgamma])
-AC_CHECK_FUNCS([lgamma_r])
-AC_CHECK_FUNCS([log1p])
-AC_CHECK_FUNCS([tgamma])
+dnl C99 (and POSIX) math functions are used only if they are declared by
+dnl <math.h> with the compiler flags in use, and link; otherwise the
+dnl library uses its own fallbacks. A strict C89 (or C99) compiler links
+dnl them but does not declare them, and an undeclared function is assumed
+dnl to return int, which gives wrong results. The fallbacks can be forced
+dnl with the cache variables, e.g. ./configure ac_cv_func_fma=no
+AC_DEFUN([GSL_CHECK_MATH_FUNC],
+[AC_CHECK_DECL([$1],
+   [AC_CHECK_FUNC([$1],
+      [AC_DEFINE([HAVE_]m4_toupper([$1]), [1],
+                 [Define to 1 if $1 is declared in <math.h> and links.])])],
+   [], [[#include <math.h>]])])
+
+GSL_CHECK_MATH_FUNC([erf])
+GSL_CHECK_MATH_FUNC([erfc])
+GSL_CHECK_MATH_FUNC([exp2])
+GSL_CHECK_MATH_FUNC([expm1])
+GSL_CHECK_MATH_FUNC([fma])
+GSL_CHECK_MATH_FUNC([lgamma])
+GSL_CHECK_MATH_FUNC([lgamma_r])
+GSL_CHECK_MATH_FUNC([log1p])
+GSL_CHECK_MATH_FUNC([tgamma])
 
 dnl Remember to put a definition in acconfig.h for each of these
 AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1

@@ -66,7 +66,7 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
     {
       const double alpha = 5.0;
       const size_t n = der->size;
-      double finite[GSL_DERIV_MAX_STEPS], work[GSL_DERIV_MAX_STEPS];
+      double dfin[GSL_DERIV_MAX_STEPS], work[GSL_DERIV_MAX_STEPS];   /* finite candidates */
       double median, MAD, tol;
       size_t nfinite = 0;
       size_t i;
@@ -79,7 +79,7 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
         {
           double di = gsl_vector_get(der, i);
           if (gsl_finite(di))
-            finite[nfinite++] = di;
+            dfin[nfinite++] = di;
         }
 
       cand->nkeep = 0;
@@ -87,10 +87,10 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
       if (nfinite > 0)
         {
           /* compute MAD (before median, since the median sorts the array) */
-          MAD = gsl_stats_mad(finite, 1, nfinite, work);
+          MAD = gsl_stats_mad(dfin, 1, nfinite, work);
 
           /* compute median */
-          median = gsl_stats_median(finite, 1, nfinite);
+          median = gsl_stats_median(dfin, 1, nfinite);
 
           tol = GSL_MAX(alpha * MAD, GSL_DBL_EPSILON * fabs(median));
 
