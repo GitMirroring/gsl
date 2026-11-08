@@ -247,8 +247,12 @@ BUILDS = {
     "fallbacks":      ("library fallbacks for the C99 math functions (ac_cv_func_*=no)",
                        ["ac_cv_func_%s=no" % f for f in MATH_FUNCS], None, True),
     "O3-fma":         ("-O3 with FMA contraction: -march=x86-64-v3 (x86)", ["CFLAGS=-g -O3 -march=x86-64-v3"], None, True),
-    "x86-32":         ("32-bit x86: CC=\"gcc -m32\" (configure selects SSE2 arithmetic instead of x87)",
-                       ["CC=gcc -m32"], None, True),
+    # the i686 cross compiler rather than gcc -m32: on Debian and Ubuntu,
+    # gcc-multilib conflicts with the cross compilers of the qemu:* checks.
+    # Linked statically, the tests run natively on an x86-64 kernel
+    "x86-32":         ("32-bit x86: CC=\"i686-linux-gnu-gcc -static\", run natively "
+                       "(configure selects SSE2 arithmetic instead of x87)",
+                       ["--host=i686-linux-gnu", "--disable-shared", "CC=i686-linux-gnu-gcc -static"], None, True),
     "no-inline":      ("HAVE_INLINE undefined in config.h", [], {"HAVE_INLINE": None, "HAVE_C99_INLINE": None}, True),
     "disable-deprecated": ("GSL_DISABLE_DEPRECATED defined in config.h (library only: the tests "
                            "exercise deprecated functions)", [], {"GSL_DISABLE_DEPRECATED": "1"}, False),
@@ -260,28 +264,31 @@ BUILDS = {
     "icc":            ("CC=icc -fp-model precise", ["CC=icc", "CFLAGS=-g -O2 -Wall -fp-model precise"], None, True),
 }
 
-_M32 = None
+_I686 = None
 
 
-def m32_works():
-    """can gcc -m32 compile and link a program (32-bit multilib installed)?"""
-    global _M32
-    if _M32 is None:
+def i686_works():
+    """can i686-linux-gnu-gcc link a static program, and does it run here?"""
+    global _I686
+    if _I686 is None:
         import tempfile
-        with tempfile.TemporaryDirectory() as d:
-            c = os.path.join(d, "t.c")
-            with open(c, "w") as f:
-                f.write("#include <math.h>\nint main(void) { return (int) cos(0.0); }\n")
-            _M32 = subprocess.run(["gcc", "-m32", c, "-o", os.path.join(d, "t"), "-lm"],
-                                  capture_output=True).returncode == 0
-    return _M32
+        _I686 = False
+        if which("i686-linux-gnu-gcc"):
+            with tempfile.TemporaryDirectory() as d:
+                c, t = os.path.join(d, "t.c"), os.path.join(d, "t")
+                with open(c, "w") as f:
+                    f.write("#include <math.h>\nint main(void) { return (int) cos(0.0) - 1; }\n")
+                _I686 = (subprocess.run(["i686-linux-gnu-gcc", "-static", c, "-o", t, "-lm"],
+                                        capture_output=True).returncode == 0 and
+                         subprocess.run([t], capture_output=True).returncode == 0)
+    return _I686
 
 
 def build_available(name):
     if name in ("O3-fma", "x86-32") and not IS_X86:
         return "not an x86 machine"
-    if name == "x86-32" and not m32_works():
-        return "gcc -m32 cannot link (32-bit multilib not installed)"
+    if name == "x86-32" and not i686_works():
+        return "i686-linux-gnu-gcc not found, or a static 32-bit program does not run"
     need = {"c99": "c99", "clang": "clang", "icc": "icc"}
     if name in need and not which(need[name]):
         return "%s not found" % need[name]
