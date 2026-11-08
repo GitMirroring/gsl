@@ -73,7 +73,7 @@
    AVX/AVX-512 and other platforms): the linalg tests on random
    matrices compared results entry by entry, which backward stable
    algorithms do not guarantee, so that changes of rounding (compiler,
-   FMA, vectorized BLAS) made some fail; Decompositions are now checked in norm
+   FMA, vectorized BLAS) made some fail; decompositions are now checked in norm
    (||A - factors|| <= c n eps ||A||), solutions and inverses relative
    to the condition number, and least squares solutions by the normal
    equations; reported by D. Jerius)
@@ -191,7 +191,7 @@
 
 ** fix for bug #66826 (reported by Fermé le Lundi)
 
-** new adaptive differentation module (gsl_deriv)
+** new adaptive differentiation module (gsl_deriv)
 
 ** new weighted running statistics module (gsl_wrstat)
 

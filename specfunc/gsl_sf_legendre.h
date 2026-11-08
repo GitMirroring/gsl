@@ -173,7 +173,7 @@ double  gsl_sf_legendre_sphPlm(const int l, const int m, const double x);
 
 #ifndef GSL_DISABLE_DEPRECATED
 
-/* deprecated: use gsl_sf_alf_array() and gsl_sf_alf_deriv_array() with GSL_SF_ALF_SPHARM (gsl_sf_alf.h) */
+/* deprecated: use gsl_sf_alf_array() and gsl_sf_alf_deriv_array() with GSL_SF_ALF_ORTHO_COMPLEX (gsl_sf_alf.h) */
 
 /* sphPlm(l,m,x) values
  * m >= 0; l >= m; |x| <= 1.0
