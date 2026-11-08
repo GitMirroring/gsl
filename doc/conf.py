@@ -11,7 +11,7 @@ import sphinx_rtd_theme
 project = 'GSL'
 copyright = '1996-2026 The GSL Team'
 author = 'The GSL Team'
-release = '2.8'
+release = '2.9'
 title = 'GNU Scientific Library'
 
 # -- General configuration ---------------------------------------------------

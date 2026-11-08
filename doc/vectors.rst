@@ -643,6 +643,11 @@ of a vector.
 Vector operations
 -----------------
 
+The following operations are defined for real and complex vectors, except
+:func:`gsl_vector_sum`, which is defined for real vectors only.  For complex
+vectors, the scalar arguments :data:`x`, :data:`alpha` and :data:`beta` have
+type :code:`gsl_complex`.
+
 .. function:: int gsl_vector_add (gsl_vector * a, const gsl_vector * b)
 
    This function adds the elements of vector :data:`b` to the elements of
@@ -1440,6 +1445,10 @@ Matrix operations
 -----------------
 
 The following operations are defined for real and complex matrices.
+For complex matrices, the scalar arguments :data:`x`, :data:`alpha` and
+:data:`beta` have type :code:`gsl_complex`, and the vector argument of
+:func:`gsl_matrix_scale_columns` and :func:`gsl_matrix_scale_rows` is a
+complex vector.
 
 .. function:: int gsl_matrix_add (gsl_matrix * a, const gsl_matrix * b)
 
