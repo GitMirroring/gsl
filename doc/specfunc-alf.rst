@@ -19,7 +19,7 @@ of the differential equation
 
    ::
 
-      (1 - x^2) d^2 P_l^m(x) / dx^2 P_l^m(x) - 2x d/dx P_l^m(x) +
+      (1 - x^2) d^2/dx^2 P_l^m(x) - 2x d/dx P_l^m(x) +
       ( l(l+1) - m^2 / (1 - x^2) ) P_l^m(x) = 0
 
 where the degree :math:`l` and order :math:`m` satisfy :math:`0 \le l` and
@@ -234,16 +234,24 @@ code demonstrates how to access the array elements in order,
    room at the front for the calculation of the ALFs.
 
    This routine must be called prior to calling ALF array functions. The
+   normalization and phase convention chosen here apply to all values the
+   array functions subsequently compute in :data:`result_array`. The
    array functions check that :data:`result_array` was initialized by this
    routine with the same :data:`lmax` and :data:`mmax`, and return
-   :macro:`GSL_EINVAL` otherwise.
+   :macro:`GSL_EINVAL` otherwise. The array functions overwrite only the
+   first :code:`gsl_sf_alf_nlm(lmax, mmax)` elements of :data:`result_array`
+   (the ALF values), so the precomputed factors can be reused for any
+   number of points :math:`x`.
+
+   All array functions below return :macro:`GSL_EDOM` if :math:`x` is outside
+   :math:`[-1,1]` or is a NaN.
 
 .. function:: int gsl_sf_alf_array (const size_t lmax, const size_t mmax, const double x, double result_array[])
 
    This function calculates all associated Legendre polynomials
-   for :math:`0 \le l \le lmax` and :math:`0 \le m \le \min{(l,mmax)}` for :math:`|x| \le 1`.
-   The :data:`norm` parameter specifies which normalization is used.
-   The normalized :math:`P_l^m(x)` values are stored in :data:`result_array`, whose
+   for :math:`0 \le l \le lmax` and :math:`0 \le m \le \min{(l,mmax)}` for :math:`|x| \le 1`,
+   in the normalization selected in :func:`gsl_sf_alf_precompute`.
+   The :math:`P_l^m(x)` values are stored in :data:`result_array`, whose
    minimum size can be obtained from calling :func:`gsl_sf_alf_array_size`.
    The array index of :math:`P_l^m(x)` is obtained from calling
    :code:`gsl_sf_alf_array_index(l, m, lmax)`.
@@ -260,7 +268,8 @@ code demonstrates how to access the array elements in order,
    and :math:`0 \leq m \leq \min{(l,mmax)}` for :math:`|x| < 1`.
    The :math:`P_l^m(x)` values and their derivatives
    :math:`dP_l^m(x)/dx` are stored in :data:`result_array` and
-   :data:`result_deriv_array` respectively.
+   :data:`result_deriv_array` respectively. The array :data:`result_deriv_array`
+   must have length at least :code:`gsl_sf_alf_nlm(lmax, mmax)`.
 
    Note that for some orders :math:`m`, the derivatives :math:`dP_l^m(x)/dx` have
    singularities at the end points :math:`x = \pm 1`, and so this function only
@@ -281,6 +290,8 @@ code demonstrates how to access the array elements in order,
    :math:`dP_l^m(x)/dx`, and second derivatives
    :math:`d^2 P_l^m(x) / dx^2` are stored in :data:`result_array`,
    :data:`result_deriv_array`, and :data:`result_deriv2_array` respectively.
+   The arrays :data:`result_deriv_array` and :data:`result_deriv2_array`
+   must have length at least :code:`gsl_sf_alf_nlm(lmax, mmax)`.
 
    Note that for some orders :math:`m`, the derivatives have
    singularities at the end points :math:`x = \pm 1`, and so this function only
@@ -319,6 +330,7 @@ code demonstrates how to access the array elements in order,
    The :code:`index` notation above refers to the :func:`gsl_sf_alf_array_index` function.
    All associated Legendre functions and their first :math:`\theta` derivatives are computed
    for :math:`0 \leq l \leq lmax` and :math:`0 \leq m \leq \min{(l,mmax)}` for :math:`|x| \leq 1`.
+   The array :data:`result_deriv_array` must have length at least :code:`gsl_sf_alf_nlm(lmax, mmax)`.
 
    The function :func:`gsl_sf_alf_precompute` must be called first
    using the same :data:`lmax` and :data:`mmax` inputs
@@ -334,6 +346,8 @@ code demonstrates how to access the array elements in order,
    .. math:: \textrm{result\_deriv2\_array[index(l,m,lmax)]} = \frac{d^2}{d\theta^2} P_l^m(x), \qquad m \geq 0
 
    for :math:`0 \leq l \leq lmax` and :math:`0 \leq m \leq \min{(l,mmax)}` for :math:`|x| \leq 1`.
+   The arrays :data:`result_deriv_array` and :data:`result_deriv2_array` must have length
+   at least :code:`gsl_sf_alf_nlm(lmax, mmax)`.
    The derivatives are obtained by differentiating the recurrence relations with respect to
    :math:`\theta`, which involves only multiplications by :math:`\sin{\theta}` and :math:`\cos{\theta}`,
    so the results are well defined at the poles, and any :math:`mmax \leq lmax` may be used.
@@ -348,11 +362,22 @@ code demonstrates how to access the array elements in order,
    This function computes derivatives (with respect to :math:`\theta`) of order :math:`k`,
    given derivatives of order :math:`k-1`, using the algorithm of Bosch (2000). The
    derivatives :math:`d^{k-1} P_l^m/d\theta^{k-1}` are provided in the array :data:`input_array`,
-   while the derivatives :math:`d^k P_l^m/d\theta^k` are stored in the array :data:`output_array`.
-   The array :data:`Plm` must also be provided and initialized by :func:`gsl_sf_alf_precompute` to
-   precompute the factors in the recurrence relations. The maximum degree :math:`L` is given in :data:`lmax`,
+   while the derivatives :math:`d^k P_l^m/d\theta^k` are stored in the array :data:`output_array`;
+   both have length :code:`gsl_sf_alf_nlm(lmax, lmax)` and use the indexing of
+   :func:`gsl_sf_alf_array_index`.
+   The array :data:`Plm` provides the recurrence factors: it must have been initialized by
+   :func:`gsl_sf_alf_precompute`, which also selects the normalization and phase convention.
+   The maximum degree :math:`L` is given in :data:`lmax`,
    and for this algorithm to work, it is required that :math:`L = M`: :data:`Plm` must be
    initialized with :code:`mmax = lmax`, otherwise :macro:`GSL_EINVAL` is returned.
+
+   For the first derivatives (:math:`k = 1`), :data:`input_array` must hold the values
+   :math:`P_l^m(x)` themselves, as computed by :func:`gsl_sf_alf_array` (not
+   :math:`P_l^m(x)/\sin{\theta}` as stored by :func:`gsl_sf_alf_vsh_array`); since
+   :func:`gsl_sf_alf_array` stores them at the front of :data:`Plm`, the same array may be
+   passed as :data:`Plm` and :data:`input_array`. For :math:`k = 2`, :data:`input_array`
+   may be the :data:`result_deriv_array` of :func:`gsl_sf_alf_vsh_array`. Repeated calls give
+   derivatives of any order.
 
 .. function:: size_t gsl_sf_alf_nlm (const size_t lmax, const size_t mmax)
 

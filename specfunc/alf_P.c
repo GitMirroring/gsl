@@ -25,8 +25,7 @@
 
 /*
  * The routines in this module compute associated Legendre functions
- * (ALFs) up to order and degree 2700, using the method described
- * in
+ * (ALFs) of high degree and order, using the method described in
  *
  * [1] S. A. Holmes and W. E. Featherstone, A unified approach
  *     to the Clenshaw summation and the recursive computation of very
@@ -1142,7 +1141,7 @@ gsl_sf_alf_array(const size_t lmax, const size_t mmax, const double x,
     {
       GSL_ERROR ("mmax must be <= lmax", GSL_EDOM);
     }
-  else if (x < -1.0 || x > 1.0)
+  else if (!(x >= -1.0 && x <= 1.0)) /* also NaN */
     {
       GSL_ERROR ("x is outside [-1,1]", GSL_EDOM);
     }
@@ -1255,7 +1254,7 @@ gsl_sf_alf_deriv_array(const size_t lmax, const size_t mmax, const double x,
     {
       GSL_ERROR ("mmax must be <= lmax", GSL_EDOM);
     }
-  else if (x < -1.0 || x > 1.0)
+  else if (!(x >= -1.0 && x <= 1.0)) /* also NaN */
     {
       GSL_ERROR ("x is outside [-1,1]", GSL_EDOM);
     }
@@ -1394,7 +1393,7 @@ gsl_sf_alf_deriv2_array(const size_t lmax, const size_t mmax, const double x,
     {
       GSL_ERROR ("mmax must be <= lmax", GSL_EDOM);
     }
-  else if (x < -1.0 || x > 1.0)
+  else if (!(x >= -1.0 && x <= 1.0)) /* also NaN */
     {
       GSL_ERROR ("x is outside [-1,1]", GSL_EDOM);
     }
@@ -1552,7 +1551,7 @@ gsl_sf_alf_vsh_array(const size_t lmax, const size_t mmax, const double x,
     {
       GSL_ERROR ("mmax must be <= lmax", GSL_EDOM);
     }
-  else if (x < -1.0 || x > 1.0)
+  else if (!(x >= -1.0 && x <= 1.0)) /* also NaN */
     {
       GSL_ERROR ("x is outside [-1,1]", GSL_EDOM);
     }
@@ -1692,7 +1691,7 @@ gsl_sf_alf_vsh2_array(const size_t lmax, const size_t mmax, const double x,
     {
       GSL_ERROR ("mmax must be <= lmax", GSL_EDOM);
     }
-  else if (x < -1.0 || x > 1.0)
+  else if (!(x >= -1.0 && x <= 1.0)) /* also NaN */
     {
       GSL_ERROR ("x is outside [-1,1]", GSL_EDOM);
     }

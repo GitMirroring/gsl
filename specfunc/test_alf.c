@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <stdarg.h>
+#include <gsl/gsl_nan.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_sf.h>
 #include <assert.h>
@@ -835,6 +836,18 @@ test_alf_check(void)
 
   /* an array never initialized by gsl_sf_alf_precompute() */
   gsl_test_int(gsl_sf_alf_array(lmax, lmax, x, q), GSL_EINVAL, "alf check uninitialized array");
+
+  /* x outside [-1,1], including NaN */
+  for (i = 0; i < 2; ++i)
+    {
+      const double xbad = (i == 0) ? 1.5 : GSL_NAN;
+
+      gsl_test_int(gsl_sf_alf_array(lmax, lmax, xbad, p), GSL_EDOM, "alf check array x=%g", xbad);
+      gsl_test_int(gsl_sf_alf_vsh_array(lmax, lmax, xbad, p, d1), GSL_EDOM, "alf check vsh_array x=%g", xbad);
+      gsl_test_int(gsl_sf_alf_deriv_array(lmax, lmax, xbad, p, d1), GSL_EDOM, "alf check deriv_array x=%g", xbad);
+      gsl_test_int(gsl_sf_alf_deriv2_array(lmax, lmax, xbad, p, d1, d2), GSL_EDOM, "alf check deriv2_array x=%g", xbad);
+      gsl_test_int(gsl_sf_alf_vsh2_array(lmax, lmax, xbad, p, d1, d2), GSL_EDOM, "alf check vsh2_array x=%g", xbad);
+    }
 
   /* theta_derivk needs an array precomputed with mmax = lmax */
   gsl_sf_alf_vsh_array(lmax, lmax, x, p, d1);

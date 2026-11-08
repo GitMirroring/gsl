@@ -220,7 +220,8 @@
    - gsl_rstat_{alloc2,quantile,mad0,mad,cdf,merge}
    - gsl_wrstat_{alloc2,median,quantile,mad0,mad,cdf,merge,skew,kurtosis,norm,sd_mean,neff}
 
-** new interface (gsl_sf_alf) for associated Legendre functions
+** new interface (gsl_sf_alf) for associated Legendre functions:
+   previous gsl_sf_legendre functions are deprecated
 
 ** bug fix in collocation matrix for order-1 interpolating B-splines
 

@@ -48,7 +48,7 @@ typedef enum
 #define GSL_SF_ALF_FLG_CSPHASE       (1 << 0) /* include Condon-Shortley phase */
 
 int gsl_sf_alf_precompute(const gsl_sf_alf_t norm, const size_t lmax,
-                          const size_t mmax, const size_t flags, double output_array[]);
+                          const size_t mmax, const size_t flags, double result_array[]);
 size_t gsl_sf_alf_array_size(const size_t lmax, const size_t mmax);
 int gsl_sf_alf_array(const size_t lmax, const size_t mmax, const double x, double result_array[]);
 int gsl_sf_alf_deriv_array(const size_t lmax, const size_t mmax, const double x,

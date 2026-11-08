@@ -210,6 +210,8 @@ Legendre Functions and Spherical Harmonics
 ==========================================
 .. include:: specfunc-legendre.rst
 
+.. _sec_alf:
+
 Associated Legendre Functions and Spherical Harmonics
 =====================================================
 .. include:: specfunc-alf.rst
@@ -281,14 +283,16 @@ Example 2: Associated Legendre Functions
 
 The following example program outputs the spherical harmonic
 normalized ALF :math:`Y_2^1(\cos{\theta})` and its first and second
-derivatives with respect to :math:`\theta`. The analytic
-expressions are,
+derivatives with respect to :math:`\theta`, computed with
+:func:`gsl_sf_alf_vsh2_array` (which stores :math:`Y_2^1/\sin{\theta}`, so the
+program multiplies by :math:`\sin{\theta}`). Without the Condon-Shortley
+phase, the analytic expressions are,
 
 .. math::
    
-   Y_2^1(\cos{\theta}) &= -\frac{1}{2} \sqrt{\frac{15}{2 \pi}} \sin{\theta} \cos{\theta} \\
-   \frac{d}{d\theta} Y_2^1(\cos{\theta}) &= -\frac{1}{2} \sqrt{\frac{15}{2 \pi}} \left( \cos^2{\theta} - \sin^2{\theta} \right) \\
-   \frac{d^2}{d\theta^2} Y_2^1(\cos{\theta}) &= 2 \sqrt{\frac{15}{2 \pi}} \sin{\theta} \cos{\theta}
+   Y_2^1(\cos{\theta}) &= \frac{1}{2} \sqrt{\frac{15}{2 \pi}} \sin{\theta} \cos{\theta} \\
+   \frac{d}{d\theta} Y_2^1(\cos{\theta}) &= \frac{1}{2} \sqrt{\frac{15}{2 \pi}} \left( \cos^2{\theta} - \sin^2{\theta} \right) \\
+   \frac{d^2}{d\theta^2} Y_2^1(\cos{\theta}) &= -2 \sqrt{\frac{15}{2 \pi}} \sin{\theta} \cos{\theta}
 
 .. _fig_specfun2:
 

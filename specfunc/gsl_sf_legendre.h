@@ -126,6 +126,10 @@ int     gsl_sf_legendre_Plm_e(const int l, const int m, const double x, gsl_sf_r
 double  gsl_sf_legendre_Plm(const int l, const int m, const double x);
 
 
+#ifndef GSL_DISABLE_DEPRECATED
+
+/* deprecated: use gsl_sf_alf_array() and gsl_sf_alf_deriv_array() (gsl_sf_alf.h) */
+
 /* P_l^m(x)  m >= 0; l >= m; |x| <= 1.0
  * l=|m|,...,lmax
  *
@@ -148,6 +152,8 @@ int gsl_sf_legendre_Plm_deriv_array(
   double * result_deriv_array
   );
 
+#endif /* !GSL_DISABLE_DEPRECATED */
+
 
 /* P_l^m(x), normalized properly for use in spherical harmonics
  * m >= 0; l >= m; |x| <= 1.0
@@ -164,6 +170,10 @@ int gsl_sf_legendre_Plm_deriv_array(
 int     gsl_sf_legendre_sphPlm_e(const int l, int m, const double x, gsl_sf_result * result);
 double  gsl_sf_legendre_sphPlm(const int l, const int m, const double x);
 
+
+#ifndef GSL_DISABLE_DEPRECATED
+
+/* deprecated: use gsl_sf_alf_array() and gsl_sf_alf_deriv_array() with GSL_SF_ALF_SPHARM (gsl_sf_alf.h) */
 
 /* sphPlm(l,m,x) values
  * m >= 0; l >= m; |x| <= 1.0
@@ -195,6 +205,8 @@ int gsl_sf_legendre_sphPlm_deriv_array(
  * (lmax - m + 1)
  */
 int gsl_sf_legendre_array_size(const int lmax, const int m);
+
+#endif /* !GSL_DISABLE_DEPRECATED */
 
 /* Irregular Spherical Conical Function
  * P^{1/2}_{-1/2 + I lambda}(x)
@@ -312,6 +324,10 @@ double gsl_sf_legendre_H3d(const int l, const double lambda, const double eta);
  */
 int gsl_sf_legendre_H3d_array(const int lmax, const double lambda, const double eta, double * result_array);
 
+#ifndef GSL_DISABLE_DEPRECATED
+
+/* deprecated: superseded by the gsl_sf_alf interface (gsl_sf_alf.h) */
+
 /* associated legendre P_{lm} routines */
 
 typedef enum
@@ -389,6 +405,8 @@ gsl_sf_legendre_array_index(const size_t l, const size_t m)
 }
 
 #endif /* HAVE_INLINE */
+
+#endif /* !GSL_DISABLE_DEPRECATED */
 
 __END_DECLS
 
