@@ -99,19 +99,6 @@ main ()
 
   gsl_ieee_env_setup ();
 
-#if 0
-  /* diagnostic output */
-  test_deriv_adaptive_diag(&sina_test,
-                           2.906189932906e+00,
-                           1.0,
-                           1,
-                           1.0e-3,
-                           1.0e1,
-                           GSL_DERIV_STENCIL_BACKWARD,
-                           GSL_DERIV_STEP_ABSOLUTE);
-  exit(1);
-#endif
-
   /* test Fornberg weights */
   test_fornberg(tol, rng_p);
 

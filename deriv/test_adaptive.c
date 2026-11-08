@@ -28,34 +28,6 @@
 #include <gsl/gsl_test.h>
 
 int
-test_deriv_adaptive_diag(const deriv_test_t * test_t, const double x, const double a,
-                         const unsigned int deriv_order,
-                         const double min_step, const double max_step,
-                         const gsl_deriv_stencil_t stencil_type,
-                         const gsl_deriv_step_policy_t step_policy)
-{
-  const gsl_function F = { test_t->f, (void *) &a };
-  gsl_deriv_parameters params = gsl_deriv_default_parameters(deriv_order, 4);
-  double result, abserr, fs;
-  unsigned int neval;
-  gsl_deriv_diag diag;
-
-  params.stencil_type = stencil_type;
-  params.step_policy = step_policy;
-  params.deriv_order = deriv_order;
-
-  if (min_step > 0.0)
-    params.min_step = min_step;
-  if (max_step > 0.0)
-    params.max_step = max_step;
-
-  gsl_deriv_adaptive(&params, &F, x, &result, &abserr, &fs, &neval, &diag);
-  gsl_deriv_diag_print(stdout, &diag);
-
-  return 0;
-}
-
-int
 test_deriv_adaptive_tol(const double tol, const deriv_test_function * TF, const double x,
                         const gsl_deriv_stencil_t stencil_type,
                         const gsl_deriv_step_policy_t step_policy, const char * desc)

@@ -413,14 +413,36 @@ structure,
 
 which can be analyzed to determine if the adaptive algorithm
 is correctly locating the plateau region between where truncation
-and roundoff error dominate. An example program which analyzes
-this structure is provided in the :ref:`sec_examples-diag` section below.
+and roundoff error dominate. Its fields are
 
-.. function:: int gsl_deriv_diag_print(FILE * fp, const gsl_deriv_diag * diag)
+   =============================== ====================================================================
+   Field                           Description
+   =============================== ====================================================================
+   :code:`params`                  parameters used for the computation
+   :code:`x`                       point at which the derivative is computed
+   :code:`h[i]`                    step sizes, :math:`i = 0, \dots, nstep-1`, in the units of :math:`x`
+   :code:`step_ratio`              ratio between successive step sizes
+   :code:`nstep`                   number of step sizes
+   :code:`stencil[j]`              finite difference stencil, :math:`j = 0, \dots, stencil\_size-1`
+   :code:`stencil_size`            number of stencil points
+   :code:`fornberg_weights`        finite difference weights of the stencil for all derivative orders
+                                   up to :code:`params.deriv_order`; the weights for derivative order
+                                   :math:`k` are :code:`fornberg_weights[k * stencil_size + j]`
+   :code:`der_init[i]`             initial derivative estimate with step size :code:`h[i]`
+   :code:`err_init[i]`             roundoff error estimate of :code:`der_init[i]`
+   :code:`der_romb[i]`             derivative estimate after Romberg extrapolation,
+                                   :math:`i = 0, \dots, nromb-1`
+   :code:`err_romb[i]`             error estimate of :code:`der_romb[i]`
+   :code:`nromb`                   number of Romberg estimates
+   :code:`cand`                    candidates remaining after filtering: :code:`cand.nkeep` estimates,
+                                   with indices :code:`cand.index[0..nkeep-1]` into the arrays above
+   :code:`der_select`              selected derivative
+   :code:`err_select`              error estimate of the selected derivative
+   :code:`step_select`             step size of the selected derivative
+   =============================== ====================================================================
 
-   This function outputs the diagnostic information contained in
-   :data:`diag` to the file pointer :data:`fp`. The printed output
-   is in ASCII format suitable for use with the :code:`gnuplot` program.
+An example program which prints this structure in a format suitable for
+:code:`gnuplot` is provided in the :ref:`sec_examples-diag` section below.
 
 Jacobian Calculation
 ====================
