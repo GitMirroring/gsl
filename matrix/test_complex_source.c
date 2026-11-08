@@ -747,6 +747,8 @@ FUNCTION (test, ops) (const size_t P, const size_t Q)
       }
 
     gsl_test (status, NAME (gsl_matrix) "_scale_rows[%zu,%zu]", P, Q);
+
+    FUNCTION (gsl_vector, free) (v);
   }
 
   {
@@ -784,6 +786,8 @@ FUNCTION (test, ops) (const size_t P, const size_t Q)
       }
 
     gsl_test (status, NAME (gsl_matrix) "_scale_columns[%zu,%zu]", P, Q);
+
+    FUNCTION (gsl_vector, free) (v);
   }
 
   {

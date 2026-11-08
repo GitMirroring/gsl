@@ -753,11 +753,10 @@ FUNCTION (test, file) (size_t stride, size_t N)
 
     for (i = 0; i < N; i++)
       {
-        /* set the parts in place, so that the padding bytes of a long
-           double stay zero (from calloc) and fwrite writes no garbage */
-        BASE *x = FUNCTION (gsl_vector, ptr) (v, i);
-        GSL_REAL (*x) = (ATOMIC)(N - i);
-        GSL_IMAG (*x) = (ATOMIC)(N - i + 1);
+        BASE x = ZERO;
+        GSL_REAL (x) = (ATOMIC)(N - i);
+        GSL_IMAG (x) = (ATOMIC)(N - i + 1);
+        FUNCTION (gsl_vector, set) (v, i, x);
       };
 
     FUNCTION (gsl_vector, fwrite) (f, v);

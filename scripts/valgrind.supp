@@ -1,0 +1,25 @@
+# Valgrind suppressions for scripts/prerelease.py
+#
+# On x86 a long double has 10 value bytes and 6 bytes of padding, whose
+# contents C leaves unspecified.  The binary fwrite functions write the
+# raw objects, so they write the padding too.  This is harmless; the
+# fread functions ignore it.  stdio buffers the data, so the write()
+# happens either inside the GSL fwrite call or when the test's fclose
+# flushes the stream.
+
+{
+   long-double-padding-fwrite
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:gsl_*long_double*fwrite
+}
+
+{
+   long-double-padding-fclose
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:fclose*
+   fun:test_*long_double*
+}
