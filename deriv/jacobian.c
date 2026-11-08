@@ -50,6 +50,12 @@ gsl_deriv_jacobian_alloc(const gsl_deriv_parameters * params, const size_t nrows
   int status;
   gsl_deriv_jacobian_workspace * w;
 
+  status = adaptive_check(params);
+  if (status)
+    {
+      GSL_ERROR_NULL ("invalid parameters", status);
+    }
+
   w = calloc(1, sizeof(gsl_deriv_jacobian_workspace));
   if (w == NULL)
     {
@@ -325,18 +331,28 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
   else
     {
       const gsl_deriv_parameters * params = &(w->params);
-      const gsl_deriv_cand_filter * cfilter = gsl_deriv_cand_filter_none;
+      const gsl_deriv_cand_filter * cfilter;
       const gsl_deriv_cand_select * cselect = gsl_deriv_cand_select_minerr;
       gsl_vector_const_view step_romb = gsl_vector_const_view_array(w->h, w->nromb);
       size_t j;
 
+      int status;
+
       *neval = 0;
+
+      /* outputs for elements which fail */
+      gsl_matrix_set_all(J, GSL_NAN);
+      gsl_matrix_set_all(esterr, GSL_NAN);
+      gsl_matrix_set_all(final_step, GSL_NAN);
+
+      status = filter_get(params, &cfilter);
+      if (status)
+        return status;
 
       gsl_vector_memcpy(w->workn, x);
 
       for (j = 0; j < n; ++j)
         {
-          int status;
           double xj = gsl_vector_get(x, j);
           double scale_j;
           size_t k;
@@ -383,17 +399,22 @@ gsl_deriv_jacobian(const gsl_deriv_vec_function * F, const gsl_vector * x,
               gsl_vector_view der_init = gsl_matrix_subrow(w->der_init, k, 0, w->nstep);
               gsl_vector_view err_init = gsl_matrix_subrow(w->err_init, k, 0, w->nstep);
               double der_select, err_select, step_select;
+              size_t isel;
               gsl_deriv_cand_t cand;
 
               /* perform Romberg extrapolation on each row of der_init */
               romb_extrap(&der_init.vector, &err_init.vector, w->der_romb, w->err_romb, (romb_state_t *) w->romb_state);
 
               /* filter out extremely incorrect candidates */
-              (cfilter->filter)(w->der_romb, &cand);
+              status = (cfilter->filter)(w->der_romb, w->err_romb, &cand);
+              if (status)
+                return status;
 
               /* select final candidate */
-              (cselect->select)(&cand, w->der_romb, w->err_romb,
-                                &step_romb.vector, &der_select, &err_select, &step_select);
+              status = (cselect->select)(&cand, w->der_romb, w->err_romb,
+                                         &step_romb.vector, &der_select, &err_select, &step_select, &isel);
+              if (status)
+                return status;
 
               /* store outputs */
               gsl_matrix_set(J, k, j, der_select);

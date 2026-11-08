@@ -89,6 +89,7 @@ test_parameters(const unsigned int deriv_order, const unsigned int method_order,
 #include "test_fornberg.c"
 #include "test_gradient.c"
 #include "test_jacobian.c"
+#include "test_vector.c"
 #include "test_old.c"
 
 int
@@ -109,6 +110,9 @@ main ()
   test_deriv_adaptive(tol, test_normal_functions, rng_p);
   test_deriv_adaptive(1.0e3*GSL_DBL_EPSILON, test_poly_functions, rng_p); /* tight tolerance for polynomials */
   test_deriv_adaptive(tol, test_scale_functions, rng_p);
+
+  /* test vector versions against the scalar ones */
+  test_deriv_vector(test_normal_functions, test_scale_functions, rng_p);
 
   /* test error estimates and candidate selection of the adaptive algorithm */
   test_esterr(rng_p);

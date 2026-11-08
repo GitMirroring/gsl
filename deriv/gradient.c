@@ -174,6 +174,11 @@ gsl_deriv_gradient(const gsl_deriv_parameters * params, const gsl_deriv_function
       F.function = grad_func;
       F.params = &grad_params;
 
+      /* outputs for elements which fail */
+      gsl_vector_set_all(result, GSL_NAN);
+      gsl_vector_set_all(esterr, GSL_NAN);
+      gsl_vector_set_all(final_step, GSL_NAN);
+
       for (i = 0; i < n; ++i)
         {
           int status;

@@ -30,18 +30,19 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_deriv_constants.h>
-#include <gsl/gsl_deriv_cand.h>
-#include <gsl/gsl_permutation.h>
+#include "deriv_cand.h"
 #include <gsl/gsl_statistics.h>
-#include <gsl/gsl_sort_vector.h>
 
-static int filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand);
-static int filter_trim(const gsl_vector * der, gsl_deriv_cand_t * cand);
-static int filter_none(const gsl_vector * der, gsl_deriv_cand_t * cand);
+static int filter_mad(const gsl_vector * der, const gsl_vector * err, gsl_deriv_cand_t * cand);
+static int filter_none(const gsl_vector * der, const gsl_vector * err, gsl_deriv_cand_t * cand);
 
 static int select_minerr(const gsl_deriv_cand_t * cand, const gsl_vector * der,
                          const gsl_vector * err, const gsl_vector * steps,
-                         double * der_est, double * err_est, double * step_est);
+                         double * der_est, double * err_est, double * step_est, size_t * idx_est);
+
+/* a candidate is usable only if its estimate and error estimate are finite */
+#define CAND_FINITE(der, err, i) \
+  (gsl_finite(gsl_vector_get((der), (i))) && gsl_finite(gsl_vector_get((err), (i))))
 
 /* candidate filtering methods */
 
@@ -50,17 +51,23 @@ filter_mad()
   Filter derivative candidates based on MAD
 
 Inputs: der  - computed derivative estimates, max length GSL_DERIV_MAX_STEPS
-        cand - (output) structure containing candidates to keep
+        err  - error estimates of der
+        cand - (output) structure containing candidates to keep; none
+               are kept if no candidate is finite
 
 Return: success/error
 */
 
 static int
-filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
+filter_mad(const gsl_vector * der, const gsl_vector * err, gsl_deriv_cand_t * cand)
 {
   if (der->size > GSL_DERIV_MAX_STEPS)
     {
       GSL_ERROR ("der size cannot exceed GSL_DERIV_MAX_STEPS", GSL_EBADLEN);
+    }
+  else if (err->size != der->size)
+    {
+      GSL_ERROR ("err has different size than der", GSL_EBADLEN);
     }
   else
     {
@@ -77,9 +84,8 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
        */
       for (i = 0; i < n; ++i)
         {
-          double di = gsl_vector_get(der, i);
-          if (gsl_finite(di))
-            dfin[nfinite++] = di;
+          if (CAND_FINITE(der, err, i))
+            dfin[nfinite++] = gsl_vector_get(der, i);
         }
 
       cand->nkeep = 0;
@@ -98,64 +104,9 @@ filter_mad(const gsl_vector * der, gsl_deriv_cand_t * cand)
             {
               double di = gsl_vector_get(der, i);
 
-              if (gsl_finite(di) && ((fabs(di - median) <= tol) || (MAD == 0.0)))
+              if (CAND_FINITE(der, err, i) && ((fabs(di - median) <= tol) || (MAD == 0.0)))
                 cand->index[cand->nkeep++] = i;
             }
-        }
-
-      if (cand->nkeep == 0)
-        {
-          GSL_ERROR("no suitable candidates found", GSL_FAILURE);
-        }
-
-      return GSL_SUCCESS;
-    }
-}
-
-/*
-filter_trim()
-  Filter derivative candidates based trimming largest and smallest values
-
-Inputs: der  - computed derivative estimates, max length GSL_DERIV_MAX_STEPS
-        cand - (output) structure containing candidates to keep
-
-Return: success/error
-*/
-
-static int
-filter_trim(const gsl_vector * der, gsl_deriv_cand_t * cand)
-{
-  const size_t n = der->size;
-
-  if (n > GSL_DERIV_MAX_STEPS)
-    {
-      GSL_ERROR ("der size cannot exceed GSL_DERIV_MAX_STEPS", GSL_EBADLEN);
-    }
-  else
-    {
-      const double trim_fraction = 0.15;
-      size_t perm_data[GSL_DERIV_MAX_STEPS];
-      gsl_permutation perm = gsl_permutation_view_array(perm_data, n);
-      size_t ntrim;
-      size_t i;
-
-      /* number of candidates to discard from each end */
-      ntrim = (size_t) (trim_fraction * n + 0.5);
-
-      /* always leave at least one candidate */
-      if (2 * ntrim >= n)
-        ntrim = (n - 1) / 2;
-
-      /* sort only to identify outliers */
-      gsl_sort_vector_index(&perm, der);
-
-      cand->nkeep = 0;
-      for (i = ntrim; i < n - ntrim; ++i)
-        cand->index[cand->nkeep++] = gsl_permutation_get(&perm, i);
-
-      if (cand->nkeep == 0)
-        {
-          GSL_ERROR("no suitable candidates found", GSL_FAILURE);
         }
 
       return GSL_SUCCESS;
@@ -164,22 +115,29 @@ filter_trim(const gsl_vector * der, gsl_deriv_cand_t * cand)
 
 /*
 filter_none()
-  Keep all derivative candidates provided they are finite
+  Keep all derivative candidates whose estimate and error estimate
+are finite
 
 Inputs: der  - computed derivative estimates, max length GSL_DERIV_MAX_STEPS
-        cand - (output) structure containing candidates to keep
+        err  - error estimates of der
+        cand - (output) structure containing candidates to keep; none
+               are kept if no candidate is finite
 
 Return: success/error
 */
 
 static int
-filter_none(const gsl_vector * der, gsl_deriv_cand_t * cand)
+filter_none(const gsl_vector * der, const gsl_vector * err, gsl_deriv_cand_t * cand)
 {
   const size_t n = der->size;
 
   if (n > GSL_DERIV_MAX_STEPS)
     {
       GSL_ERROR ("der size cannot exceed GSL_DERIV_MAX_STEPS", GSL_EBADLEN);
+    }
+  else if (err->size != n)
+    {
+      GSL_ERROR ("err has different size than der", GSL_EBADLEN);
     }
   else
     {
@@ -188,9 +146,7 @@ filter_none(const gsl_vector * der, gsl_deriv_cand_t * cand)
       cand->nkeep = 0;
       for (i = 0; i < n; ++i)
         {
-          double Di = gsl_vector_get(der, i);
-
-          if (gsl_finite(Di))
+          if (CAND_FINITE(der, err, i))
             cand->index[cand->nkeep++] = i;
         }
 
@@ -205,14 +161,6 @@ static const gsl_deriv_cand_filter filter_mad_type =
 };
 
 const gsl_deriv_cand_filter * gsl_deriv_cand_filter_mad = &filter_mad_type;
-
-static const gsl_deriv_cand_filter filter_trim_type =
-{
-  "trim",
-  filter_trim
-};
-
-const gsl_deriv_cand_filter * gsl_deriv_cand_filter_trim = &filter_trim_type;
 
 static const gsl_deriv_cand_filter filter_none_type =
 {
@@ -236,6 +184,7 @@ Inputs: cand      - candidates selected by candidate_filter()
         der_est   - (output) estimate of derivative with lowest error
         err_est   - (output) error estimate
         step_est  - (output) step size corresponding to der_est/err_est
+        idx_est   - (output) index of the selected candidate in der
 
 Return: success/error
 */
@@ -243,13 +192,13 @@ Return: success/error
 static int
 select_minerr(const gsl_deriv_cand_t * cand, const gsl_vector * der,
               const gsl_vector * err, const gsl_vector * steps,
-              double * der_est, double * err_est, double * step_est)
+              double * der_est, double * err_est, double * step_est, size_t * idx_est)
 {
   const size_t n = der->size;
 
   if (cand->nkeep == 0)
     {
-      GSL_ERROR ("no suitable candidates", GSL_EDOM);
+      GSL_ERROR ("no finite derivative estimates, function may be undefined near x", GSL_EDOM);
     }
   else if (err->size != n)
     {
@@ -280,6 +229,7 @@ select_minerr(const gsl_deriv_cand_t * cand, const gsl_vector * der,
       *der_est = gsl_vector_get(der, minidx);
       *err_est = gsl_vector_get(err, minidx);
       *step_est = gsl_vector_get(steps, minidx);
+      *idx_est = minidx;
 
       return GSL_SUCCESS;
     }

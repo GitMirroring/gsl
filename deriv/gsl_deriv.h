@@ -22,7 +22,6 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_deriv_constants.h>
-#include <gsl/gsl_deriv_cand.h>
 #include <gsl/gsl_deriv_jacobian.h>
 #include <gsl/gsl_deriv_params.h>
 #include <gsl/gsl_deriv_stencil.h>
@@ -38,6 +37,19 @@
 #endif
 
 __BEGIN_DECLS
+
+/* derivative candidates kept after filtering */
+typedef struct
+{
+  size_t nkeep;                       /* number of derivative candidates to keep */
+  size_t index[GSL_DERIV_MAX_STEPS];  /* indices of kept candidates */
+} gsl_deriv_cand_t;
+
+/* flags of gsl_deriv_diag: the selected candidate is from the Romberg
+ * window of the largest (smallest) steps, so that the range of steps
+ * may not contain the plateau */
+#define GSL_DERIV_DIAG_LARGEST_STEPS  (1 << 0)
+#define GSL_DERIV_DIAG_SMALLEST_STEPS (1 << 1)
 
 /* diagnostic information for adaptive differentiation */
 typedef struct
@@ -65,6 +77,7 @@ typedef struct
   double der_select;                              /* final selected derivative */
   double err_select;                              /* final selected error */
   double step_select;                             /* final selected step */
+  unsigned int flags;                             /* GSL_DERIV_DIAG_xxx */
 } gsl_deriv_diag;
 
 /* definition of an arbitrary function f: R^n -> R */

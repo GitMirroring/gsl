@@ -52,6 +52,7 @@ gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int 
   params.method_order = method_order;
   params.stencil_type = GSL_DERIV_STENCIL_CENTRAL;
   params.romberg_terms = 2;
+  params.filter = GSL_DERIV_FILTER_NONE;
 
   /* default step range */
   params.step_policy = GSL_DERIV_STEP_ABSOLUTE;
@@ -59,6 +60,8 @@ gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int 
   params.max_step = 1.0e3  * h0;
   params.nstep = 25;
   params.scales = NULL;
+
+  params.flags = 0;
 
   return params;
 }
@@ -241,30 +244,11 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
                      gsl_deriv_diag * diag)
 {
   const size_t n = x->size;
+  int status = adaptive_check(params);
 
-  if (params->deriv_order > GSL_DERIV_MAX_DERIV_ORDER)
+  if (status)
     {
-      GSL_ERROR ("derivative order exceeds GSL_DERIV_MAX_DERIV_ORDER", GSL_EDOM);
-    }
-  else if (params->method_order < 1 || params->method_order > GSL_DERIV_MAX_METHOD_ORDER)
-    {
-      GSL_ERROR ("method order must be in [1,GSL_DERIV_MAX_METHOD_ORDER]", GSL_EDOM);
-    }
-  else if (params->romberg_terms > ROMBERG_MAX_TERMS)
-    {
-      GSL_ERROR ("romberg terms must be <= ROMBERG_MAX_TERMS", GSL_EDOM);
-    }
-  else if (params->max_step <= 0.0)
-    {
-      GSL_ERROR ("max_step must be > 0", GSL_EDOM);
-    }
-  else if (params->min_step <= 0.0)
-    {
-      GSL_ERROR ("min_step must be > 0", GSL_EDOM);
-    }
-  else if (params->nstep < 2)
-    {
-      GSL_ERROR ("nstep must be >= 2", GSL_EDOM);
+      return status;
     }
   else if ((params->step_policy == GSL_DERIV_STEP_USER_SCALE) &&
            ((params->scales == NULL) || (params->scales->size != n)))
@@ -285,8 +269,7 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
     }
   else
     {
-      int status;
-      const gsl_deriv_cand_filter * cfilter = gsl_deriv_cand_filter_none;
+      const gsl_deriv_cand_filter * cfilter;
       const gsl_deriv_cand_select * cselect = gsl_deriv_cand_select_minerr;
       gsl_deriv_diag diag_local;
       gsl_deriv_diag * dptr = (diag == NULL) ? &diag_local : diag;
@@ -296,7 +279,16 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
 
       *neval = 0;
 
+      /* outputs for points which fail */
+      gsl_vector_set_all(result, GSL_NAN);
+      gsl_vector_set_all(esterr, GSL_NAN);
+      gsl_vector_set_all(final_step, GSL_NAN);
+
       dptr->params = *params;
+
+      status = filter_get(params, &cfilter);
+      if (status)
+        return status;
 
       /* initialize stencil and weights */
       status = deriv_init(params, &(dptr->stencil_size), dptr->stencil, dptr->fornberg_weights, &unit_weights);
@@ -326,7 +318,9 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
           gsl_vector_view err_romb = gsl_vector_view_array(dptr->err_romb, dptr->nromb);
           gsl_vector_view step_romb = gsl_vector_view_array(dptr->h, dptr->nromb);
           double scale_i;
-          size_t j;
+          size_t j, isel;
+
+          dptr->flags = 0;
 
           /* get scale factor for steps */
           status = scale_get(params, xi, i, &scale_i);
@@ -367,11 +361,22 @@ gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f
           romb_extrap(&der_init.vector, &err_init.vector, &der_romb.vector, &err_romb.vector, &romb_state);
 
           /* filter out extremely incorrect candidates */
-          (cfilter->filter)(&der_romb.vector, &(dptr->cand));
+          status = (cfilter->filter)(&der_romb.vector, &err_romb.vector, &(dptr->cand));
+          if (status)
+            return status;
 
           /* select final candidate */
-          (cselect->select)(&(dptr->cand), &der_romb.vector, &err_romb.vector,
-                            &step_romb.vector, &(dptr->der_select), &(dptr->err_select), &(dptr->step_select));
+          status = (cselect->select)(&(dptr->cand), &der_romb.vector, &err_romb.vector,
+                                     &step_romb.vector, &(dptr->der_select), &(dptr->err_select),
+                                     &(dptr->step_select), &isel);
+          if (status)
+            return status;
+
+          /* a selection at an end of the step range suggests the plateau may lie outside it */
+          if (isel == 0)
+            dptr->flags |= GSL_DERIV_DIAG_LARGEST_STEPS;
+          if (isel == dptr->nromb - 1)
+            dptr->flags |= GSL_DERIV_DIAG_SMALLEST_STEPS;
 
           gsl_vector_set(result, i, dptr->der_select);
           gsl_vector_set(esterr, i, dptr->err_select);

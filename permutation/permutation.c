@@ -274,14 +274,3 @@ gsl_permutation_memcpy (gsl_permutation * dest,
 
   return GSL_SUCCESS;
 }
-
-gsl_permutation
-gsl_permutation_view_array(size_t * base, const size_t n)
-{
-  gsl_permutation p;
-
-  p.size = n;
-  p.data = base;
-
-  return p;
-}

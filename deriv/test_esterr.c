@@ -38,7 +38,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_deriv.h>
-#include <gsl/gsl_deriv_cand.h>
+#include "deriv_cand.h"
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_test.h>
@@ -193,12 +193,14 @@ static int
 test_esterr_filter_mad(void)
 {
   double der_data[8] = { 1.0, 1.0 + 1.0e-12, GSL_NAN, 1.0 - 1.0e-12, 5.0, GSL_POSINF, 1.0 + 2.0e-12, 1.0 };
+  double err_data[8] = { 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12, 1.0e-12 };
   gsl_vector_view der = gsl_vector_view_array(der_data, 8);
+  gsl_vector_view err = gsl_vector_view_array(err_data, 8);
   gsl_deriv_cand_t cand;
   int status, nonfinite = 0, outlier = 0;
   size_t i;
 
-  status = (gsl_deriv_cand_filter_mad->filter)(&der.vector, &cand);
+  status = (gsl_deriv_cand_filter_mad->filter)(&der.vector, &err.vector, &cand);
   gsl_test(status, "filter_mad status with non-finite candidates");
   /* the 5 finite values near 1 are kept; NaN, +Inf and the outlier 5 are discarded */
   gsl_test(cand.nkeep != 5, "filter_mad nkeep with non-finite candidates (%u observed vs 5 expected)",
@@ -217,6 +219,169 @@ test_esterr_filter_mad(void)
   return GSL_SUCCESS;
 }
 
+static double
+test_sqrt_f(double x, void * params)
+{
+  U(params);
+  return sqrt(x);           /* NaN for x < 0 */
+}
+
+static int
+test_sqrt_vec(const gsl_vector * x, void * params, gsl_vector * f)
+{
+  U(params);
+  gsl_vector_set(f, 0, sqrt(gsl_vector_get(x, 0)));
+  return GSL_SUCCESS;
+}
+
+/* test 4: functions undefined over part of the step range */
+static int
+test_esterr_domain(void)
+{
+  gsl_deriv_parameters params = gsl_deriv_default_parameters(1, 4);
+  gsl_function F = { test_sqrt_f, NULL };
+  gsl_error_handler_t * handler = gsl_set_error_handler_off();
+  double result, abserr, fs;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+  int status;
+
+  /* some central stencils reach x < 0: the remaining candidates must suffice */
+  status = gsl_deriv_adaptive(&params, &F, 0.01, &result, &abserr, &fs, &neval, &diag);
+  gsl_test(status, "sqrt x=0.01 status");
+  gsl_test_rel(result, 5.0, 1.0e-12, "sqrt x=0.01 derivative");
+  gsl_test(fabs(result - 5.0) > abserr, "sqrt x=0.01 error bound (error %.3e, esterr %.3e)",
+           fabs(result - 5.0), abserr);
+  gsl_test(diag.cand.nkeep >= diag.nromb, "sqrt x=0.01 NaN candidates discarded");
+
+  /* all central stencils reach x < 0: no finite candidate */
+  status = gsl_deriv_adaptive(&params, &F, 1.0e-6, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EDOM, "sqrt x=1e-6 status");
+  gsl_test(!gsl_isnan(result) || !gsl_isnan(abserr) || !gsl_isnan(fs), "sqrt x=1e-6 outputs NaN");
+
+  {
+    double x_data[2] = { 0.01, 1.0e-6 }, r_data[2], e_data[2], s_data[2];
+    gsl_vector_view x = gsl_vector_view_array(x_data, 2);
+    gsl_vector_view r = gsl_vector_view_array(r_data, 2);
+    gsl_vector_view e = gsl_vector_view_array(e_data, 2);
+    gsl_vector_view s = gsl_vector_view_array(s_data, 2);
+
+    status = gsl_deriv_adaptive_v(&params, &F, &x.vector, &r.vector, &e.vector, &s.vector, &neval, NULL);
+    gsl_test_int(status, GSL_EDOM, "sqrt adaptive_v status");
+    gsl_test_rel(r_data[0], 5.0, 1.0e-12, "sqrt adaptive_v derivative before the failing point");
+    gsl_test(!gsl_isnan(r_data[1]) || !gsl_isnan(e_data[1]) || !gsl_isnan(s_data[1]),
+             "sqrt adaptive_v outputs NaN at the failing point");
+  }
+
+  {
+    gsl_deriv_vec_function FV = { test_sqrt_vec, 1, 1, NULL };
+    gsl_deriv_jacobian_workspace * w = gsl_deriv_jacobian_alloc(&params, 1, 1);
+    gsl_matrix * J = gsl_matrix_alloc(1, 1);
+    gsl_matrix * E = gsl_matrix_alloc(1, 1);
+    gsl_matrix * S = gsl_matrix_alloc(1, 1);
+    gsl_vector * x = gsl_vector_alloc(1);
+
+    gsl_vector_set(x, 0, 1.0e-6);
+    status = gsl_deriv_jacobian(&FV, x, J, E, S, &neval, w);
+    gsl_test_int(status, GSL_EDOM, "sqrt jacobian status");
+    gsl_test(!gsl_isnan(gsl_matrix_get(J, 0, 0)) || !gsl_isnan(gsl_matrix_get(E, 0, 0)),
+             "sqrt jacobian outputs NaN");
+
+    gsl_deriv_jacobian_free(w);
+    gsl_matrix_free(J);
+    gsl_matrix_free(E);
+    gsl_matrix_free(S);
+    gsl_vector_free(x);
+  }
+
+  gsl_set_error_handler(handler);
+
+  return GSL_SUCCESS;
+}
+
+/* test 5: diag flags for a selection at an end of the step range */
+static int
+test_esterr_flags(void)
+{
+  const double a = 0.0;
+  gsl_function F = { exp_f, (void *) &a };
+  gsl_deriv_parameters params = gsl_deriv_default_parameters(1, 4);
+  double result, abserr, fs;
+  unsigned int neval;
+  gsl_deriv_diag diag;
+
+  /* default range contains the plateau */
+  gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, &diag);
+  gsl_test(diag.flags != 0, "exp flags default range (%u)", diag.flags);
+
+  /* steps far too small: roundoff dominates everywhere, the largest steps are best */
+  params.min_step = 1.0e-10;
+  params.max_step = 1.0e-8;
+  gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, &diag);
+  gsl_test(diag.flags != GSL_DERIV_DIAG_LARGEST_STEPS, "exp flags small steps (%u)", diag.flags);
+
+  /* steps far too large: truncation dominates everywhere, the smallest steps are best */
+  params.min_step = 0.5;
+  params.max_step = 50.0;
+  gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, &diag);
+  gsl_test(diag.flags != GSL_DERIV_DIAG_SMALLEST_STEPS, "exp flags large steps (%u)", diag.flags);
+
+  return GSL_SUCCESS;
+}
+
+/* test 6: invalid parameters */
+static int
+test_esterr_params(void)
+{
+  const double a = 0.0;
+  gsl_function F = { exp_f, (void *) &a };
+  gsl_deriv_parameters params;
+  gsl_error_handler_t * handler = gsl_set_error_handler_off();
+  double result, abserr, fs;
+  unsigned int neval;
+  int status;
+
+  params = gsl_deriv_default_parameters(1, 4);
+  params.flags = 1;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EINVAL, "adaptive nonzero flags");
+  status = gsl_deriv_fixed(&params, &F, 0.0, 1.0e-3, &result, &abserr, &neval);
+  gsl_test_int(status, GSL_EINVAL, "fixed nonzero flags");
+
+  params = gsl_deriv_default_parameters(1, 4);
+  params.filter = (gsl_deriv_filter_t) 99;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EINVAL, "adaptive unknown filter");
+
+  params = gsl_deriv_default_parameters(1, 4);
+  params.nstep = GSL_DERIV_MAX_STEPS + 1;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EDOM, "adaptive nstep > GSL_DERIV_MAX_STEPS");
+  gsl_test(gsl_deriv_jacobian_alloc(&params, 1, 1) != NULL, "jacobian_alloc nstep > GSL_DERIV_MAX_STEPS");
+
+  params = gsl_deriv_default_parameters(1, 4);
+  params.nstep = params.romberg_terms + 1;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EDOM, "adaptive nstep without a Romberg window");
+  gsl_test(gsl_deriv_jacobian_alloc(&params, 1, 1) != NULL, "jacobian_alloc nstep without a Romberg window");
+
+  params = gsl_deriv_default_parameters(1, 4);
+  params.min_step = params.max_step;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test_int(status, GSL_EDOM, "adaptive min_step = max_step");
+
+  /* the largest allowed number of steps works */
+  params = gsl_deriv_default_parameters(1, 4);
+  params.nstep = GSL_DERIV_MAX_STEPS;
+  status = gsl_deriv_adaptive(&params, &F, 0.0, &result, &abserr, &fs, &neval, NULL);
+  gsl_test(status, "adaptive nstep = GSL_DERIV_MAX_STEPS status");
+  gsl_test_rel(result, 1.0, 1.0e-12, "adaptive nstep = GSL_DERIV_MAX_STEPS derivative");
+
+  gsl_set_error_handler(handler);
+
+  return GSL_SUCCESS;
+}
+
 int
 test_esterr(gsl_rng * rng_p)
 {
@@ -224,6 +389,9 @@ test_esterr(gsl_rng * rng_p)
   test_esterr_bound(20.0, test_poly_functions, rng_p);
   test_esterr_noise(rng_p);
   test_esterr_filter_mad();
+  test_esterr_domain();
+  test_esterr_flags();
+  test_esterr_params();
 
   return GSL_SUCCESS;
 }

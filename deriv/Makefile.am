@@ -23,7 +23,6 @@ test_LDADD =  libgslderiv.la ../linalg/libgsllinalg.la ../blas/libgslblas.la ../
 
 pkginclude_HEADERS =    \
   gsl_deriv.h           \
-  gsl_deriv_cand.h      \
   gsl_deriv_constants.h \
   gsl_deriv_jacobian.h  \
   gsl_deriv_params.h    \
@@ -31,6 +30,7 @@ pkginclude_HEADERS =    \
   gsl_deriv_step.h
 
 noinst_HEADERS =     \
+  deriv_cand.h       \
   deriv_common.c     \
   test_adaptive.c    \
   test_d.c           \
@@ -43,4 +43,5 @@ noinst_HEADERS =     \
   test_gradient.c    \
   test_j.c           \
   test_jacobian.c    \
-  test_old.c
+  test_old.c         \
+  test_vector.c

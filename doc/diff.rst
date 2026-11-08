@@ -174,11 +174,13 @@ specific differentiation problem.
        unsigned int method_order;           /* method order */
        gsl_deriv_stencil_t stencil_type;    /* stencil type */
        unsigned int romberg_terms;          /* number of truncation terms in Romberg fit */
+       gsl_deriv_filter_t filter;           /* candidate filter */
        gsl_deriv_step_policy_t step_policy; /* step policy */
        double min_step;                     /* minimum step size */
        double max_step;                     /* maximum step size */
        size_t nstep;                        /* number of step sizes */
        const gsl_vector * scales;           /* user-supplied scales, same length as x */
+       unsigned int flags;                  /* reserved, must be 0 */
      } gsl_deriv_parameters;
 
    The parameter :data:`romberg_terms` specifies the number of truncation-error
@@ -210,6 +212,20 @@ specific differentiation problem.
 
    .. math:: N_{\mathrm{cand}} = N_{\mathrm{step}} - r - 1
 
+   so that :data:`nstep` must be at least :math:`r + 2`; it can be at most
+   :macro:`GSL_DERIV_MAX_STEPS` (100). The step sizes form a geometric sequence
+   from :data:`max_step` down to :data:`min_step`, which must be smaller.
+
+   The parameter :data:`filter` selects how the Romberg candidates are screened
+   before the one with the smallest error estimate is selected. Currently the only
+   choice is
+
+   .. macro:: GSL_DERIV_FILTER_NONE
+
+      Keep every candidate whose derivative estimate and error estimate are finite.
+
+   The parameter :data:`flags` is reserved for future extensions and must be 0.
+
 .. function:: gsl_deriv_parameters gsl_deriv_default_parameters(const unsigned int deriv_order, const unsigned int method_order)
 
    This function returns default parameters given the
@@ -227,6 +243,8 @@ specific differentiation problem.
    max_step      :math:`10^3 h_{\mathrm{opt}}`
    nstep         :math:`25`
    scales        :code:`NULL`
+   filter        :macro:`GSL_DERIV_FILTER_NONE`
+   flags         :math:`0`
    ============= ==================================
 
 Providing Functions for Differentiation
@@ -341,6 +359,13 @@ These functions use the adaptive algorithm described above
 to select a finite-difference step size and compute the
 derivative estimate and associated absolute error.
 
+A function which is undefined at some of the points evaluated by the larger
+step sizes (for example :math:`\sqrt{x}` near :math:`x = 0` with a central
+stencil) may return NaN there: the corresponding candidates are discarded. If
+no candidate with a finite derivative and error estimate remains, the functions
+return :macro:`GSL_EDOM` and set the outputs for the point concerned (and the
+points not yet computed) to NaN.
+
 .. function:: int gsl_deriv_adaptive(const gsl_deriv_parameters * params, const gsl_function * f, const double x, double * result, double * esterr, double * final_step, unsigned int * neval, gsl_deriv_diag * diag)
               int gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function * f, const gsl_vector * x, gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval, gsl_deriv_diag * diag)
 
@@ -439,7 +464,22 @@ and roundoff error dominate. Its fields are
    :code:`der_select`              selected derivative
    :code:`err_select`              error estimate of the selected derivative
    :code:`step_select`             step size of the selected derivative
+   :code:`flags`                   :macro:`GSL_DERIV_DIAG_LARGEST_STEPS` and
+                                   :macro:`GSL_DERIV_DIAG_SMALLEST_STEPS`, see below
    =============================== ====================================================================
+
+The bits of :code:`flags` indicate that the selected candidate lies at an end of
+the range of step sizes, in which case the range may not contain the plateau and
+the result and its error estimate should be checked, for example by repeating the
+calculation with a different range or with :macro:`GSL_DERIV_STEP_USER_SCALE`:
+
+.. macro:: GSL_DERIV_DIAG_LARGEST_STEPS
+
+   The selected candidate is from the Romberg window of the largest step sizes.
+
+.. macro:: GSL_DERIV_DIAG_SMALLEST_STEPS
+
+   The selected candidate is from the Romberg window of the smallest step sizes.
 
 An example program which prints this structure in a format suitable for
 :code:`gnuplot` is provided in the :ref:`sec_examples-diag` section below.

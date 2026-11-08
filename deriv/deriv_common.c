@@ -22,6 +22,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_deriv.h>
+#include "deriv_cand.h"
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
@@ -52,6 +53,8 @@ static int romb_init(const gsl_deriv_parameters * params, const double step_rati
 static int romb_extrap(const gsl_vector * der_init, const gsl_vector * err_init, gsl_vector * der_romb,
                        gsl_vector * errest, romb_state_t * state);
 static int scale_get(const gsl_deriv_parameters * params, const double x, const size_t idx, double * scale);
+static int filter_get(const gsl_deriv_parameters * params, const gsl_deriv_cand_filter ** filter);
+static int adaptive_check(const gsl_deriv_parameters * params);
 
 /*
 geometric_fill()
@@ -99,6 +102,11 @@ deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double st
 {
   int status;
   gsl_matrix_view A;
+
+  if (params->flags != 0)
+    {
+      GSL_ERROR("flags are reserved and must be 0", GSL_EINVAL);
+    }
 
   /* calculate stencil size */
   gsl_deriv_stencil_size(params->deriv_order, params->method_order, params->stencil_type, stencil_size);
@@ -408,6 +416,79 @@ scale_get(const gsl_deriv_parameters * params, const double x, const size_t idx,
   else
     {
       *scale = 1.0; /* absolute step policy */
+    }
+
+  return GSL_SUCCESS;
+}
+
+/*
+filter_get()
+  Candidate filter selected by params->filter
+
+Inputs: params - deriv parameters
+        filter - (output) candidate filter
+
+Return: success/error
+*/
+
+static int
+filter_get(const gsl_deriv_parameters * params, const gsl_deriv_cand_filter ** filter)
+{
+  switch (params->filter)
+    {
+      case GSL_DERIV_FILTER_NONE:
+        *filter = gsl_deriv_cand_filter_none;
+        return GSL_SUCCESS;
+
+      default:
+        GSL_ERROR("unknown candidate filter", GSL_EINVAL);
+    }
+}
+
+/*
+adaptive_check()
+  Check the parameters of the adaptive algorithm
+
+Inputs: params - deriv parameters
+
+Return: success/error
+*/
+
+static int
+adaptive_check(const gsl_deriv_parameters * params)
+{
+  if (params->deriv_order > GSL_DERIV_MAX_DERIV_ORDER)
+    {
+      GSL_ERROR ("derivative order exceeds GSL_DERIV_MAX_DERIV_ORDER", GSL_EDOM);
+    }
+  else if (params->method_order < 1 || params->method_order > GSL_DERIV_MAX_METHOD_ORDER)
+    {
+      GSL_ERROR ("method order must be in [1,GSL_DERIV_MAX_METHOD_ORDER]", GSL_EDOM);
+    }
+  else if (params->romberg_terms > ROMBERG_MAX_TERMS)
+    {
+      GSL_ERROR ("romberg terms must be <= ROMBERG_MAX_TERMS", GSL_EDOM);
+    }
+  else if (params->max_step <= 0.0)
+    {
+      GSL_ERROR ("max_step must be > 0", GSL_EDOM);
+    }
+  else if (params->min_step <= 0.0)
+    {
+      GSL_ERROR ("min_step must be > 0", GSL_EDOM);
+    }
+  else if (params->min_step >= params->max_step)
+    {
+      GSL_ERROR ("min_step must be < max_step", GSL_EDOM);
+    }
+  else if (params->nstep < params->romberg_terms + 2)
+    {
+      /* at least one Romberg window */
+      GSL_ERROR ("nstep must be >= romberg_terms + 2", GSL_EDOM);
+    }
+  else if (params->nstep > GSL_DERIV_MAX_STEPS)
+    {
+      GSL_ERROR ("nstep exceeds GSL_DERIV_MAX_STEPS", GSL_EDOM);
     }
 
   return GSL_SUCCESS;
