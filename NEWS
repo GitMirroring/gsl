@@ -46,6 +46,8 @@
 ** fix for bug #67446 (multilarge_nlinear test failures;
    reported by D. Jerius)
 
+** fix for bug #59834 (gsl_movstat misalignment; reported by Z. Fu)
+
 ** fix for bug #44612 (reported by D. Zaslavsky)
 
 ** fix for bug #67447 (spmatrix complex_float test failures;

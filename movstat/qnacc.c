@@ -48,8 +48,9 @@ qnacc_size(const size_t n)
   size += sizeof(qnacc_state_t);
   size += n * sizeof(qnacc_type_t);     /* window */
   size += 3 * n * sizeof(qnacc_type_t); /* work */
-  size += 5 * n * sizeof(int);          /* work_int */
   size += ringbuf_size(n);
+  size += 5 * n * sizeof(int);          /* work_int, last: an odd number of ints
+                                           would misalign a following block */
 
   return size;
 }
@@ -61,8 +62,8 @@ qnacc_init(const size_t n, void * vstate)
 
   state->window = (qnacc_type_t *) ((unsigned char *) vstate + sizeof(qnacc_state_t));
   state->work = (qnacc_type_t *) ((unsigned char *) state->window + n * sizeof(qnacc_type_t));
-  state->work_int = (int *) ((unsigned char *) state->work + 3 * n * sizeof(qnacc_type_t));
-  state->rbuf = (ringbuf *) ((unsigned char *) state->work_int + 5 * n * sizeof(int));
+  state->rbuf = (ringbuf *) ((unsigned char *) state->work + 3 * n * sizeof(qnacc_type_t));
+  state->work_int = (int *) ((unsigned char *) state->rbuf + ringbuf_size(n));
 
   ringbuf_init(n, state->rbuf);
 

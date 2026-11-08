@@ -21,6 +21,18 @@
 
 typedef int deque_type_t;
 
+/* the size of a deque is rounded up to a multiple of the size of this union,
+   so that a block placed after it in a workspace (another deque, a struct
+   with pointers, or doubles) is correctly aligned: an odd number of ints
+   would otherwise leave it misaligned, which traps on strict-alignment
+   platforms such as SPARC */
+typedef union
+{
+  double d;
+  long l;
+  void * p;
+} deque_align_t;
+
 typedef struct
 {
   int head;
@@ -48,6 +60,9 @@ deque_size(const size_t n)
 
   size += sizeof(deque);
   size += n * sizeof(deque_type_t); /* array */
+
+  /* round up to the alignment of the next block */
+  size = (size + sizeof(deque_align_t) - 1) / sizeof(deque_align_t) * sizeof(deque_align_t);
 
   return size;
 }
