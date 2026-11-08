@@ -110,12 +110,9 @@ application (see :ref:`portability-functions`).
 
    This function computes the value of :math:`\log(1+x)` in a way that is
    accurate for small :data:`x`. It provides an alternative to the BSD math
-   function :code:`log1p(x)`. It returns the same value as
-   :func:`gsl_sf_log1p`, without calling the error handler (:math:`x < -1`
-   gives NaN).
-
-   This function is deprecated and will be removed in a future release;
-   use :func:`gsl_sf_log1p`.
+   function :code:`log1p(x)`. It does not call the error handler
+   (:math:`x = -1` gives :math:`-\infty` and :math:`x < -1` gives NaN).
+   For a result with an error estimate, use :func:`gsl_sf_log1p_e`.
 
 .. index::
    single: expm1

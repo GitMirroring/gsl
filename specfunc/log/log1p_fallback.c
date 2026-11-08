@@ -25,7 +25,7 @@
 
 #define LOG1P_SMALL  1.86264514923095703125e-9   /* 2^-29 */
 
-/* C89 fallback for log(1+x). The caller must ensure x > -1 */
+/* C89 fallback for log(1+x). The caller must ensure x > -1 and x finite */
 static int
 log1p_fallback(const double x, gsl_sf_result * result)
 {

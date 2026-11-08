@@ -40,7 +40,8 @@
  * portable C89 fallback, which compensates for the rounding error in
  * forming 1+x.
  *
- * The function returns -Inf at x = -1 and a domain error for x < -1.
+ * The function returns -Inf at x = -1, +Inf at x = +Inf and a domain
+ * error for x < -1.
  */
 int
 gsl_sf_log1p_e(const double x, gsl_sf_result * result)
@@ -52,6 +53,13 @@ gsl_sf_log1p_e(const double x, gsl_sf_result * result)
   else if (x == -1.0)
     {
       result->val = GSL_NEGINF;
+      result->err = 0.0;
+      return GSL_SUCCESS;
+    }
+  else if (x > GSL_DBL_MAX)
+    {
+      /* log1p(+Inf) = +Inf, as in C99; the fallback would give NaN */
+      result->val = x;
       result->err = 0.0;
       return GSL_SUCCESS;
     }
@@ -69,20 +77,3 @@ gsl_sf_log1p_e(const double x, gsl_sf_result * result)
 
 double gsl_sf_log1p(const double x) { EVAL_RESULT(gsl_sf_log1p_e(x, &result)); }
 
-/*
- * gsl_log1p (gsl_sys.h): same value as gsl_sf_log1p(), but like the
- * original gsl_log1p it does not call the error handler; x < -1 gives
- * NaN.
- */
-double
-gsl_log1p(const double x)
-{
-  gsl_sf_result result;
-
-  if (x < -1.0)
-    return GSL_NAN;
-
-  gsl_sf_log1p_e(x, &result);
-
-  return result.val;
-}
