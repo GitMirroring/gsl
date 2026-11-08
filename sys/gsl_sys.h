@@ -32,8 +32,11 @@
 
 __BEGIN_DECLS
 
+#ifndef GSL_DISABLE_DEPRECATED
+/* deprecated: use gsl_sf_log1p() and gsl_sf_expm1() (gsl_sf_log.h, gsl_sf_exp.h) */
 double gsl_log1p (const double x);
 double gsl_expm1 (const double x);
+#endif /* !GSL_DISABLE_DEPRECATED */
 
 double gsl_hypot (const double x, const double y);
 double gsl_hypot3 (const double x, const double y, const double z);

@@ -114,6 +114,9 @@ application (see :ref:`portability-functions`).
    :func:`gsl_sf_log1p`, without calling the error handler (:math:`x < -1`
    gives NaN).
 
+   This function is deprecated and will be removed in a future release;
+   use :func:`gsl_sf_log1p`.
+
 .. index::
    single: expm1
    single: exponential, difference from 1 computed accurately
@@ -125,6 +128,9 @@ application (see :ref:`portability-functions`).
    function :code:`expm1(x)`. It returns the same value as
    :func:`gsl_sf_expm1`, without calling the error handler (overflow
    gives :math:`+\infty`).
+
+   This function is deprecated and will be removed in a future release;
+   use :func:`gsl_sf_expm1`.
 
 .. index::
    single: hypot

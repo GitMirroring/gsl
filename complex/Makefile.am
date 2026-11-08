@@ -11,7 +11,7 @@ TESTS = $(check_PROGRAMS)
 check_PROGRAMS = test test_c11
 
 test_SOURCES = test.c results.h results1.h results2.h results_real.h results_zreal.h
-test_LDADD = libgslcomplex.la ../vector/libgslvector.la ../block/libgslblock.la ../err/libgslerr.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la  ../utils/libutils.la
+test_LDADD = libgslcomplex.la ../specfunc/libgslspecfunc.la ../vector/libgslvector.la ../block/libgslblock.la ../err/libgslerr.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la  ../utils/libutils.la
 
 test_c11_SOURCES = $(test_SOURCES)
 test_c11_CFLAGS = -DTEST_C11

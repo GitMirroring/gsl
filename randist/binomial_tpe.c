@@ -23,7 +23,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_sf_gamma.h>
-#include <gsl/gsl_sf_log.h>     /* declares gsl_sf_log1p where gsl_log1p maps to it */
+#include <gsl/gsl_sf_log.h>
 
 /* The binomial distribution has the form,
 
@@ -120,7 +120,7 @@ gsl_ran_binomial (const gsl_rng * rng, double p, unsigned int n)
     {
       /* f(x), starting with x=0: f0 = (1-p)^n.  Not pow(q, n): the rounding
          of q = 1-p is amplified n times (2e-7 relative for n = 4e9) */
-      double f0 = exp (n * gsl_log1p (-p));
+      double f0 = exp (n * gsl_sf_log1p (-p));
 
       while (1)
         {

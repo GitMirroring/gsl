@@ -46,6 +46,9 @@
 ** fix for bug #67446 (multilarge_nlinear test failures;
    reported by D. Jerius)
 
+** gsl_log1p and gsl_expm1 are deprecated: use gsl_sf_log1p and
+   gsl_sf_expm1
+
 ** fix for bug #59834 (gsl_movstat misalignment; reported by Z. Fu)
 
 ** fix for bug #44612 (reported by D. Zaslavsky)

@@ -9,4 +9,4 @@ AM_CPPFLAGS = -I$(top_srcdir)
 check_PROGRAMS = test
 TESTS = $(check_PROGRAMS)
 test_SOURCES = test.c
-test_LDADD = libgslsys.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la libgslsys.la ../utils/libutils.la
+test_LDADD = libgslsys.la ../specfunc/libgslspecfunc.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la libgslsys.la ../utils/libutils.la

@@ -21,6 +21,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_machine.h>
+#include <gsl/gsl_sf_log.h>
 
 double
 gsl_acosh (const double x)
@@ -36,7 +37,7 @@ gsl_acosh (const double x)
   else if (x > 1)
     {
       double t = x - 1;
-      return log1p (t + sqrt (2 * t + t * t));
+      return gsl_sf_log1p (t + sqrt (2 * t + t * t));
     }
   else if (x == 1)
     {
@@ -65,7 +66,7 @@ gsl_asinh (const double x)
   else if (a > GSL_SQRT_DBL_EPSILON)
     {
       double a2 = a * a;
-      return s * log1p (a + a2 / (1 + sqrt (1 + a2)));
+      return s * gsl_sf_log1p (a + a2 / (1 + sqrt (1 + a2)));
     }
   else
     {
@@ -89,11 +90,11 @@ gsl_atanh (const double x)
     }
   else if (a >= 0.5)
     {
-      return s * 0.5 * log1p (2 * a / (1 - a));
+      return s * 0.5 * gsl_sf_log1p (2 * a / (1 - a));
     }
   else if (a > GSL_DBL_EPSILON)
     {
-      return s * 0.5 * log1p (2 * a + 2 * a * a / (1 - a));
+      return s * 0.5 * gsl_sf_log1p (2 * a + 2 * a * a / (1 - a));
     }
   else
     {

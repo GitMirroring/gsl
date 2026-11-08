@@ -46,6 +46,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
+#include <gsl/gsl_sf_log.h>
 
 /**********************************************************************
  * Complex numbers
@@ -112,7 +113,7 @@ gsl_complex_logabs (gsl_complex z)
 
   /* Handle underflow when u is close to 0 */
 
-  return log (max) + 0.5 * log1p (u * u);
+  return log (max) + 0.5 * gsl_sf_log1p (u * u);
 }
 
 
@@ -578,7 +579,7 @@ gsl_complex_arcsin (gsl_complex a)
               Am1 = 0.5 * (y2 / (r + (x + 1)) + (s + (x - 1)));
             }
 
-          imag = log1p (Am1 + sqrt (Am1 * (A + 1)));
+          imag = gsl_sf_log1p (Am1 + sqrt (Am1 * (A + 1)));
         }
       else
         {
@@ -669,7 +670,7 @@ gsl_complex_arccos (gsl_complex a)
               Am1 = 0.5 * (y2 / (r + (x + 1)) + (s + (x - 1)));
             }
 
-          imag = log1p (Am1 + sqrt (Am1 * (A + 1)));
+          imag = gsl_sf_log1p (Am1 + sqrt (Am1 * (A + 1)));
         }
       else
         {
@@ -733,7 +734,7 @@ gsl_complex_arctan (gsl_complex a)
 
       if (fabs (u) < 0.1)
         {
-          imag = 0.25 * (log1p (u) - log1p (-u));
+          imag = 0.25 * (gsl_sf_log1p (u) - gsl_sf_log1p (-u));
         }
       else
         {
