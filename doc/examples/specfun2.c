@@ -16,7 +16,7 @@ main(void)
   double x;
 
   /* spherical harmonic normalization, without the Condon-Shortley phase */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SPHARM, lmax, lmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_ORTHO_COMPLEX, lmax, lmax, 0, Plm);
 
   for (x = -0.99; x <= 0.99; x += 0.01)
     {

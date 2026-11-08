@@ -26,135 +26,87 @@ where the degree :math:`l` and order :math:`m` satisfy :math:`0 \le l` and
 :math:`0 \le m \le l`.
 The functions :math:`P_l^m(x)` grow combinatorially with
 :math:`l` and can overflow in double precision for :math:`l` larger than about 150.
-Alternatively, one may calculate normalized associated Legendre
-polynomials. There are a number of different normalization conventions,
-and these functions can be computed stably to high degree and order. The
-following normalizations are provided:
+The routines below therefore compute normalized associated Legendre functions
 
-* **Schmidt semi-normalization**
+.. math:: \bar{P}_l^m(x) = K_l^m P_l^m(x)
 
-  Schmidt semi-normalized associated Legendre polynomials are often
-  used in the geophysical community and are defined as (Winch et al, 2005)
+where :math:`P_l^m(x)` is defined without the Condon-Shortley phase factor
+:math:`(-1)^m`; the factor can be included by setting the flag
+:macro:`GSL_SF_ALF_FLG_CSPHASE` in :func:`gsl_sf_alf_precompute`.
 
-  .. only:: not texinfo
+The normalizations are those used in spherical harmonic expansions, either
+with complex spherical harmonics
 
-     .. math::
+.. math:: \bar{P}_l^m(\cos{\theta}) e^{i m \phi}
 
-        S_l^0(x) &= P_l^0(x) \\
-        S_l^m(x) &= (-1)^m \sqrt{2 {(l-m)! \over (l+m)!}} P_l^m(x), m > 0 
+or with real spherical harmonics
 
-  .. only:: texinfo
+.. math:: \bar{P}_l^m(\cos{\theta}) \cos{m \phi}, \quad \bar{P}_l^m(\cos{\theta}) \sin{m \phi}
 
-     ::
+The two require different factors for :math:`m > 0`: the integral of
+:math:`\cos^2{m \phi}` or :math:`\sin^2{m \phi}` over :math:`[0, 2\pi]` is
+:math:`\pi` for :math:`m > 0`, but the integral of :math:`|e^{i m \phi}|^2` is
+:math:`2 \pi` (and for :math:`m = 0` there is the single real function, with
+integral :math:`2 \pi`). Equivalently, :math:`\cos{m\phi}` and
+:math:`\sin{m\phi}` combine the complex functions of orders :math:`m` and
+:math:`-m`. Normalizations for real spherical harmonics therefore contain the
+factor
 
-        S_l^0(x) = P_l^0(x)
-        S_l^m(x) = (-1)^m \sqrt((2(l-m)! / (l+m)!)) P_l^m(x), m > 0 
+.. math:: c_m = 2 - \delta_{m0}
 
-  The factor of :math:`(-1)^m` is called the Condon-Shortley phase
-  factor and can be included if desired by setting the flag
-  :macro:`GSL_SF_ALF_FLG_CSPHASE` in the function :func:`gsl_sf_alf_precompute`
-  below. These functions satisfy the normalization condition,
+under the square root, which is :math:`c_m = 1` for complex spherical harmonics.
+In the functions below, a parameter of type :type:`gsl_sf_alf_t` specifies the
+normalization:
 
-  .. only:: not texinfo
+.. type:: gsl_sf_alf_t
 
-     .. math::
+   .. list-table::
+      :header-rows: 1
 
-        \int_{-1}^1 S_k^m(x) S_l^m(x) dx =
-        \left\{
-          \begin{array}{ll}
-            \frac{2}{2l+1} \delta_{kl}, & m = 0 \\
-            \frac{4}{2l+1} \delta_{kl}, & m > 0
-          \end{array}
-        \right.
+      * - Value
+        - :math:`K_l^m`
+        - :math:`\int_{-1}^1 \bar{P}_k^m(x) \bar{P}_l^m(x) dx`
+      * - :code:`GSL_SF_ALF_SCHMIDT_REAL`
+        - :math:`\sqrt{c_m \frac{(l-m)!}{(l+m)!}}`, :math:`c_m = 2 - \delta_{m0}`
+        - :math:`\frac{2 c_m}{2l+1} \delta_{kl}`
+      * - :code:`GSL_SF_ALF_SCHMIDT_COMPLEX`
+        - :math:`\sqrt{\frac{(l-m)!}{(l+m)!}}`
+        - :math:`\frac{2}{2l+1} \delta_{kl}`
+      * - :code:`GSL_SF_ALF_FOURPI_REAL`
+        - :math:`\sqrt{c_m (2l+1) \frac{(l-m)!}{(l+m)!}}`, :math:`c_m = 2 - \delta_{m0}`
+        - :math:`2 c_m \delta_{kl}`
+      * - :code:`GSL_SF_ALF_FOURPI_COMPLEX`
+        - :math:`\sqrt{(2l+1) \frac{(l-m)!}{(l+m)!}}`
+        - :math:`2 \delta_{kl}`
+      * - :code:`GSL_SF_ALF_ORTHO_REAL`
+        - :math:`\sqrt{c_m \frac{2l+1}{4\pi} \frac{(l-m)!}{(l+m)!}}`, :math:`c_m = 2 - \delta_{m0}`
+        - :math:`\frac{c_m}{2\pi} \delta_{kl}`
+      * - :code:`GSL_SF_ALF_ORTHO_COMPLEX`
+        - :math:`\sqrt{\frac{2l+1}{4\pi} \frac{(l-m)!}{(l+m)!}}`
+        - :math:`\frac{1}{2\pi} \delta_{kl}`
+      * - :code:`GSL_SF_ALF_FULL`
+        - :math:`\sqrt{(l + \frac{1}{2}) \frac{(l-m)!}{(l+m)!}}`
+        - :math:`\delta_{kl}`
+      * - :code:`GSL_SF_ALF_NONE`
+        - :math:`1`
+        - :math:`\frac{2}{2l+1} \frac{(l+m)!}{(l-m)!} \delta_{kl}`
 
-  .. only:: texinfo
+With the factor :math:`\pi c_m` from the integral over :math:`\phi` for real,
+and :math:`2 \pi` for complex spherical harmonics, the spherical harmonics have
+the following squared norms over the unit sphere, independent of :math:`m`:
 
-     ::
+* :code:`GSL_SF_ALF_SCHMIDT_REAL`, :code:`GSL_SF_ALF_SCHMIDT_COMPLEX`:
+  :math:`4 \pi / (2l+1)` (Schmidt semi-normalization, common in geomagnetism)
 
-        \int_{-1}^1 S_k^m(x) S_l^m(x) dx = { 2/(2l+1) \delta_{kl}, m = 0
-                                           { 4/(2l+1) \delta_{kl}, m > 0
+* :code:`GSL_SF_ALF_FOURPI_REAL`, :code:`GSL_SF_ALF_FOURPI_COMPLEX`:
+  :math:`4 \pi` (:math:`4 \pi` normalization, common in geodesy; see
+  Hofmann-Wellenhof and Moritz, 2006)
 
-* **Spherical Harmonic Normalization**
+* :code:`GSL_SF_ALF_ORTHO_REAL`, :code:`GSL_SF_ALF_ORTHO_COMPLEX`:
+  :math:`1` (orthonormal spherical harmonics)
 
-  The associated Legendre polynomials suitable for calculating spherical
-  harmonics are defined as
-
-  .. only:: not texinfo
-
-     .. math:: Y_l^m(x) = (-1)^m \sqrt{{2l + 1 \over 4 \pi} {(l-m)! \over (l+m)!}} P_l^m(x)
-
-  .. only:: texinfo
-
-     ::
-
-        Y_l^m(x) = (-1)^m \sqrt((2l + 1) * (l-m)! / (4 \pi) / (l+m)!) P_l^m(x)
-
-  where again the phase factor :math:`(-1)^m` can be included or excluded
-  if desired. These functions satisfy the normalization condition,
-
-  .. only:: not texinfo
-
-     .. math::
-
-        \int_{-1}^1 Y_k^m(x) Y_l^m(x) dx = \frac{\delta_{kl}}{2\pi}
-
-  .. only:: texinfo
-
-     ::
-
-        \int_{-1}^1 Y_k^m(x) Y_l^m(x) dx = \delta_{kl} / (2 \pi)
-
-  Note that these functions, when coupled with the factor
-  :math:`e^{i m \phi}` produce the orthonormalized complex spherical
-  harmonics.
-
-* **Full Normalization**
-
-  The fully normalized associated Legendre polynomials are defined as
-
-  .. only:: not texinfo
-
-     .. math:: N_l^m(x) = (-1)^m \sqrt{(l + {1 \over 2}) {(l-m)! \over (l+m)!}} P_l^m(x)
-
-  .. only:: texinfo
-  
-     ::
-     
-        N_l^m(x) = (-1)^m \sqrt((l + 1/2) (l-m)! / (l+m)!) P_l^m(x)
-
-  and satisfy the normalization condition,
-
-  .. math:: \int_{-1}^1 N_k^m(x) N_l^m(x) dx = \delta_{kl}
-
-* :math:`4 \pi` **Normalization**
-
-  The :math:`4 \pi` normalized associated Legendre polynomials are often used in geodesy and are defined as
-
-  .. only:: not texinfo
-
-     .. math:: R_l^m(x) = (-1)^m \sqrt{(2 - \delta_{m0}) (2 l + 1) {(l-m)! \over (l+m)!}} P_l^m(x)
-
-  .. only:: texinfo
-  
-     ::
-     
-        R_l^m(x) = (-1)^m \sqrt((2 - \delta_{m0}) (2 l + 1) (l-m)! / (l+m)!) P_l^m(x)
-
-  These functions satisfy the normalization condition,
-
-  .. only:: not texinfo
-
-     .. math:: \int_{-1}^1 R_k^m(x) R_l^m(x) dx = 2 \left( 2 - \delta_{m0} \right) \delta_{kl}
-
-  .. only:: texinfo
-
-     ::
-
-        \int_{-1}^1 R_k^m(x) R_l^m(x) dx = 2 (2 - \delta_{m0}) \delta_{kl}
-
-  When used in the definition of real spherical harmonics, they satisfy a
-  :math:`4\pi` normalization condition when integrated over the unit sphere.
-  More information on these functions can be found in Hofmann-Wellenhof and Moritz, 2006.
+:code:`GSL_SF_ALF_FULL` gives functions which are orthonormal on :math:`[-1,1]`,
+and :code:`GSL_SF_ALF_NONE` the unnormalized functions :math:`P_l^m(x)`.
 
 The normalized associated Legendre routines below use the recurrence
 relations of Holmes and Featherstone (2002). The sectoral terms
@@ -172,21 +124,6 @@ scaling relationship between the two forms, the derivatives
 involving :math:`\theta` are heavily used in spherical harmonic
 expansions, and also do not suffer from singularities at the poles,
 :math:`x = \pm 1`, and so these routines are also provided.
-
-In the functions below, a parameter of type :type:`gsl_sf_alf_t`
-specifies the type of normalization to use. The possible values are
-
-.. type:: gsl_sf_alf_t
-
-   ============================= ===============================================================================
-   Value                         Description
-   ============================= ===============================================================================
-   :code:`GSL_SF_ALF_NONE`       The unnormalized associated Legendre polynomials :math:`P_l^m(x)`
-   :code:`GSL_SF_ALF_SCHMIDT`    The Schmidt semi-normalized associated Legendre polynomials :math:`S_l^m(x)`
-   :code:`GSL_SF_ALF_SPHARM`     The spherical harmonic associated Legendre polynomials :math:`Y_l^m(x)`
-   :code:`GSL_SF_ALF_FULL`       The fully normalized associated Legendre polynomials :math:`N_l^m(x)`
-   :code:`GSL_SF_ALF_FOURPI`     The :math:`4\pi` normalized associated Legendre polynomials :math:`R_l^m(x)`
-   ============================= ===============================================================================
 
 The routines below which return an array of ALFs organize the outputs into blocks
 of the same order :math:`m`.  This scheme uses the following indexing function to

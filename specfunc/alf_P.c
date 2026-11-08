@@ -98,6 +98,11 @@
 #define ALF_HDR_P00    6                /* P(0,0) */
 #define ALF_MAGIC      1196640321.0     /* "GSLA" */
 
+/* degree scaling of a normalization (see gsl_sf_alf_precompute) */
+#define ALF_FAM_SCHMIDT 0
+#define ALF_FAM_2LP1    1
+#define ALF_FAM_NONE    2
+
 /*
 alf_header()
   Header of an array initialized by gsl_sf_alf_precompute() for lmax, mmax
@@ -760,6 +765,8 @@ gsl_sf_alf_precompute(const gsl_sf_alf_t norm, const size_t lmax,
       double * el = dl + lmax + 1;
       double * flm = el + lmax + 1;
       size_t l, m, k;
+      int family, real;    /* degree scaling, real spherical harmonics */
+      double p00;          /* P(0,0) */
 
       for (k = 0; k < ALF_HDR_SIZE; ++k)
         hdr[k] = 0.0;
@@ -776,314 +783,152 @@ gsl_sf_alf_precompute(const gsl_sf_alf_t norm, const size_t lmax,
       dl[0] = 0.0;
       el[0] = 0.0;
 
-      if (norm == GSL_SF_ALF_SCHMIDT)
+      /*
+       * A normalization is given by its degree scaling (family), whether it is
+       * for real spherical harmonics (c_m = 2 - delta_{m0}, see gsl_sf_alf.h)
+       * and P(0,0):
+       *
+       *   ALF_FAM_SCHMIDT  K = sqrt(c_m (l-m)!/(l+m)!)
+       *   ALF_FAM_2LP1     K = s sqrt(c_m (2l+1) (l-m)!/(l+m)!), s constant
+       *   ALF_FAM_NONE     K = 1
+       *
+       * The real variants differ from the complex ones by sqrt(2) for all
+       * m > 0, which enters only through the seed P(1,1) (all P(m,m), m > 0,
+       * follow from it) and the factors coupling orders 0 and 1 in the theta
+       * derivatives (el, and flm for m = 1).
+       */
+
+      switch (norm)
         {
-          hdr[ALF_HDR_P00] = 1.0; /* S(0,0) */
-          cl[0] = 1.0;
+          case GSL_SF_ALF_SCHMIDT_REAL:    family = ALF_FAM_SCHMIDT; real = 1; p00 = 1.0;               break;
+          case GSL_SF_ALF_SCHMIDT_COMPLEX: family = ALF_FAM_SCHMIDT; real = 0; p00 = 1.0;               break;
+          case GSL_SF_ALF_FOURPI_REAL:     family = ALF_FAM_2LP1;    real = 1; p00 = 1.0;               break;
+          case GSL_SF_ALF_FOURPI_COMPLEX:  family = ALF_FAM_2LP1;    real = 0; p00 = 1.0;               break;
+          case GSL_SF_ALF_ORTHO_REAL:      family = ALF_FAM_2LP1;    real = 1; p00 = 0.5 / M_SQRTPI;    break;
+          case GSL_SF_ALF_ORTHO_COMPLEX:   family = ALF_FAM_2LP1;    real = 0; p00 = 0.5 / M_SQRTPI;    break;
+          case GSL_SF_ALF_FULL:            family = ALF_FAM_2LP1;    real = 0; p00 = M_SQRT1_2;         break;
+          case GSL_SF_ALF_NONE:            family = ALF_FAM_NONE;    real = 0; p00 = 1.0;               break;
+          default:
+            GSL_ERROR ("unknown normalization", GSL_EDOM);
+        }
 
-          if (lmax == 0)
-            return GSL_SUCCESS;
+      hdr[ALF_HDR_P00] = p00;
 
+      /* P(1,0) = c_0 x P(0,0) */
+      cl[0] = (family == ALF_FAM_2LP1) ? M_SQRT3 : 1.0;
+
+      if (lmax == 0)
+        return GSL_SUCCESS;
+
+      /* P(m+1,m) = c_m x P(m,m), P(m,m) = d_m u P(m-1,m-1) */
+      if (family == ALF_FAM_SCHMIDT)
+        {
           cl[1] = M_SQRT3;
-          dl[1] = csfac;
-          el[1] = 1.0;
-
-          /* m = 0 terms */
-          k = 2; /* idx(2,0) */
-          for (l = 2; l <= lmax; ++l)
-            {
-              /* a_l^0 */
-              alm[2*k] = 2.0 - 1.0 / (double) l;
-
-              /* b_l^0 */
-              alm[2*k + 1] = -(1.0 - 1.0 / (double) l);
-
-              ++k;
-            }
-
-          /* m > 0 terms */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              /* alm and blm are unused for l=m and l=m+1 */
-              k += 2;
-
-              for (l = m + 2; l <= lmax; ++l)
-                {
-                  /* a_l^m */
-                  alm[2*k] = ((2.0*l - 1.0) / sqrt((double) (l + m))) / sqrt((double) (l - m));
-
-                  /* b_l^m */
-                  alm[2*k + 1] = -(sqrt((double) (l + m - 1)) / sqrt((double) (l + m))) *
-                                  (sqrt((double) (l - m - 1)) / sqrt((double) (l - m)));
-
-                  ++k;
-                }
-            }
-
-          /* m>0 terms for flm/glm */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              double flm_fac = (m == 1) ? M_SQRT2 : 1.0;
-
-              for (l = m; l <= lmax; ++l)
-                {
-                  /* f_l^m */
-                  flm[2*k] = 0.5 * flm_fac * sqrt((l+m)*(l-m+1.0));
-
-                  /* g_l^m */
-                  flm[2*k+1] = 0.5 * sqrt((l+m+1.0)*(l-m));
-
-                  ++k;
-                }
-            }
-
-          for (l = 2; l <= lmax; ++l)
-            {
-              cl[l] = sqrt(2.0 * l + 1.0);
-              dl[l] = csfac * sqrt(1.0 - 0.5 / l);
-              el[l] = sqrt(0.5*l*(l+1.0));
-            }
+          dl[1] = csfac * (real ? 1.0 : M_SQRT1_2);
         }
-      else if (norm == GSL_SF_ALF_FOURPI)
+      else if (family == ALF_FAM_2LP1)
         {
-          hdr[ALF_HDR_P00] = 1.0;    /* R(0,0) */
-          cl[0] = M_SQRT3;
-
-          if (lmax == 0)
-            return GSL_SUCCESS;
-
           cl[1] = 2.236067977499789696409174; /* sqrt(5) */
-          dl[1] = csfac * M_SQRT3;
-          el[1] = 1.0;
-
-          k = 2; /* idx(2,0) */
-          for (m = 0; m <= mmax; ++m)
-            {
-              if (m > 0)
-                {
-                  /* alm and blm are unused for l=m and l=m+1 */
-                  k += 2;
-                }
-
-              for (l = m + 2; l <= lmax; ++l)
-                {
-                  /* a_l^m */
-                  alm[2*k] = (sqrt(2.0 * l + 1.0) / sqrt((double) (l + m))) *
-                             (sqrt(2.0 * l - 1.0) / sqrt((double) (l - m)));
-
-                  /* b_l^m */
-                  alm[2*k + 1] = -(sqrt(l + m - 1.0) / sqrt((double) (l + m))) *
-                                  (sqrt(l - m - 1.0) / sqrt((double) (l - m))) *
-                                  (sqrt(2.0*l + 1.0) / sqrt(2.0*l - 3.0));
-
-                  ++k;
-                }
-            }
-
-          /* m>0 terms for flm/glm */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              double flm_fac = (m == 1) ? M_SQRT2 : 1.0;
-
-              for (l = m; l <= lmax; ++l)
-                {
-                  /* f_l^m */
-                  flm[2*k] = 0.5 * flm_fac * sqrt((l+m)*(l-m+1.0));
-
-                  /* g_l^m */
-                  flm[2*k+1] = 0.5 * sqrt((l+m+1.0)*(l-m));
-
-                  ++k;
-                }
-            }
-
-          for (l = 2; l <= lmax; ++l)
-            {
-              cl[l] = sqrt(2.0 * l + 3.0);
-              dl[l] = csfac * sqrt(1.0 + 0.5 / l);
-              el[l] = sqrt(0.5*l*(l+1.0)); /* same as Schmidt: the factor sqrt(2l+1) is common to degree l */
-            }
-        }
-      else if (norm == GSL_SF_ALF_SPHARM)
-        {
-          hdr[ALF_HDR_P00] = 0.5 / M_SQRTPI;    /* Y(0,0) */
-          cl[0] = M_SQRT3;
-
-          if (lmax == 0)
-            return GSL_SUCCESS;
-
-          cl[1] = sqrt(5.0);
-          dl[1] = csfac * (M_SQRT3 / M_SQRT2);
-          el[1] = M_SQRT2;
-
-          k = 2; /* idx(2,0) */
-          for (m = 0; m <= mmax; ++m)
-            {
-              if (m > 0)
-                {
-                  /* alm and blm are unused for l=m and l=m+1 */
-                  k += 2;
-                }
-
-              for (l = m + 2; l <= lmax; ++l)
-                {
-                  /* a_l^m */
-                  alm[2*k] = (sqrt(2.0 * l + 1.0) / sqrt((double) (l + m))) *
-                             (sqrt(2.0 * l - 1.0) / sqrt((double) (l - m)));
-
-                  /* b_l^m */
-                  alm[2*k + 1] = -(sqrt(l + m - 1.0) / sqrt((double) (l + m))) *
-                                  (sqrt(l - m - 1.0) / sqrt((double) (l - m))) *
-                                  (sqrt(2.0*l + 1.0) / sqrt(2.0*l - 3.0));
-
-                  ++k;
-                }
-            }
-
-          /* m>0 terms for flm/glm */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              for (l = m; l <= lmax; ++l)
-                {
-                  /* f_l^m */
-                  flm[2*k] = 0.5 * sqrt((l+m)*(l-m+1.0));
-
-                  /* g_l^m */
-                  flm[2*k+1] = 0.5 * sqrt((l+m+1.0)*(l-m));
-
-                  ++k;
-                }
-            }
-
-          for (l = 2; l <= lmax; ++l)
-            {
-              cl[l] = sqrt(2.0 * l + 3.0);
-              dl[l] = csfac * sqrt(1.0 + 0.5 / l);
-              el[l] = sqrt(l*(l+1.0));
-            }
-        }
-      else if (norm == GSL_SF_ALF_FULL)
-        {
-          cl[0] = M_SQRT3;
-          hdr[ALF_HDR_P00] = M_SQRT1_2;         /* N(0,0) */
-
-          if (lmax == 0)
-            return GSL_SUCCESS;
-
-          cl[1] = sqrt(5.0);
-          dl[1] = csfac * (M_SQRT3 / M_SQRT2);
-          el[1] = M_SQRT2;
-
-          k = 2; /* idx(2,0) */
-          for (m = 0; m <= mmax; ++m)
-            {
-              if (m > 0)
-                {
-                  /* alm and blm are unused for l=m and l=m+1 */
-                  k += 2;
-                }
-
-              for (l = m + 2; l <= lmax; ++l)
-                {
-                  /* a_l^m */
-                  alm[2*k] = (sqrt(2.0 * l + 1.0) / sqrt((double) (l + m))) *
-                             (sqrt(2.0 * l - 1.0) / sqrt((double) (l - m)));
-
-                  /* b_l^m */
-                  alm[2*k + 1] = -(sqrt(l + m - 1.0) / sqrt((double) (l + m))) *
-                                  (sqrt(l - m - 1.0) / sqrt((double) (l - m))) *
-                                  (sqrt(2.0*l + 1.0) / sqrt(2.0*l - 3.0));
-
-                  ++k;
-                }
-            }
-
-          /* m>0 terms for flm/glm */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              for (l = m; l <= lmax; ++l)
-                {
-                  /* f_l^m */
-                  flm[2*k] = 0.5 * sqrt((l+m)*(l-m+1.0));
-
-                  /* g_l^m */
-                  flm[2*k+1] = 0.5 * sqrt((l+m+1.0)*(l-m));
-
-                  ++k;
-                }
-            }
-
-          for (l = 2; l <= lmax; ++l)
-            {
-              cl[l] = sqrt(2.0 * l + 3.0);
-              dl[l] = csfac * sqrt(1.0 + 0.5 / l);
-              el[l] = sqrt(l*(l+1.0));
-            }
-        }
-      else if (norm == GSL_SF_ALF_NONE)
-        {
-          cl[0] = 1.0;
-          hdr[ALF_HDR_P00] = 1.0;         /* P(0,0) */
-
-          if (lmax == 0)
-            return GSL_SUCCESS;
-
-          cl[1] = 3.0;
-          dl[1] = csfac;
-          el[1] = 1.0;
-
-          k = 2; /* idx(2,0) */
-          for (m = 0; m <= mmax; ++m)
-            {
-              if (m > 0)
-                {
-                  /* alm and blm are unused for l=m and l=m+1 */
-                  k += 2;
-                }
-
-              for (l = m + 2; l <= lmax; ++l)
-                {
-                  /* a_l^m */
-                  alm[2*k] = (2.0 * l - 1.0) / ((double) (l - m));
-
-                  /* b_l^m */
-                  alm[2*k + 1] = -(l + m - 1.0) / ((double) (l - m));
-
-                  ++k;
-                }
-            }
-
-          /* m>0 terms for flm/glm */
-          k = lmax + 1; /* idx(1,1) */
-          for (m = 1; m <= mmax; ++m)
-            {
-              for (l = m; l <= lmax; ++l)
-                {
-                  /* f_l^m */
-                  flm[2*k] = 0.5*(l+m)*(l-m+1.0);
-
-                  /* g_l^m */
-                  flm[2*k+1] = 0.5;
-
-                  ++k;
-                }
-            }
-
-          for (l = 2; l <= lmax; ++l)
-            {
-              cl[l] = 2.0 * l + 1.0;
-              dl[l] = csfac * (2.0 * l - 1.0);
-              el[l] = 1.0;
-            }
+          dl[1] = csfac * (real ? M_SQRT3 : M_SQRT3 / M_SQRT2);
         }
       else
         {
-          GSL_ERROR ("unknown normalization", GSL_EDOM);
+          cl[1] = 3.0;
+          dl[1] = csfac;
+        }
+
+      for (l = 2; l <= lmax; ++l)
+        {
+          if (family == ALF_FAM_SCHMIDT)
+            {
+              cl[l] = sqrt(2.0 * l + 1.0);
+              dl[l] = csfac * sqrt(1.0 - 0.5 / l);
+            }
+          else if (family == ALF_FAM_2LP1)
+            {
+              cl[l] = sqrt(2.0 * l + 3.0);
+              dl[l] = csfac * sqrt(1.0 + 0.5 / l);
+            }
+          else
+            {
+              cl[l] = 2.0 * l + 1.0;
+              dl[l] = csfac * (2.0 * l - 1.0);
+            }
+        }
+
+      /* dP(l,0)/dtheta = -csfac e_l P(l,1) */
+      for (l = 1; l <= lmax; ++l)
+        {
+          if (family == ALF_FAM_NONE)
+            el[l] = 1.0;
+          else if (real)
+            el[l] = (l == 1) ? 1.0 : sqrt(0.5*l*(l+1.0));
+          else
+            el[l] = (l == 1) ? M_SQRT2 : sqrt(l*(l+1.0));
+        }
+
+      /* a(l,m), b(l,m): P(l,m) = a x P(l-1,m) + b P(l-2,m) */
+      k = 2; /* idx(2,0) */
+      for (m = 0; m <= mmax; ++m)
+        {
+          if (m > 0)
+            {
+              /* alm and blm are unused for l=m and l=m+1 */
+              k += 2;
+            }
+
+          for (l = m + 2; l <= lmax; ++l)
+            {
+              if (family == ALF_FAM_SCHMIDT && m == 0)
+                {
+                  alm[2*k] = 2.0 - 1.0 / (double) l;
+                  alm[2*k + 1] = -(1.0 - 1.0 / (double) l);
+                }
+              else if (family == ALF_FAM_SCHMIDT)
+                {
+                  alm[2*k] = ((2.0*l - 1.0) / sqrt((double) (l + m))) / sqrt((double) (l - m));
+                  alm[2*k + 1] = -(sqrt((double) (l + m - 1)) / sqrt((double) (l + m))) *
+                                  (sqrt((double) (l - m - 1)) / sqrt((double) (l - m)));
+                }
+              else if (family == ALF_FAM_2LP1)
+                {
+                  alm[2*k] = (sqrt(2.0 * l + 1.0) / sqrt((double) (l + m))) *
+                             (sqrt(2.0 * l - 1.0) / sqrt((double) (l - m)));
+                  alm[2*k + 1] = -(sqrt(l + m - 1.0) / sqrt((double) (l + m))) *
+                                  (sqrt(l - m - 1.0) / sqrt((double) (l - m))) *
+                                  (sqrt(2.0*l + 1.0) / sqrt(2.0*l - 3.0));
+                }
+              else
+                {
+                  alm[2*k] = (2.0 * l - 1.0) / ((double) (l - m));
+                  alm[2*k + 1] = -(l + m - 1.0) / ((double) (l - m));
+                }
+
+              ++k;
+            }
+        }
+
+      /* f(l,m), g(l,m), m > 0: dP(l,m)/dtheta = csfac (f P(l,m-1) - g P(l,m+1)) */
+      k = lmax + 1; /* idx(1,1) */
+      for (m = 1; m <= mmax; ++m)
+        {
+          const double flm_fac = (real && m == 1) ? M_SQRT2 : 1.0;
+
+          for (l = m; l <= lmax; ++l)
+            {
+              if (family == ALF_FAM_NONE)
+                {
+                  flm[2*k] = 0.5*(l+m)*(l-m+1.0);
+                  flm[2*k+1] = 0.5;
+                }
+              else
+                {
+                  flm[2*k] = 0.5 * flm_fac * sqrt((l+m)*(l-m+1.0));
+                  flm[2*k+1] = 0.5 * sqrt((l+m+1.0)*(l-m));
+                }
+
+              ++k;
+            }
         }
 
       return GSL_SUCCESS;

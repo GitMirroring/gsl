@@ -171,6 +171,31 @@ test_factor_fourpi(const size_t l, const size_t m)
   return factor;
 }
 
+/* complex Schmidt = factor * S_{lm} */
+static double
+test_factor_schmidt_complex(const size_t l, const size_t m)
+{
+  (void) l;
+
+  return (m == 0) ? 1.0 : M_SQRT1_2;
+}
+
+/* complex 4-pi = factor * S_{lm} */
+static double
+test_factor_fourpi_complex(const size_t l, const size_t m)
+{
+  return sqrt(2.0 * l + 1.0) * ((m == 0) ? 1.0 : M_SQRT1_2);
+}
+
+/* real orthonormal = factor * S_{lm} */
+static double
+test_factor_ortho_real(const size_t l, const size_t m)
+{
+  (void) m;
+
+  return sqrt((2.0 * l + 1.0) / 4.0 / M_PI);
+}
+
 /* test that p = factor * p_expected */
 static int
 test_legendre_compare(const double tol, const size_t lmax, const size_t mmax,
@@ -208,7 +233,7 @@ test_alf_schmidt1(const double tol, const size_t lmax, const size_t mmax, const 
   size_t l, m;
 
   /* precompute ALF factors */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, 0, Plm);
 
   /* compute ALFs */
   gsl_sf_alf_array(lmax, mmax, x, Plm);
@@ -240,7 +265,7 @@ test_alf_schmidt2(const double tol, const size_t lmax, const size_t mmax, const 
   size_t l, m;
 
   /* precompute ALF factors */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, 0, Plm);
 
   /* compute ALFs */
   gsl_sf_alf_deriv_array(lmax, mmax, x, Plm, dPlm);
@@ -276,7 +301,7 @@ test_alf_schmidt3(const double tol, const size_t lmax, const size_t mmax, const 
   size_t l, m;
 
   /* precompute ALF factors */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, 0, Plm);
 
   /* compute ALFs */
   gsl_sf_alf_deriv2_array(lmax, mmax, x, Plm, dPlm, d2Plm);
@@ -315,7 +340,7 @@ test_alf_schmidt4(const double tol, const size_t lmax, const size_t mmax, const 
   size_t l, m;
 
   /* precompute ALF factors */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, 0, Plm);
 
   /* compute ALFs */
   gsl_sf_alf_vsh_array(lmax, mmax, cost, Plm, dPlm);
@@ -401,7 +426,7 @@ test_alf_schmidt(const size_t lmax, const size_t mmax, const size_t flags, const
   test_alf_schmidt4(tol, lmax, mmax, 2.99, expected_t_L_MNB, expected_t_S_299, expected_t_DS_299, expected_t_DDS_299, desc);
   test_alf_schmidt4(tol, lmax, mmax, 3.10, expected_t_L_MNB, expected_t_S_310, expected_t_DS_310, expected_t_DDS_310, desc);
 
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, 0, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, 0, Plm);
 
   x = 0.1;
   gsl_sf_alf_array(lmax, mmax, x, Plm);
@@ -477,9 +502,9 @@ test_alf_schmidt(const size_t lmax, const size_t mmax, const size_t flags, const
 
   /* test array routines */
   dx = test_alf_dx(lmax);
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, flags, Plm);
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, flags, Plm2);
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, flags, Plm_theta);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, flags, Plm);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, flags, Plm2);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, flags, Plm_theta);
 
   /* test deriv array routines */
   for (x = -1.0; x <= 1.0; x += dx)
@@ -619,7 +644,7 @@ test_alf_norm(const gsl_sf_alf_t norm, const size_t lmax,
   double *p_schmidt = malloc(sizeof(double) * plm_size);
   double *dp_schmidt = malloc(sizeof(double) * dplm_size);
 
-  if (norm == GSL_SF_ALF_SPHARM)
+  if (norm == GSL_SF_ALF_ORTHO_COMPLEX)
     {
       factor = &test_factor_spharm;
     }
@@ -642,16 +667,28 @@ test_alf_norm(const gsl_sf_alf_t norm, const size_t lmax,
       test_value(lmax, mmax, 3, 2, p,  0.91934361403343767, tol, desc, "x=0.45");
       test_value(lmax, mmax, 3, 3, p,  0.74482641545541073, tol, desc, "x=0.45");
     }
-  else if (norm == GSL_SF_ALF_FOURPI)
+  else if (norm == GSL_SF_ALF_FOURPI_REAL)
     {
       factor = &test_factor_fourpi;
+    }
+  else if (norm == GSL_SF_ALF_SCHMIDT_COMPLEX)
+    {
+      factor = &test_factor_schmidt_complex;
+    }
+  else if (norm == GSL_SF_ALF_FOURPI_COMPLEX)
+    {
+      factor = &test_factor_fourpi_complex;
+    }
+  else if (norm == GSL_SF_ALF_ORTHO_REAL)
+    {
+      factor = &test_factor_ortho_real;
     }
 
   /*
    * test the scale factors between the Schmidts and these
    * normalized functions
    */
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, flags, p_schmidt);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, flags, p_schmidt);
   gsl_sf_alf_precompute(norm, lmax, mmax, flags, p);
 
   dx = test_alf_dx(lmax);
@@ -715,7 +752,7 @@ test_alf_unnorm(const size_t lmax_orig, const size_t mmax_orig,
   double *p_schmidt = malloc(sizeof(double) * plm_size);
   double *dp_schmidt = malloc(sizeof(double) * dplm_size);
 
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, mmax, flags, p_schmidt);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, mmax, flags, p_schmidt);
   gsl_sf_alf_precompute(GSL_SF_ALF_NONE, lmax, mmax, flags, p);
   gsl_sf_alf_precompute(GSL_SF_ALF_NONE, lmax, mmax, flags, p2);
 
@@ -785,14 +822,23 @@ test_alf_all(const size_t lmax, const size_t mmax)
   s += test_alf_schmidt(lmax, mmax, 0, "schmidt nocsphase");
   s += test_alf_schmidt(lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "schmidt csphase");
 
-  s += test_alf_norm(GSL_SF_ALF_SPHARM, lmax, mmax, 0, "spharm nocsphase");
-  s += test_alf_norm(GSL_SF_ALF_SPHARM, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "spharm csphase");
+  s += test_alf_norm(GSL_SF_ALF_ORTHO_COMPLEX, lmax, mmax, 0, "ortho complex nocsphase");
+  s += test_alf_norm(GSL_SF_ALF_ORTHO_COMPLEX, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "ortho complex csphase");
 
   s += test_alf_norm(GSL_SF_ALF_FULL, lmax, mmax, 0, "full nocsphase");
   s += test_alf_norm(GSL_SF_ALF_FULL, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "full csphase");
 
-  s += test_alf_norm(GSL_SF_ALF_FOURPI, lmax, mmax, 0, "fourpi nocsphase");
-  s += test_alf_norm(GSL_SF_ALF_FOURPI, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "fourpi csphase");
+  s += test_alf_norm(GSL_SF_ALF_FOURPI_REAL, lmax, mmax, 0, "fourpi nocsphase");
+  s += test_alf_norm(GSL_SF_ALF_FOURPI_REAL, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "fourpi csphase");
+
+  s += test_alf_norm(GSL_SF_ALF_SCHMIDT_COMPLEX, lmax, mmax, 0, "schmidt complex nocsphase");
+  s += test_alf_norm(GSL_SF_ALF_SCHMIDT_COMPLEX, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "schmidt complex csphase");
+
+  s += test_alf_norm(GSL_SF_ALF_FOURPI_COMPLEX, lmax, mmax, 0, "fourpi complex nocsphase");
+  s += test_alf_norm(GSL_SF_ALF_FOURPI_COMPLEX, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "fourpi complex csphase");
+
+  s += test_alf_norm(GSL_SF_ALF_ORTHO_REAL, lmax, mmax, 0, "ortho real nocsphase");
+  s += test_alf_norm(GSL_SF_ALF_ORTHO_REAL, lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "ortho real csphase");
 
   s += test_alf_unnorm(lmax, mmax, 0, "unnorm nocsphase");
   s += test_alf_unnorm(lmax, mmax, GSL_SF_ALF_FLG_CSPHASE, "unnorm csphase");
@@ -818,7 +864,7 @@ test_alf_check(void)
   double * d2 = malloc(gsl_sf_alf_nlm(lmax, lmax) * sizeof(double));
   size_t i;
 
-  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI, lmax, lmax, 0, p);
+  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI_REAL, lmax, lmax, 0, p);
 
   for (i = 0; i < 3; ++i)
     {
@@ -853,7 +899,7 @@ test_alf_check(void)
   gsl_sf_alf_vsh_array(lmax, lmax, x, p, d1);
   gsl_test_int(gsl_sf_alf_theta_derivk_array(lmax, p, d1, d2), GSL_SUCCESS, "alf check derivk mmax = lmax");
 
-  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI, lmax, lmax / 2, 0, q);
+  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI_REAL, lmax, lmax / 2, 0, q);
   gsl_sf_alf_vsh_array(lmax, lmax / 2, x, q, d1);
   gsl_test_int(gsl_sf_alf_theta_derivk_array(lmax, q, d1, d2), GSL_EINVAL, "alf check derivk mmax < lmax");
 
@@ -1042,13 +1088,16 @@ test_alf_vsh2(const gsl_sf_alf_t norm, const size_t flags, const size_t lmax,
 static int
 test_alf_derivk_all(void)
 {
-  const gsl_sf_alf_t norms[] = { GSL_SF_ALF_SCHMIDT, GSL_SF_ALF_SPHARM, GSL_SF_ALF_FULL,
-                                 GSL_SF_ALF_FOURPI, GSL_SF_ALF_NONE };
-  const char * names[] = { "schmidt", "spharm", "full", "fourpi", "unnorm" };
+  const gsl_sf_alf_t norms[] = { GSL_SF_ALF_SCHMIDT_REAL, GSL_SF_ALF_SCHMIDT_COMPLEX,
+                                 GSL_SF_ALF_FOURPI_REAL, GSL_SF_ALF_FOURPI_COMPLEX,
+                                 GSL_SF_ALF_ORTHO_REAL, GSL_SF_ALF_ORTHO_COMPLEX,
+                                 GSL_SF_ALF_FULL, GSL_SF_ALF_NONE };
+  const char * names[] = { "schmidt real", "schmidt complex", "fourpi real", "fourpi complex",
+                           "ortho real", "ortho complex", "full", "unnorm" };
   const double thetas[] = { 0.1, 0.7, 1.5, 2.3, 3.0 };
   size_t i, j, k;
 
-  for (i = 0; i < 5; ++i)
+  for (i = 0; i < sizeof(norms) / sizeof(norms[0]); ++i)
     {
       for (j = 0; j < 2; ++j)
         {
@@ -1111,8 +1160,8 @@ test_alf_highdeg(void)
   size_t i;
 
   /* the functions overwrite only the first nlm entries, not the recurrence factors */
-  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI, lmax, lmax, 0, p);
-  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT, lmax, lmax, 0, ps);
+  gsl_sf_alf_precompute(GSL_SF_ALF_FOURPI_REAL, lmax, lmax, 0, p);
+  gsl_sf_alf_precompute(GSL_SF_ALF_SCHMIDT_REAL, lmax, lmax, 0, ps);
 
   for (i = 0; i < sizeof(ref) / sizeof(ref[0]); ++i)
     {
@@ -1161,6 +1210,94 @@ test_alf_highdeg(void)
   return 0;
 }
 
+/*
+test_alf_prefactors()
+  Each normalization against its definition, K(l,m) times the unnormalized
+P_l^m(x) (gsl_sf_alf.h), with and without the Condon-Shortley phase: this
+checks the precomputed factors of every normalization independently of the
+others.
+*/
+
+static double
+test_alf_K(const gsl_sf_alf_t norm, const size_t l, const size_t m)
+{
+  const double r = exp(0.5 * (gsl_sf_lnfact((unsigned int) (l - m)) - gsl_sf_lnfact((unsigned int) (l + m))));
+  const double cm = (m == 0) ? 1.0 : 2.0;   /* 2 - delta_{m0} */
+
+  switch (norm)
+    {
+      case GSL_SF_ALF_SCHMIDT_REAL:    return sqrt(cm) * r;
+      case GSL_SF_ALF_SCHMIDT_COMPLEX: return r;
+      case GSL_SF_ALF_FOURPI_REAL:     return sqrt(cm * (2.0 * l + 1.0)) * r;
+      case GSL_SF_ALF_FOURPI_COMPLEX:  return sqrt(2.0 * l + 1.0) * r;
+      case GSL_SF_ALF_ORTHO_REAL:      return sqrt(cm * (2.0 * l + 1.0) / (4.0 * M_PI)) * r;
+      case GSL_SF_ALF_ORTHO_COMPLEX:   return sqrt((2.0 * l + 1.0) / (4.0 * M_PI)) * r;
+      case GSL_SF_ALF_FULL:            return sqrt(l + 0.5) * r;
+      default:                         return 1.0;
+    }
+}
+
+static int
+test_alf_prefactors(void)
+{
+  const gsl_sf_alf_t norms[] = { GSL_SF_ALF_SCHMIDT_REAL, GSL_SF_ALF_SCHMIDT_COMPLEX,
+                                 GSL_SF_ALF_FOURPI_REAL, GSL_SF_ALF_FOURPI_COMPLEX,
+                                 GSL_SF_ALF_ORTHO_REAL, GSL_SF_ALF_ORTHO_COMPLEX,
+                                 GSL_SF_ALF_FULL };
+  const double xs[] = { -0.97, -0.5, 0.0, 0.3, 0.77, 0.999 };
+  const size_t lmax = 30;
+  const size_t asize = gsl_sf_alf_array_size(lmax, lmax);
+  double * p = malloc(asize * sizeof(double));
+  double * pu = malloc(asize * sizeof(double));
+  size_t i, j, k, l, m;
+
+  for (i = 0; i < sizeof(norms) / sizeof(norms[0]); ++i)
+    {
+      for (j = 0; j < 2; ++j)
+        {
+          const size_t flags = j ? GSL_SF_ALF_FLG_CSPHASE : 0;
+
+          gsl_sf_alf_precompute(norms[i], lmax, lmax, flags, p);
+          gsl_sf_alf_precompute(GSL_SF_ALF_NONE, lmax, lmax, flags, pu);
+
+          for (k = 0; k < sizeof(xs) / sizeof(xs[0]); ++k)
+            {
+              gsl_sf_alf_array(lmax, lmax, xs[k], p);
+              gsl_sf_alf_array(lmax, lmax, xs[k], pu);
+
+              for (m = 0; m <= lmax; ++m)
+                {
+                  /* the normalized values of one column, for an absolute tolerance */
+                  double cmax = 0.0;
+
+                  for (l = m; l <= lmax; ++l)
+                    cmax = GSL_MAX(cmax, fabs(p[gsl_sf_alf_array_index(l, m, lmax)]));
+
+                  for (l = m; l <= lmax; ++l)
+                    {
+                      const size_t idx = gsl_sf_alf_array_index(l, m, lmax);
+                      gsl_test_abs(p[idx], test_alf_K(norms[i], l, m) * pu[idx], 1.0e-12 * cmax,
+                                   "alf prefactor norm=%d flags=%zu x=%g l=%zu m=%zu",
+                                   (int) norms[i], flags, xs[k], l, m);
+                    }
+                }
+            }
+        }
+    }
+
+  /* the enum values of GSL 2.8 */
+  gsl_test_int(GSL_SF_ALF_SCHMIDT_REAL, 0, "alf enum SCHMIDT_REAL");
+  gsl_test_int(GSL_SF_ALF_ORTHO_COMPLEX, 1, "alf enum ORTHO_COMPLEX");
+  gsl_test_int(GSL_SF_ALF_FULL, 2, "alf enum FULL");
+  gsl_test_int(GSL_SF_ALF_FOURPI_REAL, 3, "alf enum FOURPI_REAL");
+  gsl_test_int(GSL_SF_ALF_NONE, 4, "alf enum NONE");
+
+  free(p);
+  free(pu);
+
+  return 0;
+}
+
 /* test associated legendre functions */
 int
 test_alf(void)
@@ -1177,6 +1314,7 @@ test_alf(void)
   test_alf_all(140, 140);
   test_alf_highdeg();
   test_alf_derivk_all();
+  test_alf_prefactors();
   test_alf_check();
 
   return s;

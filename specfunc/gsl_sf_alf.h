@@ -36,14 +36,43 @@
 
 __BEGIN_DECLS
 
+/*
+ * Normalizations: P(l,m) = K(l,m) P_l^m(x), with the unnormalized P_l^m
+ * (without the Condon-Shortley phase, see GSL_SF_ALF_FLG_CSPHASE) and
+ *
+ *   SCHMIDT     K = sqrt(c_m (l-m)!/(l+m)!)
+ *   FOURPI      K = sqrt(c_m (2l+1) (l-m)!/(l+m)!)
+ *   ORTHO       K = sqrt(c_m (2l+1)/(4 pi) (l-m)!/(l+m)!)
+ *
+ * where c_m = 2 - delta_{m0} for the _REAL variants (for real spherical
+ * harmonics P(l,m) cos(m phi), P(l,m) sin(m phi)) and c_m = 1 for the
+ * _COMPLEX variants (for P(l,m) exp(i m phi)); the spherical harmonics then
+ * have squared norm 4 pi/(2l+1), 4 pi and 1 respectively over the sphere.
+ *
+ *   FULL        K = sqrt((l + 1/2) (l-m)!/(l+m)!)   (int_{-1}^1 P^2 dx = 1)
+ *   NONE        K = 1
+ *
+ * The values of the first five are those of GSL 2.8 (where the interface
+ * was present but undocumented) under their previous names.
+ */
 typedef enum
 {
-  GSL_SF_ALF_SCHMIDT,
-  GSL_SF_ALF_SPHARM,
-  GSL_SF_ALF_FULL,
-  GSL_SF_ALF_FOURPI,
-  GSL_SF_ALF_NONE
+  GSL_SF_ALF_SCHMIDT_REAL = 0,
+  GSL_SF_ALF_ORTHO_COMPLEX = 1,
+  GSL_SF_ALF_FULL = 2,
+  GSL_SF_ALF_FOURPI_REAL = 3,
+  GSL_SF_ALF_NONE = 4,
+  GSL_SF_ALF_SCHMIDT_COMPLEX = 5,
+  GSL_SF_ALF_FOURPI_COMPLEX = 6,
+  GSL_SF_ALF_ORTHO_REAL = 7
 } gsl_sf_alf_t;
+
+#ifndef GSL_DISABLE_DEPRECATED
+/* previous names (GSL 2.8, undocumented) */
+#define GSL_SF_ALF_SCHMIDT  GSL_SF_ALF_SCHMIDT_REAL
+#define GSL_SF_ALF_SPHARM   GSL_SF_ALF_ORTHO_COMPLEX
+#define GSL_SF_ALF_FOURPI   GSL_SF_ALF_FOURPI_REAL
+#endif /* !GSL_DISABLE_DEPRECATED */
 
 #define GSL_SF_ALF_FLG_CSPHASE       (1 << 0) /* include Condon-Shortley phase */
 
