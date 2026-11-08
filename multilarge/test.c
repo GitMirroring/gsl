@@ -38,6 +38,8 @@ static void test_random_matrix(gsl_matrix *m, const gsl_rng *r,
 static void test_random_vector_noise(const gsl_rng *r, gsl_vector *y);
 static void test_compare_vectors(const double tol, const gsl_vector * a,
                                  const gsl_vector * b, const char * desc);
+static void test_compare_solutions(const double tol, const gsl_vector * a,
+                                   const gsl_vector * b, const char * desc);
 static void test_multifit_solve(const double lambda, const gsl_matrix * X,
                                 const gsl_vector * y, const gsl_vector * wts,
                                 const gsl_vector * diagL, const gsl_matrix * L,
@@ -159,6 +161,25 @@ test_compare_vectors(const double tol, const gsl_vector * a,
       double bi = gsl_vector_get(b, i);
 
       gsl_test_rel(bi, ai, tol, "%s i=%zu", desc, i);
+    }
+}
+
+/* compare a solution vector b with the reference a; the error in each
+ * component is measured relative to ||a||, since a component much smaller
+ * than the others is determined only to about eps * ||a|| */
+static void
+test_compare_solutions(const double tol, const gsl_vector * a,
+                       const gsl_vector * b, const char * desc)
+{
+  const double anorm = gsl_blas_dnrm2(a);
+  size_t i;
+
+  for (i = 0; i < a->size; ++i)
+    {
+      double ai = gsl_vector_get(a, i);
+      double bi = gsl_vector_get(b, i);
+
+      gsl_test_abs(bi, ai, tol * anorm, "%s i=%zu", desc, i);
     }
 }
 
@@ -364,7 +385,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s unweighted stdform n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -377,7 +398,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s weighted diag(L) n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -390,7 +411,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s unweighted diag(L) n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -403,7 +424,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s weighted Lsqr n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -416,7 +437,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s unweighted Lsqr n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -429,7 +450,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s weighted Ltall n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -442,7 +463,7 @@ test_random(const gsl_multilarge_linear_type * T,
 
         sprintf(str, "random %s unweighted Ltall n=%zu p=%zu lambda=%g",
                 T->name, n, p, lambda);
-        test_compare_vectors(tol, c0, c1, str);
+        test_compare_solutions(tol, c0, c1, str);
 
         gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
         gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
@@ -530,7 +551,7 @@ test_tsqr_compare(const double lambda, const size_t n,
   status = gsl_multilarge_linear_solve(lambda, c1, &rnorm1, &snorm1, w);
 
   gsl_test(status, "%s solve status", str);
-  test_compare_vectors(tol, c0, c1, str);
+  test_compare_solutions(tol, c0, c1, str);
   gsl_test_rel(rnorm1, rnorm0, 1.0e3 * tol, "rnorm %s", str);
   gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
 
