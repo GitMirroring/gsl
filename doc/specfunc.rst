@@ -206,8 +206,8 @@ Lambert W Functions
 ===================
 .. include:: specfunc-lambert.rst
 
-Legendre Functions and Spherical Harmonics
-==========================================
+Legendre Functions
+==================
 .. include:: specfunc-legendre.rst
 
 .. _sec_alf:
