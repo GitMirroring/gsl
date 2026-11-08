@@ -19,7 +19,6 @@
 
 #ifndef __GSL_DERIV_STENCIL_H__
 #define __GSL_DERIV_STENCIL_H__
-#include <stdlib.h>
 #include <gsl/gsl_math.h>
 
 #undef __BEGIN_DECLS
@@ -40,14 +39,6 @@ typedef enum
   GSL_DERIV_STENCIL_FORWARD  = 1,
   GSL_DERIV_STENCIL_BACKWARD = 2
 } gsl_deriv_stencil_t;
-
-int gsl_deriv_stencil_size(const unsigned int deriv_order,
-                           const unsigned int method_order,
-                           const gsl_deriv_stencil_t stencil_type,
-                           size_t * length);
-
-int gsl_deriv_stencil_fill(const gsl_deriv_stencil_t stencil_type,
-                           const size_t n, double stencil[]);
 
 __END_DECLS
 

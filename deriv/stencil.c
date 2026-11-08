@@ -24,7 +24,7 @@
 #include <gsl/gsl_deriv_stencil.h>
 
 /*
-gsl_deriv_stencil_size()
+stencil_size()
   Compute size of the optimal stencil given derivative order,
 method order, and stencil type
 
@@ -33,11 +33,11 @@ Inputs: deriv_order  - derivative order
         stencil_type - GSL_DERIV_STENCIL_{CENTRAL,BACKWARD,FORWARD}
 */
 
-int
-gsl_deriv_stencil_size(const unsigned int deriv_order,
-                       const unsigned int method_order,
-                       const gsl_deriv_stencil_t stencil_type,
-                       size_t * length)
+static int
+stencil_size(const unsigned int deriv_order,
+             const unsigned int method_order,
+             const gsl_deriv_stencil_t stencil_type,
+             size_t * length)
 {
   if (stencil_type == GSL_DERIV_STENCIL_CENTRAL)
     {
@@ -58,20 +58,20 @@ gsl_deriv_stencil_size(const unsigned int deriv_order,
 }
 
 /*
-gsl_deriv_stencil_fill()
+stencil_fill()
   Fill stencil
 
 Inputs: stencil_type - GSL_DERIV_STENCIL_xxx
-        n            - length of stencil (output of gsl_deriv_stencil_size)
+        n            - length of stencil (output of stencil_size)
         stencil      - (output) dimensionless stencil corresponding to unit scale
 
 Return: success/error
 */
 
-int
-gsl_deriv_stencil_fill(const gsl_deriv_stencil_t stencil_type,
-                       const size_t n,
-                       double stencil[])
+static int
+stencil_fill(const gsl_deriv_stencil_t stencil_type,
+             const size_t n,
+             double stencil[])
 {
   if (n == 0)
     {

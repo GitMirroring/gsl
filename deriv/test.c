@@ -23,6 +23,7 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_deriv.h>
+#include "fornberg.c"
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_errno.h>

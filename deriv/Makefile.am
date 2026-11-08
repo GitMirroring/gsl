@@ -7,10 +7,8 @@ libgslderiv_la_SOURCES = \
   deriv.c                \
   deriv_old.c            \
   directionaldiff.c      \
-  fornberg.c             \
   gradient.c             \
-  jacobian.c             \
-  stencil.c
+  jacobian.c
 
 TESTS = $(check_PROGRAMS)
 check_PROGRAMS = test #demo
@@ -32,6 +30,8 @@ pkginclude_HEADERS =    \
 noinst_HEADERS =     \
   deriv_cand.h       \
   deriv_common.c     \
+  fornberg.c         \
+  stencil.c          \
   test_adaptive.c    \
   test_d.c           \
   test_esterr.c      \

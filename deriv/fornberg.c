@@ -23,7 +23,7 @@
 #include <gsl/gsl_errno.h>
 
 /*
-gsl_deriv_fornberg_weights()
+fornberg_weights()
   Generate finite difference weights using Fornberg algorithm
 for arbitrary nodes,
 
@@ -47,10 +47,10 @@ gsl_matrix_view W = gsl_matrix_view_array(weights, max_deriv+1, n)
 and then row i will contain the weights for derivative order i
 */
 
-int
-gsl_deriv_fornberg_weights(const double nodes[], const unsigned int n,
-                           const unsigned int max_deriv, const double x0,
-                           double weights[])
+static int
+fornberg_weights(const double nodes[], const unsigned int n,
+                 const unsigned int max_deriv, const double x0,
+                 double weights[])
 {
   if (n < max_deriv + 1)
     {

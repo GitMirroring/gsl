@@ -106,10 +106,6 @@ int gsl_deriv_adaptive_v(const gsl_deriv_parameters * params, const gsl_function
                          gsl_vector * result, gsl_vector * esterr, gsl_vector * final_step, unsigned int * neval,
                          gsl_deriv_diag * diag);
 
-int gsl_deriv_fornberg_weights(const double nodes[], const unsigned int n,
-                               const unsigned int max_deriv, const double x0,
-                               double weights[]);
-
 /* directionaldiff.c */
 
 int gsl_deriv_directional_fixed(const gsl_deriv_parameters * params, const gsl_deriv_function * f,

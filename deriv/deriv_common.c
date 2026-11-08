@@ -23,6 +23,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_deriv.h>
 #include "deriv_cand.h"
+#include "stencil.c"
+#include "fornberg.c"
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
@@ -46,7 +48,7 @@ typedef struct
 } romb_state_t;
 
 static int geometric_fill(const double max_val, const double ratio, const size_t n, double result[]);
-static int deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double stencil[],
+static int deriv_init(const gsl_deriv_parameters * params, size_t * nstencil, double stencil[],
                       double weights[], gsl_vector_view * W);
 static int vec2mat(const gsl_vector * v, gsl_matrix * A);
 static int romb_init(const gsl_deriv_parameters * params, const double step_ratio, romb_state_t * state);
@@ -88,16 +90,16 @@ deriv_init()
   Common initialization for fixed and adaptive differentiation
 
 Inputs: params       - deriv parameters
-        stencil_size - (output) stencil size depending on params
+        nstencil     - (output) stencil size depending on params
         stencil      - (output) finite difference stencil, length >= GSL_DERIV_MAX_STENCIL
         weights      - (output) Fornberg FD weights, length GSL_DERIV_MAX_STENCIL*(GSL_DERIV_MAX_DERIV_ORDER+1)
-        W            - (output) vector view for the weights corresponding to deriv_order, length stencil_size
+        W            - (output) vector view for the weights corresponding to deriv_order, length nstencil
 
 Return: success/error
 */
 
 static int
-deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double stencil[],
+deriv_init(const gsl_deriv_parameters * params, size_t * nstencil, double stencil[],
            double weights[], gsl_vector_view * W)
 {
   int status;
@@ -109,21 +111,24 @@ deriv_init(const gsl_deriv_parameters * params, size_t * stencil_size, double st
     }
 
   /* calculate stencil size */
-  gsl_deriv_stencil_size(params->deriv_order, params->method_order, params->stencil_type, stencil_size);
-  if (*stencil_size > GSL_DERIV_MAX_STENCIL)
+  status = stencil_size(params->deriv_order, params->method_order, params->stencil_type, nstencil);
+  if (status)
+    return status;
+
+  if (*nstencil > GSL_DERIV_MAX_STENCIL)
     {
       GSL_ERROR("stencil_size exceeds GSL_DERIV_MAX_STENCIL", GSL_EBADLEN);
     }
 
   /* fill unit stencil */
-  gsl_deriv_stencil_fill(params->stencil_type, *stencil_size, stencil);
+  stencil_fill(params->stencil_type, *nstencil, stencil);
 
   /* compute Fornberg finite difference weights for unit stencil around point 0 */
-  status = gsl_deriv_fornberg_weights(stencil, *stencil_size, params->deriv_order, 0.0, weights);
+  status = fornberg_weights(stencil, *nstencil, params->deriv_order, 0.0, weights);
   if (status)
     return status;
 
-  A = gsl_matrix_view_array(weights, params->deriv_order + 1, *stencil_size);
+  A = gsl_matrix_view_array(weights, params->deriv_order + 1, *nstencil);
   *W = gsl_matrix_row(&A.matrix, params->deriv_order);
 
   return GSL_SUCCESS;

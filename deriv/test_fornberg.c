@@ -41,7 +41,7 @@ test_fornberg_stencil(const double tol, const double x0, const unsigned int max_
   gsl_matrix_view W = gsl_matrix_view_array(weights, max_deriv + 1, n);
   size_t j;
 
-  gsl_deriv_fornberg_weights(stencil, n, max_deriv, x0, weights);
+  fornberg_weights(stencil, n, max_deriv, x0, weights);
 
   for (j = 0; j < n; ++j)
     {
@@ -68,8 +68,8 @@ test_fornberg_translate(const double tol, const double a, const double x0,
   for (j = 0; j < n; ++j)
     stencil_a[j] = stencil[j] + a;
 
-  gsl_deriv_fornberg_weights(stencil, n, max_deriv, x0, weights);
-  gsl_deriv_fornberg_weights(stencil_a, n, max_deriv, x0 + a, weights_a);
+  fornberg_weights(stencil, n, max_deriv, x0, weights);
+  fornberg_weights(stencil_a, n, max_deriv, x0 + a, weights_a);
 
   for (i = 0; i < n*(max_deriv+1); ++i)
     gsl_test_rel(weights_a[i], weights[i], tol, "%s i=%zu", desc, i);
@@ -102,7 +102,7 @@ test_fornberg_poly(const double tol, const double x0, const unsigned int poly_or
   random_vector(-1.0, 1.0, &c.vector, rng_p);
 
   /* compute Fornberg weights for this stencil */
-  gsl_deriv_fornberg_weights(stencil, n, max_deriv, x0, weights);
+  fornberg_weights(stencil, n, max_deriv, x0, weights);
 
   /* evaluate polynomial at node locations */
   for (j = 0; j < n; ++j)
