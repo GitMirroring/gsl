@@ -276,6 +276,27 @@ If it is necessary to work on a system which does not support formatted
 formats or to convert :code:`long double` results into :code:`double` for
 reading and writing.
 
+Floating-point arithmetic on 32-bit x86
+=======================================
+.. index::
+   x87
+   SSE2
+   extended precision, x86
+
+Some functions in the library, such as the double-double arithmetic
+and the special functions which use it, require each floating-point
+operation on :code:`double` values to be rounded to double precision.
+On 32-bit x86 processors, compilers by default perform this arithmetic
+in the x87 floating-point unit, which works in extended precision, and
+these functions then lose accuracy.  On 32-bit x86, :code:`configure`
+therefore adds the options :code:`-msse2 -mfpmath=sse` to
+:code:`CFLAGS`, so that the library uses SSE2 arithmetic instead, as is
+always the case on 64-bit x86.  The resulting library requires a
+processor with SSE2 (2001 and later).  For older processors, the
+option :code:`--disable-sse2-math` builds the library with x87
+arithmetic, in which case some functions are less accurate.  Programs
+using the library do not need to be compiled with these options.
+
 .. _portability-functions:
 
 Portability functions

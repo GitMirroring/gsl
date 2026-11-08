@@ -48,6 +48,13 @@
 
 ** gsl_expm1 is deprecated: use gsl_sf_expm1
 
+** on 32-bit x86, configure now adds -msse2 -mfpmath=sse to CFLAGS:
+   x87 extended precision arithmetic made the double-double code and
+   the special functions using it inaccurate.  The library then
+   requires a processor with SSE2; --disable-sse2-math builds it with
+   x87 arithmetic for older processors (see "Floating-point arithmetic
+   on 32-bit x86" in the manual)
+
 ** fix for bug #59834 (gsl_movstat misalignment; reported by Z. Fu)
 
 ** fix for bug #44612 (reported by D. Zaslavsky)

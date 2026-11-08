@@ -125,6 +125,43 @@ AC_C_VOLATILE
 AC_C_INLINE
 AC_C_CHAR_UNSIGNED
 
+dnl On 32-bit x86, compilers do double arithmetic in the x87 unit by
+dnl default, in extended precision, which breaks the exactly rounded
+dnl double operations that the double-double (dd) arithmetic, and the
+dnl special functions using it, rely on.  Use SSE2 instead, unless
+dnl disabled for processors without SSE2.
+AC_ARG_ENABLE([sse2-math],
+  [AS_HELP_STRING([--disable-sse2-math],
+    [on 32-bit x86, do not add -msse2 -mfpmath=sse to CFLAGS (for processors without SSE2; some special functions are then inaccurate)])],
+  [], [enable_sse2_math=yes])
+
+AC_CACHE_CHECK([whether double arithmetic uses the x87 unit], [gsl_cv_x87_math],
+  [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#if !defined(__i386__) || defined(__SSE2_MATH__)
+#error not x87 arithmetic
+#endif
+]])], [gsl_cv_x87_math=yes], [gsl_cv_x87_math=no])])
+
+if test "$gsl_cv_x87_math" = yes ; then
+  if test "$enable_sse2_math" != no ; then
+    gsl_save_CFLAGS=$CFLAGS
+    CFLAGS="$CFLAGS -msse2 -mfpmath=sse"
+    AC_MSG_CHECKING([whether $CC accepts -msse2 -mfpmath=sse])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifndef __SSE2_MATH__
+#error no SSE2 arithmetic
+#endif
+]])],
+      [AC_MSG_RESULT([yes])
+       AC_MSG_NOTICE([using SSE2 for double arithmetic (-msse2 -mfpmath=sse); use --disable-sse2-math for processors without SSE2])],
+      [AC_MSG_RESULT([no])
+       CFLAGS=$gsl_save_CFLAGS
+       AC_MSG_WARN([cannot use SSE2 for double arithmetic: x87 extended precision makes some special functions inaccurate])])
+  else
+    AC_MSG_WARN([--disable-sse2-math: x87 extended precision makes some special functions inaccurate])
+  fi
+fi
+
 GSL_CFLAGS="-I$includedir"
 GSL_LIBS="-L$libdir -lgsl"
 dnl macro from libtool - can be replaced with LT_LIB_M when we require libtool 2
