@@ -24,6 +24,14 @@
 #include <gsl/gsl_sf_legendre.h>
 
 /*
+ * The gsl_sf_legendre_array functions in this file are deprecated
+ * (superseded by gsl_sf_alf); they are not compiled with
+ * GSL_DISABLE_DEPRECATED, which hides their declarations
+ */
+
+#ifndef GSL_DISABLE_DEPRECATED
+
+/*
  * The routines in this module compute associated Legendre functions
  * (ALFs) up to order and degree 2700, using the method described
  * in
@@ -100,3 +108,5 @@ legendre_sqrts(const size_t lmax, double *array)
   for (l = 0; l <= 2 * lmax + 1; ++l)
     array[l] = sqrt((double) l);
 }
+
+#endif /* !GSL_DISABLE_DEPRECATED */
