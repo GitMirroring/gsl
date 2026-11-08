@@ -153,6 +153,7 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
       state->it_num = 1;
       state->samples = 0;
       state->chisq = 0;
+      state->fscale = 0.0;
     }
 
   if (state->stage <= 2)
@@ -245,6 +246,19 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
 
               fval = jacbin * bin_vol * GSL_MONTE_FN_EVAL (f, x);
 
+              /* work in units of a power of two near the first nonzero
+                 value (exact scaling), so that fval^2 and the variances
+                 neither underflow nor overflow */
+              if (state->fscale == 0.0 && fval != 0.0 && gsl_finite (fval))
+                {
+                  int e;
+                  frexp (fval, &e);
+                  state->fscale = ldexp (1.0, -e);
+                }
+
+              if (state->fscale != 0.0)
+                fval *= state->fscale;
+
               /* recurrence for mean and variance (sum of squares) */
 
               {
@@ -277,7 +291,10 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
 
       var = tss / (calls_per_box - 1.0)  ;
 
-      if (var > 0) 
+      /* var is in units of fscale^-2; a variance whose reciprocal still
+         overflows (a relative variance below about 1e-308) is treated as
+         zero, as for a constant integrand */
+      if (var > 0 && gsl_finite (1.0 / var))
         {
           wgt = 1.0 / var;
         }
@@ -294,8 +311,9 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
 
      sig = sqrt (var);
 
-     state->result = intgrl;
-     state->sigma  = sig;
+     /* results of this iteration in the units of the integrand */
+     state->result = (state->fscale != 0.0) ? intgrl / state->fscale : intgrl;
+     state->sigma  = (state->fscale != 0.0) ? sig / state->fscale : sig;
 
      if (wgt > 0.0)
        {
@@ -342,8 +360,9 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
 
       if (state->verbose >= 0)
         {
+          const double sc = (state->fscale != 0.0) ? 1.0 / state->fscale : 1.0;
           print_res (state,
-                     state->it_num, intgrl, sig, cum_int, cum_sig,
+                     state->it_num, intgrl * sc, sig * sc, cum_int * sc, cum_sig * sc,
                      state->chisq);
           if (it + 1 == state->iterations && state->verbose > 0)
             {
@@ -369,6 +388,13 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
      estimates based on the same grid, although it may be rebinned. */
 
   state->stage = 1;  
+
+  /* cum_int, cum_sig are in units of 1/fscale */
+  if (state->fscale != 0.0)
+    {
+      cum_int /= state->fscale;
+      cum_sig /= state->fscale;
+    }
 
   *result = cum_int;
   *abserr = cum_sig;
@@ -495,6 +521,7 @@ int
 gsl_monte_vegas_init (gsl_monte_vegas_state * state)
 {
   state->stage = 0;
+  state->fscale = 0.0;
   state->alpha = 1.5;
   state->verbose = -1;
   state->iterations = 5;

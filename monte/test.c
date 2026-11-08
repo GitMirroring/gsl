@@ -56,6 +56,8 @@ double f0 (double x[], size_t d, void *params);
 double f1 (double x[], size_t d, void *params);
 double f2 (double x[], size_t d, void *params);
 double f3 (double x[], size_t d, void *params);
+double fscaled (double x[], size_t d, void *params);
+void test_vegas_scale (void);
 
 void my_error_handler (const char *reason, const char *file,
                        int line, int err);
@@ -382,6 +384,10 @@ main (void)
 #endif
 
       
+#ifdef VEGAS
+  test_vegas_scale ();
+#endif
+
   exit (gsl_test_summary ());
 }
 
@@ -477,4 +483,67 @@ my_error_handler (const char *reason, const char *file, int line, int err)
 {
   if (0)
     printf ("(caught [%s:%d: %s (%d)])\n", file, line, reason, err);
+}
+
+/* s x[0] (s = *params), or the constant s if dim = 0 is passed as d */
+double
+fscaled (double x[], size_t d, void *params)
+{
+  const double s = *(double *) params;
+  (void) d;
+  return s * x[0];
+}
+
+static double
+fscaled_const (double x[], size_t d, void *params)
+{
+  (void) x;
+  (void) d;
+  return *(double *) params;
+}
+
+/* VEGAS is independent of the scale of the integrand (bug #44612: tiny
+   integrands gave NaN, or a zero error estimate when f^2 underflowed) */
+void
+test_vegas_scale (void)
+{
+  const double scales[] = { 1.0e-300, 1.0e-158, 1.0e-150, 1.0e150, 1.0e300 };
+  double one = 1.0, res1, err1, chisq1;
+  double xlo = 0.0, xhi = 1.0;
+  gsl_monte_function F1 = make_function (&fscaled, 1, &one);
+  gsl_rng * r = gsl_rng_alloc (gsl_rng_default);
+  gsl_monte_vegas_state * st = gsl_monte_vegas_alloc (1);
+  size_t i;
+
+  gsl_monte_vegas_integrate (&F1, &xlo, &xhi, 1, 10000, r, st, &res1, &err1);
+  chisq1 = gsl_monte_vegas_chisq (st);
+
+  for (i = 0; i < sizeof (scales) / sizeof (scales[0]); ++i)
+    {
+      double s = scales[i], res, err, chisq;
+      gsl_monte_function Fs = make_function (&fscaled, 1, &s);
+      gsl_monte_function Fc = make_function (&fscaled_const, 1, &s);
+
+      /* the same random points as for s = 1 */
+      gsl_rng_set (r, gsl_rng_default_seed);
+      gsl_monte_vegas_init (st);
+      gsl_monte_vegas_integrate (&Fs, &xlo, &xhi, 1, 10000, r, st, &res, &err);
+      chisq = gsl_monte_vegas_chisq (st);
+
+      gsl_test_rel (res / s, res1, 1.0e-12, "vegas scale s=%g, result", s);
+      gsl_test_rel (err / s, err1, 1.0e-12, "vegas scale s=%g, error", s);
+      /* chisq is formed from the differences of the iteration results,
+         which agree to about 1e-7: the rounding of s x (eps) changes it by
+         about eps / 1e-7 */
+      gsl_test_rel (chisq, chisq1, 1.0e-6, "vegas scale s=%g, chisq", s);
+
+      /* a constant: exact, with zero error */
+      gsl_monte_vegas_init (st);
+      gsl_monte_vegas_integrate (&Fc, &xlo, &xhi, 1, 1000, r, st, &res, &err);
+      gsl_test_rel (res, s, 1.0e-14, "vegas scale s=%g, constant result", s);
+      gsl_test_abs (err, 0.0, 0.0, "vegas scale s=%g, constant error", s);
+    }
+
+  gsl_monte_vegas_free (st);
+  gsl_rng_free (r);
 }

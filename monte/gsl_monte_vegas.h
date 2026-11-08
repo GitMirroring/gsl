@@ -86,6 +86,11 @@ typedef struct {
 
   FILE * ostream;
 
+  /* power-of-two scale applied to the integrand values (0 until the first
+     nonzero value of an integration), so that the variances and weights
+     do not underflow or overflow for very small or large integrands */
+  double fscale;
+
 } gsl_monte_vegas_state;
 
 int gsl_monte_vegas_integrate(gsl_monte_function * f, 
