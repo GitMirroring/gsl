@@ -88,20 +88,37 @@ static
 int
 laguerre_n_cp(const int n, const double a, const double x, gsl_sf_result * result)
 {
-  gsl_sf_result lnfact;
-  gsl_sf_result lg1;
-  gsl_sf_result lg2;
-  double s1, s2;
-  int stat_f = gsl_sf_lnfact_e(n, &lnfact);
-  int stat_g1 = gsl_sf_lngamma_sgn_e(a+1.0+n, &lg1, &s1);
-  int stat_g2 = gsl_sf_lngamma_sgn_e(a+1.0, &lg2, &s2);
+  double lnpre_val, lnpre_err;
+  int stat_pre;
   double poly_1F1_val = 1.0;
   double poly_1F1_err = 0.0;
   int stat_e;
   int k;
 
-  double lnpre_val = (lg1.val - lg2.val) - lnfact.val;
-  double lnpre_err = lg1.err + lg2.err + lnfact.err + 2.0 * GSL_DBL_EPSILON * fabs(lnpre_val);
+  /* lnpre = log((a+1)_n / n!) */
+  if(a > -1.0) {
+    /* (a+1)_n / n! = 1 / ((n+a+1) B(n+1,a+1)); the form
+     * lngamma(a+1+n) - lngamma(a+1) - lnfact(n) cancels terms of
+     * size n log(n) and loses accuracy for large n
+     */
+    gsl_sf_result lnbeta;
+    const double lnnpa = log(n + a + 1.0);
+    stat_pre = gsl_sf_lnbeta_e(n + 1.0, a + 1.0, &lnbeta);
+    lnpre_val = -lnnpa - lnbeta.val;
+    lnpre_err = lnbeta.err + GSL_DBL_EPSILON * fabs(lnnpa) + 2.0 * GSL_DBL_EPSILON * fabs(lnpre_val);
+  }
+  else {
+    gsl_sf_result lnfact;
+    gsl_sf_result lg1;
+    gsl_sf_result lg2;
+    double s1, s2;
+    int stat_f = gsl_sf_lnfact_e(n, &lnfact);
+    int stat_g1 = gsl_sf_lngamma_sgn_e(a+1.0+n, &lg1, &s1);
+    int stat_g2 = gsl_sf_lngamma_sgn_e(a+1.0, &lg2, &s2);
+    stat_pre = GSL_ERROR_SELECT_3(stat_f, stat_g1, stat_g2);
+    lnpre_val = (lg1.val - lg2.val) - lnfact.val;
+    lnpre_err = lg1.err + lg2.err + lnfact.err + 2.0 * GSL_DBL_EPSILON * fabs(lnpre_val);
+  }
 
   for(k=n-1; k>=0; k--) {
     double t = (-n+k)/(a+1.0+k) * (x/(k+1));
@@ -121,7 +138,7 @@ laguerre_n_cp(const int n, const double a, const double x, gsl_sf_result * resul
                                     poly_1F1_val, poly_1F1_err,
                                     result);
 
-  return GSL_ERROR_SELECT_4(stat_e, stat_f, stat_g1, stat_g2);
+  return GSL_ERROR_SELECT_2(stat_e, stat_pre);
 }
 
 
