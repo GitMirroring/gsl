@@ -467,7 +467,7 @@ gsl_sf_hermite_func_fast_e(const int n, const double x, gsl_sf_result * result)
       const double k = sqrt(0.5*n);
       const size_t steps = (size_t) ceil(6.211 * sqrt(n));
       const double dt = M_PI/steps;
-      const double invn2 = 1.0/(n*n);
+      const double invn2 = 1.0/((double) n * n);
       double ex, ex_e, cs, cs_e, sn, sn2, t;
       gsl_sf_result lngamma;
   

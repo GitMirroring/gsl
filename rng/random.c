@@ -39,7 +39,7 @@
   
  */
 
-static inline long int random_get (int * i, int * j, int n, long int * x);
+static inline long int random_get (int * i, int * j, int n, unsigned long int * x);
 
 static inline unsigned long int random8_get (void *vstate);
 static inline unsigned long int random32_get (void *vstate);
@@ -71,41 +71,41 @@ static void random64_bsd_set (void *state, unsigned long int s);
 static void random128_bsd_set (void *state, unsigned long int s);
 static void random256_bsd_set (void *state, unsigned long int s);
 
-static void bsd_initialize (long int * x, int n, unsigned long int s);
-static void libc5_initialize (long int * x, int n, unsigned long int s);
-static void glibc2_initialize (long int * x, int n, unsigned long int s);
+static void bsd_initialize (unsigned long int * x, int n, unsigned long int s);
+static void libc5_initialize (unsigned long int * x, int n, unsigned long int s);
+static void glibc2_initialize (unsigned long int * x, int n, unsigned long int s);
 
 typedef struct
   {
-    long int x;
+    unsigned long int x;
   }
 random8_state_t;
 
 typedef struct
   {
     int i, j;
-    long int x[7];
+    unsigned long int x[7];
   }
 random32_state_t;
 
 typedef struct
   {
     int i, j;
-    long int x[15];
+    unsigned long int x[15];
   }
 random64_state_t;
 
 typedef struct
   {
     int i, j;
-    long int x[31];
+    unsigned long int x[31];
   }
 random128_state_t;
 
 typedef struct
   {
     int i, j;
-    long int x[63];
+    unsigned long int x[63];
   }
 random256_state_t;
 
@@ -119,7 +119,7 @@ random8_get (void *vstate)
 }
 
 static inline long int
-random_get (int * i, int * j, int n, long int * x)
+random_get (int * i, int * j, int n, unsigned long int * x)
 {
   long int k ;
 
@@ -271,7 +271,7 @@ random256_bsd_set (void *vstate, unsigned long int s)
 }
 
 static void 
-bsd_initialize (long int * x, int n, unsigned long int s)
+bsd_initialize (unsigned long int * x, int n, unsigned long int s)
 {
   int i; 
 
@@ -285,7 +285,7 @@ bsd_initialize (long int * x, int n, unsigned long int s)
 }
 
 static void 
-libc5_initialize (long int * x, int n, unsigned long int s)
+libc5_initialize (unsigned long int * x, int n, unsigned long int s)
 {
   int i; 
 
@@ -299,7 +299,7 @@ libc5_initialize (long int * x, int n, unsigned long int s)
 }
 
 static void 
-glibc2_initialize (long int * x, int n, unsigned long int s)
+glibc2_initialize (unsigned long int * x, int n, unsigned long int s)
 {
   int i; 
 

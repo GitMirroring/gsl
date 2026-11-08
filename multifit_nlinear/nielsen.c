@@ -33,6 +33,7 @@
  */
 
 #include <config.h>
+#include <limits.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
@@ -94,8 +95,10 @@ nielsen_reject(double * mu, long * nu)
 {
   *mu *= (double) *nu;
 
-  /* nu := 2*nu */
-  *nu <<= 1;
+  /* nu := 2*nu, saturating: after ~62 consecutive rejections the
+     shift would overflow (mu is infinite long before that) */
+  if (*nu <= LONG_MAX / 2)
+    *nu <<= 1;
 
   return GSL_SUCCESS;
 }

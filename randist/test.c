@@ -931,13 +931,13 @@ test_binomial_huge_knuth_pdf (unsigned int n)
 double
 test_binomial_max (void)
 {
-  return gsl_ran_binomial (r_global, 1e-8, 1<<31);
+  return gsl_ran_binomial (r_global, 1e-8, 1U<<31);
 }
 
 double
 test_binomial_max_pdf (unsigned int n)
 {
-  return gsl_ran_binomial_pdf (n, 1e-8, 1<<31);
+  return gsl_ran_binomial_pdf (n, 1e-8, 1U<<31);
 }
 
 double
