@@ -1,0 +1,233 @@
+                       GSL Release Checklist
+
+This replaces the "Pre-release checks", "Notes on making a release" and
+"Notes on updating documentation" sections of HACKING.  Most of the
+checks are automated by scripts/prerelease.py (step 3).
+
+X.Y below is the new version, e.g. 2.9; the git tag is release-X-Y.
+
+----------------------------------------------------------------------
+1. Tools
+----------------------------------------------------------------------
+
+  autoconf, automake, libtool, a C and C++ compiler
+  Sphinx with the RTD theme:    pip install -U Sphinx sphinx_rtd_theme
+  LaTeX with latexmk (PDF manual), makeinfo (info manual)
+  valgrind, abidiff (Debian/Ubuntu package abigail-tools)
+  For the 32-bit x86 build:     gcc-i686-linux-gnu
+  For the QEMU runs:            qemu-user-static and the cross compilers
+    gcc-aarch64-linux-gnu gcc-powerpc64le-linux-gnu gcc-powerpc64-linux-gnu
+    gcc-sparc64-linux-gnu gcc-arm-linux-gnueabihf gcc-riscv64-linux-gnu
+    gcc-s390x-linux-gnu gcc-mips64el-linux-gnuabi64 gcc-i686-linux-gnu
+
+  Do not install gcc-multilib: on Debian and Ubuntu it conflicts with
+  the cross compilers, and installing one removes the other (the 32-bit
+  build uses gcc-i686-linux-gnu instead of gcc -m32).  Mark the cross
+  compilers as manually installed so that an autoremove cannot drop them:
+
+    sudo apt-mark manual gcc-aarch64-linux-gnu ...
+
+prerelease.py skips any check whose tools are missing and says so in
+its summary; a release needs all of them to have run.
+
+----------------------------------------------------------------------
+2. Prepare the release commit
+----------------------------------------------------------------------
+
+* configure.ac:
+  - AC_INIT([gsl],[X.Y])  (X.Y+ during development; X.Y.90 etc. for a
+    test release)
+  - add the line "dnl gsl-X.Y  libgsl C:R:A  libgslcblas C:R:A" to the
+    table of releases
+  - GSL_CURRENT, GSL_REVISION, GSL_AGE (and CBLAS_*), following the
+    comments there and the Libtool manual ("Updating library version
+    information"), relative to the previous release:
+      interfaces added only:          C+1 : 0 : A+1
+      any interface removed/changed:  C+1 : 0 : 0
+      no interface change:            C   : R+1 : A
+    An interface "changes" also when a public struct changes in an
+    incompatible way (members removed, retyped or moved, or a struct
+    which users allocate themselves grows).  The abi check of
+    prerelease.py lists added, removed and changed interfaces and says
+    whether the numbers are consistent; read its abidiff report
+    (abidiff-libgsl.so.txt) before deciding.
+
+* NEWS: the first line is "* What is new in gsl-X.Y:"; every bug fix
+  ends with "(reported by A. Lastname)" where known.
+
+* doc/conf.py: release = 'X.Y' and the copyright years.
+
+* doc/gsl-ref.info is distributed and installed from the repository, so
+  regenerate and commit it:
+
+    cd doc && make info
+
+* Commit everything.  prerelease.py tests the committed revision, not
+  the working tree (it warns about uncommitted changes).
+
+----------------------------------------------------------------------
+3. Run the pre-release checks
+----------------------------------------------------------------------
+
+    scripts/prerelease.py -j8 --nice 10 --workdir ~/gsl-prerelease
+
+Run it from a normal terminal: the 32-bit x86 tests run 32-bit
+programs.  A full run takes a few hours.
+--list shows the checks; --only, --skip and --resume select them, e.g.
+
+    scripts/prerelease.py --list
+    scripts/prerelease.py -j8 --workdir ~/gsl-prerelease --only 'qemu:*'
+    scripts/prerelease.py -j8 --workdir ~/gsl-prerelease --resume
+
+(--resume skips the checks which passed in the previous run in the same
+work directory, if it was for the same commit.)
+
+It exports the revision with git archive and builds everything out of
+tree in the work directory; the working tree is not touched.  Results:
+
+    WORKDIR/summary.txt        one line per check, then the details
+    WORKDIR/logs/CHECK.log     full output of each check
+    WORKDIR/abidiff-*.txt      ABI comparison with the previous release
+
+What it covers (see the comment at the top of the script):
+
+  - exported symbols prefixed with gsl_/GSL_ (cblas_ in libgslcblas)
+  - config.h used by the library sources and not by installed headers
+  - all installed headers compiled together (C and C++) and each one on
+    its own (C89 -pedantic, C99 with HAVE_INLINE, C11 after <complex.h>,
+    C++)
+  - version numbers consistent in configure.ac, NEWS and doc/conf.py;
+    autoreconf -W all
+  - make check with: default flags; strict C89; CC=c99; -std=c2x; the
+    library fallbacks for the C99 math functions; -O3 with FMA
+    contraction; 32-bit x86; HAVE_INLINE undefined; ASan and UBSan;
+    clang and icc if installed; GSL_DISABLE_DEPRECATED (library build)
+  - make check with GSL_TEST_VERBOSE=1
+  - the example programs and their documented output
+    (scripts/test_examples.py)
+  - every test program under valgrind (suppressions in
+    scripts/valgrind.supp)
+  - make distcheck, also with INSTALL=install-sh
+  - make dist, unpack, build the library and the tests under a virtual
+    memory limit (--ulimit-kb, default 256 MB; HACKING's 64 MB is too
+    small for current GCC), make check (--test-ulimit-kb)
+  - the HTML, PDF and info manuals build without warnings
+  - libgsl and libgslcblas interfaces versus the previous release tag,
+    and the libtool version numbers
+  - every test program under QEMU for aarch64, ppc64le, ppc64, sparc64,
+    32-bit ARM, riscv64, s390x, mips64el and i686 (big endian, unsigned
+    char, long double = double, ...)
+
+A release needs a run with no FAIL and no SKIP other than clang/icc.
+Review every WARN.  Known, accepted warnings at 2.9: config-h (inline.c
+files, sincos_pi.c, integration/*.c, cblas without config.h), the
+compiler warnings of the strict C89 build, autoreconf's warning about
+the 'info' target in doc/Makefile.am, and abi whenever interfaces were
+added or changed (it then lists them; check that the libtool numbers it
+reports as consistent are right, and that the changes are compatible).
+
+If anything is changed, commit and run again (at least the affected
+checks; the release commit itself should have a complete run).
+
+----------------------------------------------------------------------
+4. Tag and make the tarball
+----------------------------------------------------------------------
+
+    git tag release-X-Y
+    git push origin release-X-Y
+
+Make the tarball from a clean export of the tag, not from a working
+tree:
+
+    git archive --prefix=gsl-X.Y-src/ release-X-Y | tar -x -C /tmp
+    cd /tmp/gsl-X.Y-src
+    ./autogen.sh && ./configure && make -j8 && make distcheck
+
+which leaves gsl-X.Y.tar.gz (checked by distcheck) in that directory.
+
+----------------------------------------------------------------------
+5. Upload
+----------------------------------------------------------------------
+
+Sign and upload to ftp-upload.gnu.org (see
+https://www.gnu.org/prep/maintain/maintain.html, "Automated FTP
+Uploads"):
+
+    scripts/mkrelease.sh gsl-X.Y.tar.gz       official release, /incoming/ftp
+    scripts/mktestrelease.sh gsl-X.Y.tar.gz   test release, /incoming/alpha
+
+The script makes the directive file (official releases: with the
+symlink gsl-latest.tar.gz), signs the tarball and the directive with
+gpg, and prints the upload commands for the three files:
+
+    gsl-X.Y.tar.gz
+    gsl-X.Y.tar.gz.sig
+    gsl-X.Y.tar.gz.directive.asc
+
+Check a few minutes later that the release appeared on
+https://ftp.gnu.org/gnu/gsl/ (or alpha.gnu.org) and that the
+signature verifies.
+
+----------------------------------------------------------------------
+6. Update the web pages and the online manual (Savannah)
+----------------------------------------------------------------------
+
+The web pages are a CVS repository on Savannah:
+
+    export CVS_RSH=ssh
+    cvs -z3 -d:ext:USER@cvs.sv.gnu.org:/web/gsl co gsl
+
+Build the manual from the release tag (step 4's export, or doc/ of a
+clean checkout of release-X-Y):
+
+    cd doc
+    make clean ; make html
+    rsync -av --delete --cvs-exclude _build/ /path/to/www/gsl/doc/
+    make latexpdf
+    cp _build/latex/gsl-ref.pdf /path/to/www/gsl/doc/latex
+
+Then register removed and new files with CVS:
+
+    # files deleted by rsync --delete
+    cd /path/to/www/gsl
+    cvs remove
+
+    # new files: first the directories (other than CVS), then the files
+    cd /path/to/www/gsl/doc/html
+    find . -type d \! -name CVS -exec cvs add '{}' \;
+    find . \( -type d -name CVS -prune \) -o \( -type f -exec cvs add '{}' \; \)
+
+    # the same for the doctrees directory
+    cd /path/to/www/gsl/doc/doctrees
+    find . -type d \! -name CVS -exec cvs add '{}' \;
+    find . \( -type d -name CVS -prune \) -o \( -type f -exec cvs add '{}' \; \)
+
+Edit gsl.html: the version number, the release date and the link to
+NEWS.  Then:
+
+    cd /path/to/www/gsl
+    cvs commit
+    cvs tag release-X-Y
+
+----------------------------------------------------------------------
+7. Announce
+----------------------------------------------------------------------
+
+* Announce on info-gsl@gnu.org and gsl-announce@sourceware.org first,
+  then on info-gnu@gnu.org, so that errors are caught on the smaller
+  lists.  Check the version number in every announcement.  Include the
+  NEWS entries, the download location, and the sha256sum and signature
+  of the tarball.
+
+* Update the entry in the GNU Free Software Directory.
+
+* Optionally post to na-digest (na.digest@na-net.ornl.gov).
+
+----------------------------------------------------------------------
+8. After the release
+----------------------------------------------------------------------
+
+* configure.ac: AC_INIT([gsl],[X.Y+])
+* NEWS: start a section for the next version, e.g. "* What is new in
+  gsl-2.10:" after 2.9
+* Commit and push.
