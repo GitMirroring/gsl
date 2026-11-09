@@ -379,7 +379,7 @@ gsl_integration_qawo (gsl_function * f,
       if (error_type == 0)
         error_type = 3;
 
-      if (result != 0 && area != 0)
+      if (res_ext != 0.0 && area != 0.0)
         {
           if (err_ext / fabs (res_ext) > errsum / fabs (area))
             goto compute_result;

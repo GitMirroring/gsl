@@ -715,6 +715,21 @@ FUNCTION (test, minmax) (const size_t M, const size_t N, const int sptype,
 
   FUNCTION (gsl_spmatrix, free) (A);
   FUNCTION (gsl_spmatrix, free) (B);
+
+  /* minimum stored first (data[0]) but not at (0,0) */
+  A = FUNCTION (gsl_spmatrix, alloc) (3, 4);
+  FUNCTION (gsl_spmatrix, set) (A, 2, 1, (BASE) 1);
+  FUNCTION (gsl_spmatrix, set) (A, 2, 3, (BASE) 4);
+  B = FUNCTION (gsl_spmatrix, compress) (A, sptype);
+
+  FUNCTION (gsl_spmatrix, min_index) (B, &imin, &jmin);
+
+  status = imin != 2 || jmin != 1;
+  gsl_test (status, NAME (gsl_spmatrix) "_min_index(%s) first element: (%zu,%zu), expected (2,1)",
+            FUNCTION (gsl_spmatrix, type) (B), imin, jmin);
+
+  FUNCTION (gsl_spmatrix, free) (A);
+  FUNCTION (gsl_spmatrix, free) (B);
 }
 
 #if !defined(UNSIGNED) && !defined(BASE_CHAR)

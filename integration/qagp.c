@@ -286,7 +286,7 @@ qagp (const gsl_function * f,
                 }
             }
 
-          if (i > 10 && error12 > e_i)
+          if (iteration > 10 && error12 > e_i)
             {
               roundoff_type3++;
             }
@@ -432,7 +432,7 @@ qagp (const gsl_function * f,
       if (error_type == 0)
         error_type = 3;
 
-      if (result != 0 && area != 0)
+      if (res_ext != 0.0 && area != 0.0)
         {
           if (err_ext / fabs (res_ext) > errsum / fabs (area))
             goto compute_result;

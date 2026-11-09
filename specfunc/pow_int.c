@@ -31,32 +31,36 @@ int gsl_sf_pow_int_e(double x, int n, gsl_sf_result * result)
 {
   double value = 1.0;
   int count = 0;
+  unsigned int un;
 
   /* CHECK_POINTER(result) */
 
 
   if(n < 0) {
-    n = -n;
+    un = -(unsigned int) n;  /* not -n, which overflows for n = INT_MIN */
 
     if(x == 0.0) {
       double u = 1.0 / x;
-      result->val = (n % 2) ? u : (u * u) ;  /* correct sign of infinity */
+      result->val = (un % 2) ? u : (u * u) ;  /* correct sign of infinity */
       result->err = GSL_POSINF;
       GSL_ERROR ("overflow", GSL_EOVRFLW);
     }
 
     x = 1.0/x;
   }
+  else {
+    un = n;
+  }
 
   /* repeated squaring method 
    * returns 0.0^0 = 1.0, so continuous in x
    */
   do {
-     if(GSL_IS_ODD(n)) value *= x;
-     n >>= 1;
+     if(un & 1) value *= x;  /* for un odd */
+     un >>= 1;
      x *= x;
      ++count;
-  } while (n);
+  } while (un);
 
   result->val = value;
   result->err = 2.0 * GSL_DBL_EPSILON * (count + 1.0) * fabs(value); 

@@ -122,7 +122,8 @@
    next to flat stretches of data; reported by T. Walter)
 
 ** fix for bug #68495 (gsl_pow_int(x, INT_MIN) negated INT_MIN, which
-   is undefined behaviour; reported by Y. Su)
+   is undefined behaviour; gsl_sf_pow_int(x, INT_MIN) did the same and
+   never returned; reported by Y. Su)
 
 ** fix for bug #43496 (Brent minimizer rejected valid parabolic steps
    because of a sign error in the step acceptance test, costing

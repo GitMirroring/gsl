@@ -92,7 +92,9 @@ FUNCTION (gsl_spmatrix, min_index) (const TYPE (gsl_spmatrix) * m,
             {
               for (p = Ap[j]; p < Ap[j + 1]; ++p)
                 {
-                  if (Ad[p] < min)
+                  /* p = 0 holds the initial min = Ad[0], whose
+                     position must be recorded too */
+                  if (p == 0 || Ad[p] < min)
                     {
                       min = Ad[p];
                       imin = m->i[p];
@@ -111,7 +113,7 @@ FUNCTION (gsl_spmatrix, min_index) (const TYPE (gsl_spmatrix) * m,
             {
               for (p = Ap[i]; p < Ap[i + 1]; ++p)
                 {
-                  if (Ad[p] < min)
+                  if (p == 0 || Ad[p] < min)
                     {
                       min = Ad[p];
                       imin = (int) i;
