@@ -144,7 +144,6 @@ int
 gsl_sf_sin_pi_e(const double x, gsl_sf_result *result)
 {
   double intx = 0.0, fracx = 0.0;
-  long q;
   int sign = 1, status;
 
   /* sin(pi x) is undefined for infinite x (and NaN propagates); the
@@ -159,10 +158,9 @@ gsl_sf_sin_pi_e(const double x, gsl_sf_result *result)
   if (fracx == 0.0) return GSL_SUCCESS;
   if(fabs(intx) >= TWOBIG) return GSL_SUCCESS; /* to be sure. Actually should be covered by the line above */
 
-  q = ( ( (intx >= LONG_MIN) && (intx <= LONG_MAX) ) ? intx : fmod(intx, 2.0) );
-  sign = ( q % 2 ? -1 : 1 );
+  /* intx is an integer, so fmod(intx, 2.0) is exactly 0 or +-1 */
+  sign = ( fmod(intx, 2.0) != 0.0 ? -1 : 1 );
 
-  /* int sign = 1 - 2*((int)round(fmod(fabs(intx),2.0))); */
   if (fabs(fracx) == 0.5) { /* probably unnecessary */
     if (fracx < 0.0) sign = -sign;
     result->val = ( sign != 1 ? -1.0 : 1.0 );
@@ -192,7 +190,6 @@ int
 gsl_sf_cos_pi_e(const double x, gsl_sf_result *result)
 {
   double intx = 0.0, fracx = 0.0;
-  long q;
   int sign = 1, status;
 
   /* cos(pi x) is undefined for infinite x (and NaN propagates); the
@@ -211,10 +208,9 @@ gsl_sf_cos_pi_e(const double x, gsl_sf_result *result)
     return GSL_SUCCESS;
   }
 
-  q = ( ( (intx >= LONG_MIN) && (intx <= LONG_MAX) ) ? intx : fmod(intx, 2.0) );
-  sign = ( q % 2 ? -1 : 1 );
+  /* intx is an integer, so fmod(intx, 2.0) is exactly 0 or +-1 */
+  sign = ( fmod(intx, 2.0) != 0.0 ? -1 : 1 );
 
-  /* int sign = 1 - 2*((int)round(fmod(fabs(intx),2.0))); */
   if (fracx == 0.0) { /* probably unnecessary */
     result->val = ( sign != 1 ? -1.0 : 1.0 );
     return GSL_SUCCESS;

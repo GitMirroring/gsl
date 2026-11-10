@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_spmatrix.h>

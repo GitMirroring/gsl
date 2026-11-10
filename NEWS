@@ -1,5 +1,17 @@
 * What is new in gsl-2.9:
 
+** gsl_spmatrix_add now returns GSL_EINVAL when the output matrix is
+   one of the inputs; this case silently gave wrong results before
+
+** gsl_spmatrix_min_index returned the wrong position for compressed
+   (CSC/CSR) matrices when the minimum was the first stored element
+   (reported by Fermé le Lundi)
+
+** gsl_integration_qagp used the wrong counter in its roundoff test,
+   and gsl_integration_qagp and gsl_integration_qawo tested the result
+   pointer instead of the extrapolated value when choosing between the
+   extrapolated and the direct result (reported by Fermé le Lundi)
+
 ** fix multilarge/tsqr bug related to adding an initial small number
    of rows
 

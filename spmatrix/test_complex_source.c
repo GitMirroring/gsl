@@ -611,6 +611,18 @@ FUNCTION (test, add) (const size_t M, const size_t N, const int sptype,
   gsl_test (status, NAME (gsl_spmatrix) "_add[%zu,%zu](%s) duplicate",
             M, N, FUNCTION (gsl_spmatrix, type) (A));
 
+  /* c must not alias a or b */
+  {
+    gsl_error_handler_t * old_handler = gsl_set_error_handler_off ();
+    int s1 = FUNCTION (gsl_spmatrix, add) (A, A, B);
+    int s2 = FUNCTION (gsl_spmatrix, add) (B, A, B);
+
+    gsl_set_error_handler (old_handler);
+    gsl_test (s1 != GSL_EINVAL || s2 != GSL_EINVAL,
+              NAME (gsl_spmatrix) "_add[%zu,%zu](%s) aliased output rejected",
+              M, N, FUNCTION (gsl_spmatrix, type) (A));
+  }
+
   FUNCTION (gsl_spmatrix, free) (A);
   FUNCTION (gsl_spmatrix, free) (B);
   FUNCTION (gsl_spmatrix, free) (C);

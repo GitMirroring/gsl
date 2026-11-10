@@ -1,12 +1,16 @@
-#!/bin/sh -e -x
+#!/bin/sh
+
+# stop at the first failing command (options on the #! line are lost
+# when the script is run as "sh script")
+set -e -x
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <tarfile>"
-  exit
+  exit 1
 fi
 
 NEWTAR="$1"
-if [ ! -e $NEWTAR ] ; then echo $NEWTAR not found ; exit ; fi
+if [ ! -e $NEWTAR ] ; then echo $NEWTAR not found ; exit 1 ; fi
 
 NEWVER=$(echo $NEWTAR | sed -e 's/.*-//; s/\.tar.*//')
 

@@ -478,7 +478,9 @@ Matrix Operations
 .. function:: int gsl_spmatrix_add (gsl_spmatrix * c, const gsl_spmatrix * a, const gsl_spmatrix * b)
 
    This function computes the sum :math:`c = a + b`. The three matrices must
-   have the same dimensions.
+   have the same dimensions. The output :data:`c` must be a different matrix
+   from :data:`a` and :data:`b`; otherwise the function returns
+   :macro:`GSL_EINVAL`.
 
    Input matrix formats supported: :ref:`CSC <sec_spmatrix-csc>`, :ref:`CSR <sec_spmatrix-csr>`
 

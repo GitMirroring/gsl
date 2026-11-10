@@ -224,6 +224,11 @@ FUNCTION (gsl_spmatrix, add) (TYPE (gsl_spmatrix) * c, const TYPE (gsl_spmatrix)
     {
       GSL_ERROR("COO format not yet supported", GSL_EINVAL);
     }
+  else if (c == a || c == b)
+    {
+      /* c is built in place, overwriting a or b while they are read */
+      GSL_ERROR("output matrix c must be distinct from a and b", GSL_EINVAL);
+    }
   else
     {
       int status = GSL_SUCCESS;
