@@ -2229,6 +2229,65 @@ main (void)
       }
   }
 
+  /* Test the accuracy of the weights computed on the fly (n not in the
+     precomputed tables): the weights must sum to 2, and the rule must
+     integrate x^(2n-2) over [-1,1] exactly, which depends mostly on the
+     weights near +-1.  The tolerance for x^(2n-2) allows for the
+     rounding of the nodes, amplified by the exponent. */
+  {
+    const int nvals[] = { 21, 41, 61, 101, 201, 500, 1025, 1500 };
+    size_t k;
+
+    for (k = 0; k < sizeof(nvals) / sizeof(nvals[0]); ++k)
+      {
+        const int n = nvals[k];
+        gsl_integration_glfixed_table * tbl =
+          gsl_integration_glfixed_table_alloc(n);
+        double sumw = 0.0, sump = 0.0, xi, wi;
+        int i;
+
+        for (i = 0; i < n; ++i)
+          {
+            gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, tbl);
+            sumw += wi;
+            sump += wi * gsl_pow_int(xi, 2 * n - 2);
+          }
+
+        gsl_test_rel(sumw, 2.0, 1.0e-14,
+            "glfixed %d-point: sum of weights", n);
+        gsl_test_rel(sump, 2.0 / (2.0 * n - 1.0), n * 1.0e-15,
+            "glfixed %d-point: Integrating x^%d over [-1,1]", n, 2 * n - 2);
+
+        gsl_integration_glfixed_table_free(tbl);
+      }
+  }
+
+  /* Test the weight at the largest node against reference values (mpmath,
+     40 digits); near x = 1 the weight is sensitive to the node error */
+  {
+    const struct { int n; double x, w, tol; } ref[] = {
+      {  201, 0.9999287834362645959764955, 1.827625311345397011479295e-04, 1.0e-12 },
+      { 1500, 0.9999987157042263241089616, 3.295916986880803607606891e-06, 1.0e-11 }
+    };
+    size_t k;
+
+    for (k = 0; k < sizeof(ref) / sizeof(ref[0]); ++k)
+      {
+        const int n = ref[k].n;
+        gsl_integration_glfixed_table * tbl =
+          gsl_integration_glfixed_table_alloc(n);
+        double xi, wi;
+
+        gsl_integration_glfixed_point(-1.0, 1.0, n - 1, &xi, &wi, tbl);
+        gsl_test_rel(xi, ref[k].x, 2.0 * GSL_DBL_EPSILON,
+            "glfixed %d-point: largest node", n);
+        gsl_test_rel(wi, ref[k].w, ref[k].tol,
+            "glfixed %d-point: weight at largest node", n);
+
+        gsl_integration_glfixed_table_free(tbl);
+      }
+  }
+
   /* Sanity check sin(x) test function for fixed Gauss-Legendre rules */
   {
     gsl_function f = { f_sin, NULL };
