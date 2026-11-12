@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #44952 (test library varargs.h to stdarg.h;
+   reported by R. Haas)
+
 ** fix for bug #40176 (poly test suite)
 
 ** fix for bug #54077 (gsl-randist: atol to strtoul;
