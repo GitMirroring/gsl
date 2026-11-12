@@ -483,6 +483,31 @@ test_rstat_empty(void)
   gsl_rstat_free(w2);
 }
 
+/* bug #68283: skewness and kurtosis are undefined (NaN) for data with zero
+   variance, including a single value; n = 2 is well defined */
+static void
+test_rstat_zero_variance(void)
+{
+  gsl_rstat_workspace *w = gsl_rstat_alloc();
+  size_t n;
+
+  for (n = 1; n <= 4; ++n)
+    {
+      gsl_rstat_add(2.5, w);
+      gsl_test_rel(gsl_rstat_variance(w), 0.0, 0.0, "constant n=%zu variance", n);
+      gsl_test_rel(gsl_rstat_skew(w), GSL_NAN, 0.0, "constant n=%zu skew", n);
+      gsl_test_rel(gsl_rstat_kurtosis(w), GSL_NAN, 0.0, "constant n=%zu kurtosis", n);
+    }
+
+  gsl_rstat_reset(w);
+  gsl_rstat_add(1.0, w);
+  gsl_rstat_add(3.0, w);
+  gsl_test_rel(gsl_rstat_skew(w), 0.0, 0.0, "n=2 skew");
+  gsl_test_rel(gsl_rstat_kurtosis(w), -2.75, GSL_DBL_EPSILON, "n=2 kurtosis");
+
+  gsl_rstat_free(w);
+}
+
 /*
 test_rstat_small()
   For every n = 1, ..., nmax, with k = 8 so that compactions start at
@@ -705,6 +730,7 @@ test_rstat(gsl_rng * r)
     test_rstat_cdf_exact(8, r);
     test_rstat_cdf_exact(200, r);
     test_rstat_empty();
+    test_rstat_zero_variance();
     test_rstat_reset(r);
 
     {

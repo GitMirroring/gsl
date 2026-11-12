@@ -607,6 +607,8 @@ test_wrstat_empty(void)
   gsl_wrstat_add(2.5, 3.0, w);
   gsl_test_rel(gsl_wrstat_mean(w), 3.0, 0.0, "wrstat single weight mean");
   gsl_test_rel(gsl_wrstat_variance(w), 0.0, 0.0, "wrstat single weight variance");
+  gsl_test_rel(gsl_wrstat_skew(w), GSL_NAN, 0.0, "wrstat single weight skew");
+  gsl_test_rel(gsl_wrstat_kurtosis(w), GSL_NAN, 0.0, "wrstat single weight kurtosis");
   gsl_test_rel(gsl_wrstat_rms(w), 3.0, 0.0, "wrstat single weight rms");
   gsl_test_rel(gsl_wrstat_neff(w), 1.0, 0.0, "wrstat single weight neff");
   gsl_test_rel(gsl_wrstat_median(w), 3.0, 0.0, "wrstat single weight median");

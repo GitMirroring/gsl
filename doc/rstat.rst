@@ -172,6 +172,10 @@ Current Statistics
 
          skew = (1/N) \sum ((x_i - \Hat\mu)/\Hat\sigma)^3
 
+   If the data have zero variance, for example a single value or only
+   equal values, :math:`\Hat\sigma = 0` and the skewness is undefined; the
+   function then returns NaN.  If no data have been added, it returns 0.
+
 .. function:: double gsl_rstat_kurtosis (const gsl_rstat_workspace * w)
 
    This function returns the kurtosis of all data added to the accumulator,
@@ -191,6 +195,10 @@ Current Statistics
       ::
 
          kurtosis = ((1/N) \sum ((x_i - \Hat\mu)/\Hat\sigma)^4)  - 3
+
+   If the data have zero variance, for example a single value or only
+   equal values, :math:`\Hat\sigma = 0` and the kurtosis is undefined; the
+   function then returns NaN.  If no data have been added, it returns 0.
 
 .. function:: double gsl_rstat_median (const gsl_rstat_workspace * w)
 
@@ -346,6 +354,9 @@ header file :file:`gsl_wrstat.h`.
 
          skew = (\sum w_i (x_i - \Hat\mu)^3) / (\Hat\sigma^3 \sum w_i)
          kurtosis = (\sum w_i (x_i - \Hat\mu)^4) / (\Hat\sigma^4 \sum w_i) - 3
+
+   As for the unweighted versions, they return NaN if the data have zero
+   variance and 0 if the total weight is zero.
 
    The central moments are updated with the numerically stable formulas
    of Pebay et al. (2016).

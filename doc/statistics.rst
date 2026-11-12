@@ -210,6 +210,10 @@ Higher moments (skewness and kurtosis)
    The function computes the mean and estimated standard deviation of
    :data:`data` via calls to :func:`gsl_stats_mean` and :func:`gsl_stats_sd`.
 
+   If the data have zero variance, for example :data:`n` = 1 or only
+   equal values, :math:`\Hat\sigma = 0` and the skewness is undefined; the
+   function then returns NaN.
+
 .. function:: double gsl_stats_skew_m_sd (const double data[], size_t stride, size_t n, double mean, double sd)
 
    This function computes the skewness of the dataset :data:`data` using the
@@ -251,6 +255,10 @@ Higher moments (skewness and kurtosis)
    The kurtosis measures how sharply peaked a distribution is, relative to
    its width.  The kurtosis is normalized to zero for a Gaussian
    distribution.
+
+   If the data have zero variance, for example :data:`n` = 1 or only
+   equal values, :math:`\Hat\sigma = 0` and the kurtosis is undefined; the
+   function then returns NaN.
 
 .. function:: double gsl_stats_kurtosis_m_sd (const double data[], size_t stride, size_t n, double mean, double sd)
 
@@ -517,6 +525,10 @@ Setting a weight to zero corresponds to removing a sample from a dataset.
 
          skew = (\sum w_i ((x_i - \Hat x)/\Hat \sigma)^3) / (\sum w_i)
 
+   If the weighted variance is zero, for example when all data with
+   nonzero weight are equal, the skewness is undefined and the function
+   returns NaN.
+
 .. function:: double gsl_stats_wskew_m_sd (const double w[], size_t wstride, const double data[], size_t stride, size_t n, double wmean, double wsd)
 
    This function computes the weighted skewness of the dataset :data:`data`
@@ -536,6 +548,9 @@ Setting a weight to zero corresponds to removing a sample from a dataset.
       ::
 
          kurtosis = ((\sum w_i ((x_i - \Hat x)/\Hat \sigma)^4) / (\sum w_i)) - 3
+
+   As for :func:`gsl_stats_wskew`, the result is NaN if the weighted
+   variance is zero.
 
 .. function:: double gsl_stats_wkurtosis_m_sd (const double w[], size_t wstride, const double data[], size_t stride, size_t n, double wmean, double wsd)
 
