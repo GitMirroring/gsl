@@ -25,16 +25,20 @@
 #include <gsl/gsl_poly.h>
 #include <gsl/gsl_heapsort.h>
 
-/* sort by Re(z) then by Im(z) */
+/* sort by Re(z) then by Im(z).  The computed real parts of a complex
+   conjugate pair can differ in the last bits (x87, FMA), so real parts
+   within a relative 1e-10 are treated as equal; the distinct real parts
+   in the tests are much further apart than that */
 static int
 cmp_cplx(const double *a, const double *b)
 {
   double r = a[0] - b[0];
+  double s = GSL_MAX (1.0, GSL_MAX (fabs (a[0]), fabs (b[0])));
 
-  if (r == 0.0)
+  if (fabs (r) <= 1.0e-10 * s)
     {
       double t = a[1] - b[1];
-	    return t < 0.0 ? -1 : t > 0.0 ? 1 : 0;
+      return t < 0.0 ? -1 : t > 0.0 ? 1 : 0;
     }
   else if (r < 0.0)
     return -1;
