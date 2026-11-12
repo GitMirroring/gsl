@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <math.h>
 #include <stdio.h>
 #include <gsl/gsl_histogram2d.h>
 #include <gsl/gsl_test.h>
@@ -191,6 +192,27 @@ test2d_trap (void)
   gsl_test (status != GSL_EDOM, "gsl_histogram2d_find traps y above ymax");
 
   gsl_histogram2d_free (h);
+
+  /* bug #68611: a pdf needs at least one nonzero bin */
+  {
+    gsl_histogram2d *hz = gsl_histogram2d_calloc_uniform (5, 4, 0.0, 1.0, 0.0, 1.0);
+    gsl_histogram2d_pdf *p = gsl_histogram2d_pdf_alloc (5, 4);
+    int s;
+
+    status = 0;
+    s = gsl_histogram2d_pdf_init (p, hz);
+    gsl_test (!status || s != GSL_EDOM,
+              "gsl_histogram2d_pdf_init traps all-zero histogram");
+
+    gsl_histogram2d_increment (hz, 0.55, 0.3);
+    status = 0;
+    s = gsl_histogram2d_pdf_init (p, hz);
+    gsl_test (status || s != GSL_SUCCESS || fabs (p->sum[20] - 1.0) > 1e-15,
+              "gsl_histogram2d_pdf_init accepts a single nonzero bin");
+
+    gsl_histogram2d_pdf_free (p);
+    gsl_histogram2d_free (hz);
+  }
 }
 
 

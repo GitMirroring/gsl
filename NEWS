@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #68611 (gsl_histogram_pdf_init and
+   gsl_histogram2d_pdf_init now return GSL_EDOM for an all-zero
+   histogram instead of NaN sums; reported by Fermé le Lundi)
+
 ** fix for bug #68073 (comment bug; reported by Fermé le Lundi)
 
 ** fix for bug #44952 (test library varargs.h to stdarg.h;

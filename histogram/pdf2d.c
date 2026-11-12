@@ -130,6 +130,7 @@ gsl_histogram2d_pdf_init (gsl_histogram2d_pdf * p, const gsl_histogram2d * h)
   const size_t nx = p->nx;
   const size_t ny = p->ny;
   const size_t n = nx * ny;
+  int nonzero = 0;
 
   if (nx != h->nx || ny != h->ny)
     {
@@ -140,9 +141,19 @@ gsl_histogram2d_pdf_init (gsl_histogram2d_pdf * p, const gsl_histogram2d * h)
     {
       if (h->bin[i] < 0)
         {
-          GSL_ERROR ("histogram bins must be non-negative to compute"
+          GSL_ERROR ("histogram bins must be non-negative to compute "
                      "a probability distribution", GSL_EDOM);
         }
+      else if (h->bin[i] > 0)
+        {
+          nonzero = 1;
+        }
+    }
+
+  if (!nonzero)
+    {
+      GSL_ERROR ("histogram bins must not all be zero to compute "
+                 "a probability distribution", GSL_EDOM);
     }
 
   for (i = 0; i < nx + 1; i++)

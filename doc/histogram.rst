@@ -545,7 +545,8 @@ random samples from it.
    the contents of the histogram :data:`h`. If any of the bins of :data:`h` are
    negative then the error handler is invoked with an error code of
    :macro:`GSL_EDOM` because a probability distribution cannot contain
-   negative values.
+   negative values.  The same error is returned if all the bins of :data:`h`
+   are zero, since the distribution cannot then be normalized.
 
 .. function:: void gsl_histogram_pdf_free (gsl_histogram_pdf * p)
 
@@ -1085,7 +1086,8 @@ generate random samples from it.
    calculated :data:`p` from the histogram :data:`h`.  If any of the bins of
    :data:`h` are negative then the error handler is invoked with an error
    code of :macro:`GSL_EDOM` because a probability distribution cannot
-   contain negative values.
+   contain negative values.  The same error is returned if all the bins of
+   :data:`h` are zero, since the distribution cannot then be normalized.
 
 .. function:: void gsl_histogram2d_pdf_free (gsl_histogram2d_pdf * p)
 

@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <math.h>
 #include <stdio.h>
 #include <gsl/gsl_histogram.h>
 #include <gsl/gsl_test.h>
@@ -118,6 +119,27 @@ test1d_trap (void)
   gsl_test (status != GSL_EDOM, "gsl_histogram_find traps x above xmax");
 
   gsl_histogram_free (h);
+
+  /* bug #68611: a pdf needs at least one nonzero bin */
+  {
+    gsl_histogram *hz = gsl_histogram_calloc_uniform (10, 0.0, 1.0);
+    gsl_histogram_pdf *p = gsl_histogram_pdf_alloc (10);
+    int s;
+
+    status = 0;
+    s = gsl_histogram_pdf_init (p, hz);
+    gsl_test (!status || s != GSL_EDOM,
+              "gsl_histogram_pdf_init traps all-zero histogram");
+
+    gsl_histogram_increment (hz, 0.55);
+    status = 0;
+    s = gsl_histogram_pdf_init (p, hz);
+    gsl_test (status || s != GSL_SUCCESS || fabs (p->sum[10] - 1.0) > 1e-15,
+              "gsl_histogram_pdf_init accepts a single nonzero bin");
+
+    gsl_histogram_pdf_free (p);
+    gsl_histogram_free (hz);
+  }
 }
 
 
