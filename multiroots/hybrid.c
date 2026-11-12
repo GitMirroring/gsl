@@ -589,15 +589,19 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
       return GSL_SUCCESS;
     }
 
-  /* Compute qtdf = Q^T df, w = (Q^T df - R dx)/|dx|,  v = D^2 dx/|dx| */
+  /* Compute qtdf = Q^T df, w = (Q^T df - R dx)/|dx|,  v = D^2 dx/|dx|,
+     and the rank-1 update of the jacobian Q'R' = Q(R + w v^T).  A zero
+     step, e.g. when x is already a root, gives no information for the
+     update and would divide by |dx| = 0 */
 
-  compute_qtf (q, df, qtdf);
+  if (pnorm > 0.0)
+    {
+      compute_qtf (q, df, qtdf);
 
-  compute_wv (qtdf, rdx, dx, diag, pnorm, w, v);
+      compute_wv (qtdf, rdx, dx, diag, pnorm, w, v);
 
-  /* Rank-1 update of the jacobian Q'R' = Q(R + w v^T) */
-
-  gsl_linalg_QR_update (q, r, w, v);
+      gsl_linalg_QR_update (q, r, w, v);
+    }
 
   /* No progress as measured by jacobian evaluations */
 

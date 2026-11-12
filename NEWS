@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #42220 (hybrid, hybrids, hybridj and hybridsj
+   multiroot solvers divided by zero when started exactly at a root;
+   reported by Curran)
+
 ** fix for bug #42830 (gsl_bspline_init_augment, gsl_bspline_knots and
    gsl_bspline_init now return GSL_EINVAL for decreasing breakpoints or
    knots, which gave wrong basis functions before; reported by

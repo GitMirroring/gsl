@@ -64,6 +64,8 @@ main (void)
   while (*T1 != 0) 
     {
       test_f ("Rosenbrock", &rosenbrock, rosenbrock_initpt, f, *T1);
+      if (*T1 == gsl_multiroot_fsolver_hybrid || *T1 == gsl_multiroot_fsolver_hybrids)
+        test_f ("Rosenbrock at root", &rosenbrock, rosenbrock_rootpt, f, *T1);
       test_f ("Roth", &roth, roth_initpt, f, *T1);
       test_f ("Powell badly scaled", &powellscal, powellscal_initpt, f, *T1);
       test_f ("Brown badly scaled", &brownscal, brownscal_initpt, f, *T1);
@@ -80,6 +82,8 @@ main (void)
   while (*T2 != 0) 
     {
       test_fdf ("Rosenbrock", &rosenbrock, rosenbrock_initpt, f, *T2);
+      if (*T2 == gsl_multiroot_fdfsolver_hybridj || *T2 == gsl_multiroot_fdfsolver_hybridsj)
+        test_fdf ("Rosenbrock at root", &rosenbrock, rosenbrock_rootpt, f, *T2);
       test_fdf ("Roth", &roth, roth_initpt, f, *T2);
       test_fdf ("Powell badly scaled", &powellscal, powellscal_initpt, f, *T2);
       test_fdf ("Brown badly scaled", &brownscal, brownscal_initpt, f, *T2);

@@ -48,6 +48,14 @@ rosenbrock_initpt (gsl_vector * x)
   gsl_vector_set (x, 1, 1.0);
 }
 
+/* the root itself, bug #42220 */
+void
+rosenbrock_rootpt (gsl_vector * x)
+{
+  gsl_vector_set (x, 0, 1.0);
+  gsl_vector_set (x, 1, 1.0);
+}
+
 int
 rosenbrock_f (const gsl_vector * x, void *params, gsl_vector * f)
 {
