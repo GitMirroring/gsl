@@ -83,3 +83,4 @@ double cqf22 ( double x , void *params );
 double cqf23 ( double x , void *params );
 double cqf24 ( double x , void *params );
 double cqf25 ( double x , void *params );
+double cqf26 ( double x , void *params );

@@ -2544,6 +2544,23 @@ main (void)
     }
   }
 
+  /* bug #59913: the squared coefficients of the initial interval underflow
+     to zero, which gave 0/0 in the error estimate.  Without FP traps the
+     result was right anyway, so this only checks that the case works */
+  {
+    gsl_integration_cquad_workspace *ws = gsl_integration_cquad_workspace_alloc ( 100 );
+    gsl_function f = make_function(&cqf26, NULL);
+    double exact = 4.390157623790496242996e-164;
+    double result, abserr;
+    size_t neval;
+    int status = gsl_integration_cquad (&f, 19.3, 20.0, 1.0e-13, 1.0e-13, ws, &result, &abserr, &neval);
+
+    gsl_test_rel (result, exact, 1e-12, "cquad exp(-x^2) on [19.3,20]");
+    gsl_test_int (status, GSL_SUCCESS, "cquad exp(-x^2) on [19.3,20] return code");
+
+    gsl_integration_cquad_workspace_free(ws);
+  }
+
   /* test fixed quadrature */
   {
     size_t n;

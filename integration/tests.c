@@ -360,3 +360,7 @@ double cqf25 ( double x , void *params ) {
     (1 <= x && x <= 3) * (3 - x) + 
     (x > 3) * 2;
 }
+
+double cqf26 ( double x , void *params ) {
+  return exp(-x*x);
+}

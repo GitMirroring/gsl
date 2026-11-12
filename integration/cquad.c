@@ -268,7 +268,7 @@ gsl_integration_cquad (const gsl_function * f, double a, double b,
   ncdiff = sqrt (ncdiff);
   nc = sqrt (nc);
   iv->err = ncdiff * 2 * h;
-  if (ncdiff / nc > 0.1 && iv->err < 2 * h * nc)
+  if (nc > 0 && ncdiff / nc > 0.1 && iv->err < 2 * h * nc)
     iv->err = 2 * h * nc;
 
 
