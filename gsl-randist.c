@@ -92,7 +92,7 @@ main (int argc, char *argv[])
       exit (0);
     }
 
-  argv++ ; seed = atol (argv[0]); argc-- ;
+  argv++ ; seed = strtoul (argv[0], 0, 10); argc-- ;
   argv++ ; n = atol (argv[0]); argc-- ;
   argv++ ; name = argv[0] ; argc-- ; argc-- ;
 
@@ -100,7 +100,7 @@ main (int argc, char *argv[])
 
   if (gsl_rng_default_seed != 0) {
     fprintf(stderr, 
-            "overriding GSL_RNG_SEED with command line value, seed = %ld\n", 
+            "overriding GSL_RNG_SEED with command line value, seed = %lu\n", 
             seed) ;
   }
   

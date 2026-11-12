@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #54077 (gsl-randist: atol to strtoul;
+   reported by J. Benoit)
+
 ** fix for bug #59913 (gsl_integration_cquad 0/0 bug;
    reported by Buchholz)
 
