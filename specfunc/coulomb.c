@@ -1119,9 +1119,12 @@ gsl_sf_coulomb_wave_FG_e(const double eta, const double x,
      * lam_0   = a value of lambda such that x is below the turning point
      * lam_min = minimum of lam_0 and the requested lam_G, since
      *           we must go at least as low as lam_G
+     *
+     * The turning point is at x when lam(lam+1) = x(x - 2 eta),
+     * i.e. lam = C - 1/2 with C = sqrt(1 + 4x(x - 2 eta)) / 2.
      */
     const double SMALL = GSL_SQRT_DBL_EPSILON;
-    const double C = sqrt(1.0 + 4.0*x*(x-2.0*eta));
+    const double C = 0.5 * sqrt(1.0 + 4.0*x*(x-2.0*eta));
     const int N = ceil(lam_F - C + 0.5);
     const double lam_0   = lam_F - GSL_MAX(N, 0);
     const double lam_min = GSL_MIN(lam_0, lam_G);

@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #39292 (gsl_sf_coulomb_wave_FG_e;
+   reported by A. Illarionov)
+
 ** fix for bug #64851 (gsl-config exited with status 0 on an unknown
    option; it now exits with status 1) (reported by S. Litvinov)
 

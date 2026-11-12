@@ -408,6 +408,54 @@ int test_coulomb(void)
   gsl_test(s, "  gsl_sf_coulomb_wave_FG_e(3.25, 0.0, lam_F=1, lam_G=0)");
   status += s;
 
+  /* bug #39292: x above the turning point for lam_F, where the starting
+     lambda for Steed's method was too large; reference values from mpmath */
+
+  lam_F = 50.0;
+  k_G   = 0;
+  eta = 0.0;
+  x = 33.0;
+  gsl_sf_coulomb_wave_FG_e(eta, x, lam_F, k_G, &F, &Fp, &G, &Gp, &Fe, &Ge);
+  s = 0;
+  message_buff[0] = 0;
+  s += test_sf_check_result(message_buff,  F, 0.000003751578152434248889407, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Fp, 0.000004442954734179257154284, TEST_TOL3);
+  s += test_sf_check_result(message_buff,  G, 115112.9540037434378687, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Gp, -130227.4232849722344028, TEST_TOL3);
+  printf("%s", message_buff);
+  gsl_test(s, "  gsl_sf_coulomb_wave_FG_e(0.0, 33.0, lam_F=50, lam_G=50)");
+  status += s;
+
+  lam_F = 40.0;
+  k_G   = 0;
+  eta = -1.0;
+  x = 24.0;
+  gsl_sf_coulomb_wave_FG_e(eta, x, lam_F, k_G, &F, &Fp, &G, &Gp, &Fe, &Ge);
+  s = 0;
+  message_buff[0] = 0;
+  s += test_sf_check_result(message_buff,  F, 0.00000404578531031267955616, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Fp, 0.000005505509224300998028556, TEST_TOL3);
+  s += test_sf_check_result(message_buff,  G, 93088.83555379792781394, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Gp, -120495.4093674956650346, TEST_TOL3);
+  printf("%s", message_buff);
+  gsl_test(s, "  gsl_sf_coulomb_wave_FG_e(-1.0, 24.0, lam_F=40, lam_G=40)");
+  status += s;
+
+  lam_F = 20.0;
+  k_G   = 0;
+  eta = -5.0;
+  x = 6.0;
+  gsl_sf_coulomb_wave_FG_e(eta, x, lam_F, k_G, &F, &Fp, &G, &Gp, &Fe, &Ge);
+  s = 0;
+  message_buff[0] = 0;
+  s += test_sf_check_result(message_buff,  F, 3.537408786028914168803e-7, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Fp, 0.000001096793694774701278281, TEST_TOL3);
+  s += test_sf_check_result(message_buff,  G, 471126.3711691017470842, TEST_TOL3);
+  s += test_sf_check_result(message_buff, Gp, -1366173.930952896705481, TEST_TOL3);
+  printf("%s", message_buff);
+  gsl_test(s, "  gsl_sf_coulomb_wave_FG_e(-5.0, 6.0, lam_F=20, lam_G=20)");
+  status += s;
+
 #ifdef FIXME
   /* compute F_37(eta=0,x), F'_37 and G_36(eta=0,x), G'_36 for
      x=1.2693881947287221e-07 */
