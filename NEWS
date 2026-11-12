@@ -1,5 +1,10 @@
 * What is new in gsl-2.9:
 
+** fix for bug #39372 (gsl_hypot3 returned NaN when an argument was
+   infinite, and 0 for gsl_hypot3(NaN, 0, 0); it now returns +Inf if
+   any argument is infinite and otherwise NaN if any is NaN, like
+   gsl_hypot)
+
 ** fix for bug #39292 (gsl_sf_coulomb_wave_FG_e;
    reported by A. Illarionov)
 

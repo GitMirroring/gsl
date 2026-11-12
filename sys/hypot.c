@@ -60,7 +60,22 @@ gsl_hypot3(const double x, const double y, const double z)
   double xabs = fabs(x);
   double yabs = fabs(y);
   double zabs = fabs(z);
-  double w = GSL_MAX(xabs, GSL_MAX(yabs, zabs));
+  double w;
+
+  /* As in gsl_hypot: +Inf when any argument is +-Inf, even if another
+     is NaN; otherwise NaN when any argument is NaN, which GSL_MAX below
+     would drop */
+  if (gsl_isinf(x) || gsl_isinf(y) || gsl_isinf(z))
+    {
+      return GSL_POSINF;
+    }
+
+  if (gsl_isnan(x) || gsl_isnan(y) || gsl_isnan(z))
+    {
+      return GSL_NAN;
+    }
+
+  w = GSL_MAX(xabs, GSL_MAX(yabs, zabs));
 
   if (w == 0.0)
     {
