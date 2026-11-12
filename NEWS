@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #64851 (gsl-config exited with status 0 on an unknown
+   option; it now exits with status 1) (reported by S. Litvinov)
+
 ** fix for gsl_integration_glfixed_table_alloc: for n not in the
    precomputed tables the weights had significant relative errors
    for large n

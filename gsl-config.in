@@ -71,8 +71,7 @@ while test $# -gt 0; do
 	echo @GSL_LIBS@ @GSL_LIBM@
        	;;
     *)
-	usage
-	exit 1
+	usage 1
 	;;
     esac
     shift
