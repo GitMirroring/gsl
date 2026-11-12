@@ -246,6 +246,15 @@ broyden_iterate (void *vstate, gsl_multiroot_function * function, gsl_vector * x
 
   size_t n = function->n;
 
+  /* x is already a root: the step p = H f is zero, which would make the
+     update of H divide by zero below, so leave x, f and H unchanged */
+
+  if (state->phi == 0.0)
+    {
+      gsl_vector_set_zero (dx);
+      return GSL_SUCCESS;
+    }
+
   /* p = H f */
 
   for (i = 0; i < n; i++)

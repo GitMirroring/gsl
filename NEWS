@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** gsl_multiroot_fsolver_broyden reported GSL_EZERODIV ("approximation
+   to Jacobian has collapsed") when started exactly at a root; it now
+   leaves the root unchanged and returns GSL_SUCCESS
+
 ** fix for bug #42220 (hybrid, hybrids, hybridj and hybridsj
    multiroot solvers divided by zero when started exactly at a root;
    reported by Curran)
