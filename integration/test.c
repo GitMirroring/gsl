@@ -2288,6 +2288,46 @@ main (void)
       }
   }
 
+  /* Test the nodes for large n: the Newton step P_n(x) / P_n'(x) at each
+     stored node must be below rounding level */
+  {
+    const int nvals[] = { 5000, 10000 };
+    size_t k;
+
+    for (k = 0; k < sizeof(nvals) / sizeof(nvals[0]); ++k)
+      {
+        const int n = nvals[k];
+        gsl_integration_glfixed_table * tbl =
+          gsl_integration_glfixed_table_alloc(n);
+        double xi, wi, p0, p1, p2, delta, dmax = 0.0;
+        int i, j;
+
+        for (i = 0; i < n; ++i)
+          {
+            gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, tbl);
+
+            p1 = 1.0;
+            p0 = xi;
+            for (j = 2; j <= n; ++j)
+              {
+                p2 = p1;
+                p1 = p0;
+                p0 = ((2.0 * j - 1.0) * xi * p1 - (j - 1.0) * p2) / j;
+              }
+
+            /* P_n'(x) = n (x P_n - P_{n-1}) / (x^2 - 1) */
+            delta = fabs(p0 * (xi * xi - 1.0) / (n * (xi * p0 - p1)));
+            if (delta > dmax)
+              dmax = delta;
+          }
+
+        gsl_test(dmax > 2.0 * GSL_DBL_EPSILON,
+            "glfixed %d-point: Newton residual of nodes %g", n, dmax);
+
+        gsl_integration_glfixed_table_free(tbl);
+      }
+  }
+
   /* Sanity check sin(x) test function for fixed Gauss-Legendre rules */
   {
     gsl_function f = { f_sin, NULL };

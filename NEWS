@@ -1,9 +1,8 @@
 * What is new in gsl-2.9:
 
 ** fix for gsl_integration_glfixed_table_alloc: for n not in the
-   precomputed tables the weights had relative errors up to 1e-10
-   (n = 41) to 3e-6 (n = 1500); they are now accurate to about 1e-14
-   for n up to 100 and 1e-12 for n up to 2000
+   precomputed tables the weights had significant relative errors
+   for large n
 
 ** gsl_spmatrix_add now returns GSL_EINVAL when the output matrix is
    one of the inputs; this case silently gave wrong results before

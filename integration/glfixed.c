@@ -415,6 +415,7 @@ gauss_legendre_tbl(int n, double* x, double* w, double eps)
   double P0, P_1;      /* Legendre polynomial values */
   double dpdx;   /* Legendre polynomial derivative */
   double s;      /* 1 - x^2 = (1 - x)(1 + x), where 1 - x is exact for x >= 1/2 */
+  double delta;  /* final Newton correction P_n(x) / P_n'(x) */
   int i, j, m;   /* Iterators */
   double t0, t1;
 
@@ -467,15 +468,19 @@ gauss_legendre_tbl(int n, double* x, double* w, double eps)
 
       /* The weight 2 / ((1 - x^2) P_n'(x)^2) needs the derivative at the
        * node itself, not at the previous iterate, which can be eps away.
-       * Evaluate it at the converged node x1.  x1 is still off the root
-       * by delta = P_n(x1) / P_n'(x1), below one ulp, but near x = +-1 the
-       * relative change of the weight is 2 x delta / (1 - x^2), which is
-       * large for large n; correct for it to first order. */
+       * Evaluate it at the converged node x1.  The loop stops at
+       * |dx| <= eps, so x1 can still be off the root by
+       * delta = P_n(x1) / P_n'(x1), several ulps for n in the thousands.
+       * Take this last Newton step for the node and correct the weight for
+       * it to first order: near x = +-1 the relative change of the weight,
+       * 2 x delta / (1 - x^2), is large for large n. */
       legendre_pn(n, x1, &P0, &P_1);
       s = (1.0 - x1) * (1.0 + x1);
       dpdx = -((x1 * P0 - P_1) * (double)n) / s;
+      delta = P0 / dpdx;
       w1 = 2.0 / (s * dpdx * dpdx);
-      w1 *= 1.0 + 2.0 * x1 * (P0 / dpdx) / s;
+      w1 *= 1.0 + 2.0 * x1 * delta / s;
+      x1 -= delta;
 
       x[(m-1)-(i-1)] = x1;
 
