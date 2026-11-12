@@ -5,9 +5,9 @@ int
 main (void)
 {
   int i; 
-  gsl_vector * v = gsl_vector_alloc (100);
+  gsl_vector * v = gsl_vector_alloc (10);
   
-  for (i = 0; i < 100; i++)
+  for (i = 0; i < 10; i++)
     {
       gsl_vector_set (v, i, 1.23 + i);
     }
