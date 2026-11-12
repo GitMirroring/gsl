@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #42219 (gsl_multiroot_fdfsolver_gnewton returned NaN,
+   when fdf gave an exact root but f at the same point did not;
+   reported by Curran)
+
 ** gsl_multiroot_fsolver_broyden reported GSL_EZERODIV ("approximation
    to Jacobian has collapsed") when started exactly at a root; it now
    leaves the root unchanged and returns GSL_SUCCESS

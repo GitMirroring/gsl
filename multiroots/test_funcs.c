@@ -73,6 +73,25 @@ rosenbrock_f (const gsl_vector * x, void *params, gsl_vector * f)
   return GSL_SUCCESS;
 }
 
+/* bug #42219: f differs slightly from the f computed by fdf, as can
+   happen with FMA contraction or other rounding differences; fdf gives
+   exactly 0 at the root, f gives a few ulps of 1 */
+
+gsl_multiroot_function_fdf rosenbrock_ulp =
+{&rosenbrock_f_ulp,
+ &rosenbrock_df,
+ &rosenbrock_fdf,
+ 2, 0};
+
+int
+rosenbrock_f_ulp (const gsl_vector * x, void *params, gsl_vector * f)
+{
+  rosenbrock_f (x, params, f);
+  gsl_vector_set (f, 0, gsl_vector_get (f, 0) + 1.0e-15);
+
+  return GSL_SUCCESS;
+}
+
 int
 rosenbrock_df (const gsl_vector * x, void *params, gsl_matrix * df)
 {

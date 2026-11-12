@@ -82,6 +82,7 @@ main (void)
     {
       test_fdf ("Rosenbrock", &rosenbrock, rosenbrock_initpt, f, *T2);
       test_fdf ("Rosenbrock at root", &rosenbrock, rosenbrock_rootpt, f, *T2);
+      test_fdf ("Rosenbrock at root, f differs from fdf", &rosenbrock_ulp, rosenbrock_rootpt, f, *T2);
       test_fdf ("Roth", &roth, roth_initpt, f, *T2);
       test_fdf ("Powell badly scaled", &powellscal, powellscal_initpt, f, *T2);
       test_fdf ("Brown badly scaled", &brownscal, brownscal_initpt, f, *T2);

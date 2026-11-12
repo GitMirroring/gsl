@@ -136,6 +136,16 @@ gnewton_iterate (void * vstate, gsl_multiroot_function_fdf * fdf, gsl_vector * x
 
   size_t n = fdf->n ;
 
+  /* x is already a root as evaluated by fdf: do not step.  The f
+     evaluation below may still round differently from fdf and give
+     phi1 > phi0 = 0, and the reduced step would divide by phi0 */
+
+  if (state->phi == 0.0)
+    {
+      gsl_vector_set_zero (dx);
+      return GSL_SUCCESS;
+    }
+
   gsl_matrix_memcpy (state->lu, J);
 
   gsl_linalg_LU_decomp (state->lu, state->permutation, &signum);
