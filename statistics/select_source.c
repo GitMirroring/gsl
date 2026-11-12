@@ -21,7 +21,7 @@
 
 /*
 gsl_stats_select()
-  Select k-th largest element from an unsorted array using
+  Select k-th smallest element from an unsorted array using
 quickselect algorithm
 
 Inputs: data   - unsorted array containing the observations
@@ -29,7 +29,7 @@ Inputs: data   - unsorted array containing the observations
         n      - length of 'data'
         k      - desired element in [0,n-1]
 
-Return: k-th largest element of data[]
+Return: k-th smallest element of data[]
 */
 
 BASE
