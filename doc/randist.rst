@@ -57,6 +57,14 @@ a safe range of parameters (where there is a negligible probability of
 a variate exceeding this limit) to prevent incorrect results due to
 overflow.
 
+For efficiency, the random variate and probability density functions do
+not check that their parameters lie in the allowed domain, for example
+that a standard deviation is positive or that a probability is between
+0 and 1.  With parameters outside the domain the results are undefined,
+so any checking is left to the caller.  The functions which take vector
+or matrix arguments, such as :func:`gsl_ran_multivariate_gaussian` and
+:func:`gsl_ran_wishart`, do check the dimensions of their arguments.
+
 Introduction
 ============
 

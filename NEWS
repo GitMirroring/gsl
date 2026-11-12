@@ -1,5 +1,11 @@
 * What is new in gsl-2.9:
 
+** documentation fixes for bugs #40196 (gsl_integration_qag key range),
+   #36578 (gsl_ieee_env_setup), #66894 (no parameter checking in randist),
+   #63927 (linking without gslcblas via pkg-config) and #45099 (the BFGS
+   minimizers are memoryless BFGS); reported by R. Ulerich, Fermé le
+   Lundi, A. Knagg-Baugh and C. Davis
+
 ** fix for bug #42219 (gsl_multiroot_fdfsolver_gnewton returned NaN,
    when fdf gave an exact root but f at the same point did not;
    reported by Curran)

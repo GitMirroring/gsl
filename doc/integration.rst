@@ -220,7 +220,9 @@ subintervals are managed by the following struct,
    corresponding to the 15, 21, 31, 41, 51 and 61 point Gauss-Kronrod
    rules.  The higher-order rules give better accuracy for smooth functions,
    while lower-order rules save time when the function contains local
-   difficulties, such as discontinuities.
+   difficulties, such as discontinuities.  Values of :data:`key` below 1
+   are treated as :macro:`GSL_INTEG_GAUSS15` and values above 6 as
+   :macro:`GSL_INTEG_GAUSS61`.
 
    On each iteration the adaptive integration strategy bisects the interval
    with the largest error estimate.  The subintervals and their results are

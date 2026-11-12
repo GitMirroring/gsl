@@ -126,6 +126,14 @@ The :code:`configure` script checks that the given library provides the
 |cblas| interface. The selection can be overridden when linking an
 application, with :code:`pkg-config --define-variable=GSL_CBLAS_LIB=-lcblas --libs gsl`
 or by setting the :code:`GSL_CBLAS_LIB` environment variable for :code:`gsl-config`.
+An empty value gives the flags for GSL alone, without any |cblas| library,
+for build systems which add their own |blas| dependency; this is the
+equivalent of :code:`gsl-config --libs-without-cblas`::
+
+    $ pkg-config --define-variable=GSL_CBLAS_LIB= --libs gsl
+
+In Meson the same is done with
+:code:`dependency('gsl', pkgconfig_define: ['GSL_CBLAS_LIB', ''])`.
 
 For more information about |blas| functions see :ref:`chap_blas-support`.
 

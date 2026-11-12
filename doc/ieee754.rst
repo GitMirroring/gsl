@@ -270,7 +270,7 @@ function :func:`gsl_ieee_env_setup`.
    that the results of the program will be affected.
 
    If the requested modes are not supported by the platform being used then
-   the function calls the error handler and returns an error code of
+   the function calls the error handler with the error code
    :macro:`GSL_EUNSUP`.
 
    When options are specified using this method, the resulting mode is

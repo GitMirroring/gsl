@@ -378,11 +378,20 @@ evaluation point.
             gsl_multimin_fdfminimizer_type * gsl_multimin_fdfminimizer_vector_bfgs
 
       These methods use the vector Broyden-Fletcher-Goldfarb-Shanno (BFGS)
-      algorithm.  This is a quasi-Newton method which builds up an approximation
-      to the second derivatives of the function :math:`f` using the difference
+      algorithm.  This is a quasi-Newton method which approximates the
+      second derivatives of the function :math:`f` using the difference
       between successive gradient vectors.  By combining the first and second
       derivatives the algorithm is able to take Newton-type steps towards the
       function minimum, assuming quadratic behavior in that region.
+
+      Both versions implement the *memoryless* BFGS method (Shanno, 1978),
+      which needs only :math:`O(n)` storage: no matrix is stored, and the
+      inverse Hessian approximation used for each search direction is a
+      single BFGS update of the identity matrix with the most recent step
+      :math:`s = x_{k+1} - x_k` and gradient change
+      :math:`y = g_{k+1} - g_k`.  This is the limited-memory BFGS method
+      with a memory of one step, so it does not build up curvature
+      information over many iterations as the full BFGS method does.
 
       The :code:`bfgs2` version of this minimizer is the most efficient
       version available, and is a faithful implementation of the line
@@ -551,6 +560,12 @@ following book,
 * R. Fletcher,
   *Practical Methods of Optimization (Second Edition)* Wiley
   (1987), ISBN 0471915475.
+
+The memoryless BFGS method is described in,
+
+* D.F. Shanno,
+  *Conjugate gradient methods with inexact searches*, Mathematics of
+  Operations Research vol.: 3 (1978), 244--256.
 
 A brief description of multidimensional minimization algorithms and
 more recent references can be found in,
