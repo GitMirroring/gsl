@@ -6,7 +6,7 @@ AM_CPPFLAGS = -I$(top_srcdir)
 
 libgslbspline_la_SOURCES = bspline.c eval.c gram.c greville.c integ.c interp.c ls.c old.c inline.c
 
-noinst_HEADERS = test_gram.c test_greville.c test_integ.c test_interp.c test_ls.c
+noinst_HEADERS = augment.c test_gram.c test_greville.c test_integ.c test_interp.c test_ls.c
 
 check_PROGRAMS = test
 

@@ -27,6 +27,8 @@
 #include <gsl/gsl_statistics.h>
 #include <gsl/gsl_vector.h>
 
+#include "augment.c"
+
 /* Return the location of the i-th Greville abscissa */
 double
 gsl_bspline_greville_abscissa (const size_t i, const gsl_bspline_workspace *w)
@@ -148,8 +150,10 @@ gsl_bspline_init_greville (const gsl_vector *abscissae,
       gsl_vector_set (&x.vector, x.vector.size - 1,
                       gsl_vector_get (abscissae, abscissae->size - 1));
 
-      /* Finally, initialize workspace knots using the now-known breakpoints */
-      s = gsl_bspline_init_augment (&x.vector, w);
+      /* Finally, initialize workspace knots using the now-known breakpoints;
+       * repeated breakpoints may be out of order by rounding, so skip the
+       * ordering check of gsl_bspline_init_augment */
+      bspline_augment (&x.vector, w);
       free (storage);
     }
 

@@ -167,8 +167,9 @@ Initializing the knots vector
 
    where :math:`\tau_i` is specified by the :math:`i`-th element of :data:`tau`.
 
-   This function does not verify that the :data:`tau` vector is non-decreasing, so
-   the user must ensure this.
+   The vector :data:`tau` must be non-decreasing with :math:`\tau_1 < \tau_{n-k+2}`;
+   otherwise the function returns :macro:`GSL_EINVAL`.  Repeated interior
+   breakpoints are allowed and reduce the continuity of the spline there.
 
 .. function:: int gsl_bspline_init_uniform (const double a, const double b, gsl_bspline_workspace * w)
 
@@ -240,7 +241,9 @@ Initializing the knots vector
 .. function:: int gsl_bspline_init (const gsl_vector * t, gsl_bspline_workspace * w)
 
    This function sets the knot vector equal to the user-supplied vector :data:`t` which
-   must have length :math:`n+k` and be non-decreasing.
+   must have length :math:`n+k` and be non-decreasing, with :math:`t_k < t_{n+1}` so
+   that the interval of the spline is not empty; otherwise the function returns
+   :macro:`GSL_EINVAL`.
 
 .. index::
    single: basis splines, properties

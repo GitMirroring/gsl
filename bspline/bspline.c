@@ -28,6 +28,8 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_statistics.h>
 
+#include "augment.c"
+
 /*
  * This module contains routines related to calculating B-splines.
  * The algorithms used are described in
@@ -280,17 +282,20 @@ gsl_bspline_init_augment (const gsl_vector * tau, gsl_bspline_workspace * w)
       const double bn = gsl_vector_get(tau, w->nbreak - 1);
       size_t i;
 
-      for (i = 0; i < w->spline_order; i++)
-        gsl_vector_set (w->knots, i, b1);
-
-      for (i = 1; i < w->nbreak - 1; i++)
+      for (i = 1; i < w->nbreak; i++)
         {
-          gsl_vector_set (w->knots, w->spline_order - 1 + i,
-                          gsl_vector_get (tau, i));
+          if (gsl_vector_get(tau, i) < gsl_vector_get(tau, i - 1))
+            {
+              GSL_ERROR ("tau must be non-decreasing", GSL_EINVAL);
+            }
         }
 
-      for (i = w->ncontrol; i < w->ncontrol + w->spline_order; i++)
-        gsl_vector_set (w->knots, i, bn);
+      if (!(b1 < bn))
+        {
+          GSL_ERROR ("first and last element of tau must differ", GSL_EINVAL);
+        }
+
+      bspline_augment (tau, w);
 
       return GSL_SUCCESS;
     }
@@ -393,6 +398,22 @@ gsl_bspline_init (const gsl_vector * t, gsl_bspline_workspace * w)
     }
   else
     {
+      size_t i;
+
+      for (i = 1; i < t->size; i++)
+        {
+          if (gsl_vector_get(t, i) < gsl_vector_get(t, i - 1))
+            {
+              GSL_ERROR ("t must be non-decreasing", GSL_EINVAL);
+            }
+        }
+
+      /* the interval [t_k, t_{n+1}] (1-based) must not be empty */
+      if (!(gsl_vector_get(t, w->spline_order - 1) < gsl_vector_get(t, w->ncontrol)))
+        {
+          GSL_ERROR ("t[k-1] must be less than t[n], the interval is empty", GSL_EINVAL);
+        }
+
       gsl_vector_memcpy(w->knots, t);
       return GSL_SUCCESS;
     }

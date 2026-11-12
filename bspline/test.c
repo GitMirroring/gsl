@@ -152,6 +152,58 @@ test_bspline(gsl_bspline_workspace * w)
 #include "test_integ.c"
 #include "test_ls.c"
 
+/* bug #42830: knot and breakpoint vectors must be non-decreasing and must
+   not give an empty interval */
+static void
+test_knot_order(void)
+{
+  const size_t k = 4, nbreak = 5;
+  gsl_bspline_workspace *w = gsl_bspline_alloc(k, nbreak);
+  gsl_vector *tau = gsl_vector_alloc(nbreak);
+  gsl_vector *t = gsl_vector_alloc(gsl_bspline_ncontrol(w) + k);
+  gsl_error_handler_t *old_handler = gsl_set_error_handler_off();
+  size_t i;
+  int s;
+
+  for (i = 0; i < nbreak; ++i)
+    gsl_vector_set(tau, i, (double) i);
+
+  s = gsl_bspline_init_augment(tau, w);
+  gsl_test_int(s, GSL_SUCCESS, "init_augment increasing breakpoints");
+  gsl_vector_memcpy(t, w->knots);
+
+  /* repeated interior breakpoint: reduced continuity, still valid */
+  gsl_vector_set(tau, 2, 1.0);
+  s = gsl_bspline_init_augment(tau, w);
+  gsl_test_int(s, GSL_SUCCESS, "init_augment repeated interior breakpoint");
+
+  gsl_vector_set(tau, 2, 0.5);
+  s = gsl_bspline_init_augment(tau, w);
+  gsl_test_int(s, GSL_EINVAL, "init_augment decreasing breakpoints");
+  s = gsl_bspline_knots(tau, w);
+  gsl_test_int(s, GSL_EINVAL, "knots decreasing breakpoints");
+
+  gsl_vector_set_all(tau, 1.0);
+  s = gsl_bspline_init_augment(tau, w);
+  gsl_test_int(s, GSL_EINVAL, "init_augment equal breakpoints");
+
+  s = gsl_bspline_init(t, w);
+  gsl_test_int(s, GSL_SUCCESS, "init non-decreasing knots");
+
+  gsl_vector_swap_elements(t, k, k + 1);
+  s = gsl_bspline_init(t, w);
+  gsl_test_int(s, GSL_EINVAL, "init decreasing knots");
+
+  gsl_vector_set_all(t, 2.0);
+  s = gsl_bspline_init(t, w);
+  gsl_test_int(s, GSL_EINVAL, "init empty interval");
+
+  gsl_set_error_handler(old_handler);
+  gsl_vector_free(tau);
+  gsl_vector_free(t);
+  gsl_bspline_free(w);
+}
+
 int
 main(void)
 {
@@ -333,6 +385,8 @@ main(void)
   gsl_test(test_integ(rng_p),         "Integration");
   gsl_test(test_interp(),             "Interpolation");
   gsl_test(test_LS(rng_p),            "Least Squares");
+  test_knot_order();
+
   gsl_test(test_PLS(rng_p),           "Periodic Least Squares");
 
   gsl_rng_free(rng_p);
