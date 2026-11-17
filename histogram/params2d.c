@@ -24,7 +24,7 @@
 double
 gsl_histogram2d_xmax (const gsl_histogram2d * h)
 {
-  const int nx = h->nx;
+  const size_t nx = h->nx;
   return h->xrange[nx];
 }
 
@@ -37,7 +37,7 @@ gsl_histogram2d_xmin (const gsl_histogram2d * h)
 double
 gsl_histogram2d_ymax (const gsl_histogram2d * h)
 {
-  const int ny = h->ny;
+  const size_t ny = h->ny;
   return h->yrange[ny];
 }
 

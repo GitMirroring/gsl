@@ -24,7 +24,7 @@
 double
 gsl_histogram_max (const gsl_histogram * h)
 {
-  const int n = h->n;
+  const size_t n = h->n;
 
   return h->range[n];
 }

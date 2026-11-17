@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #68379 (gsl_histogram_max, gsl_histogram2d_xmax and
+   gsl_histogram2d_ymax stored the number of bins in an int; reported by
+   Fermé le Lundi)
+
 ** partial fix for bug #47402 (documented return type of the Mathieu functions
    without _e is double, not int; reported by V. Kisil)
 
