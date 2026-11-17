@@ -77,7 +77,7 @@ as well as an error/value pair in order to save the result from
 exceeding the dynamic range of the built-in types.  The
 following struct contains value and error fields as well
 as an exponent field such that the actual result is obtained as
-:code:`result * 10^(e10)`.
+:code:`val * 10^(e10)`, with absolute error :code:`err * 10^(e10)`.
 
 .. type:: gsl_sf_result_e10
 
