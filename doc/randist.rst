@@ -266,7 +266,9 @@ The Bivariate Gaussian Distribution
    This function computes the probability density :math:`p(x,y)` at
    (:data:`x`, :data:`y`) for a bivariate Gaussian distribution with standard
    deviations :data:`sigma_x`, :data:`sigma_y` and correlation coefficient
-   :data:`rho`, using the formula given above.
+   :data:`rho`, using the formula given above.  The density exists only
+   for :math:`|\rho| < 1`; for :math:`\rho = \pm 1` the distribution is
+   concentrated on a line and the result is NaN.
 
    .. image:: /images/rand-bivariate-gaussian.png
 

@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #68098 (gsl_ran_bivariate_gaussian_pdf is more accurate
+   for |rho| near 1, and the documentation states |rho| < 1; reported
+   by Fermé le Lundi)
+
 ** fix for bug #51104 (faster gsl_permutation_next and
    gsl_permutation_prev; reported by P. Sinitsyn)
 

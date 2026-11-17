@@ -50,6 +50,7 @@ void test_shuffle (void);
 void test_choose (void);
 void test_binomial_small_mean_f0 (void);
 void test_degenerate_pdf (void);
+void test_bivariate_gaussian_pdf_values (void);
 double test_beta (void);
 double test_beta_pdf (double x);
 double test_bernoulli (void);
@@ -287,6 +288,7 @@ main (void)
   test_choose ();
   test_binomial_small_mean_f0 ();
   test_degenerate_pdf ();
+  test_bivariate_gaussian_pdf_values ();
 
   testMoments (FUNC (ugaussian), 0.0, 100.0, 0.5);
   testMoments (FUNC (ugaussian), -1.0, 1.0, 0.6826895);
@@ -454,6 +456,29 @@ test_degenerate_pdf (void)
 
       P = gsl_ran_pascal_pdf (k, 1.0, 3);
       gsl_test (P != expected, "gsl_ran_pascal_pdf(%u, 1, 3) = %g", k, P);
+    }
+}
+
+/* bivariate Gaussian pdf with |rho| near 1, where 1 - rho^2 cancels
+   (bug #68098); reference values computed with 50-digit arithmetic */
+void
+test_bivariate_gaussian_pdf_values (void)
+{
+  const struct { double x, y, sx, sy, rho, p; } t[] = {
+    { 0.5, 0.25, 1.0, 0.5, 0.999999, 198.63162732933180711 },
+    { 2.0, 3.0, 2.0, 3.0, 1.0 - 9.5367431640625e-07, 11.649481582694108803 },
+    { 1.0, -1.0, 1.0, 1.0, -1.0 + 9.094947017729282379e-13, 71574.414844076673022 },
+    { 0.5, -0.25, 1.0, 2.0, -0.3, 0.073592488724637990343 }
+  };
+  size_t i;
+
+  for (i = 0; i < sizeof (t) / sizeof (t[0]); i++)
+    {
+      double P = gsl_ran_bivariate_gaussian_pdf (t[i].x, t[i].y, t[i].sx,
+                                                 t[i].sy, t[i].rho);
+      gsl_test_rel (P, t[i].p, 1e-14,
+                    "gsl_ran_bivariate_gaussian_pdf(%g, %g, %g, %g, %.17g)",
+                    t[i].x, t[i].y, t[i].sx, t[i].sy, t[i].rho);
     }
 }
 

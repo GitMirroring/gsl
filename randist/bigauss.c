@@ -63,7 +63,7 @@ gsl_ran_bivariate_gaussian_pdf (const double x, const double y,
 {
   double u = x / sigma_x ;
   double v = y / sigma_y ;
-  double c = 1 - rho*rho ;
+  double c = (1.0 - rho) * (1.0 + rho) ; /* 1 - rho^2, accurate as |rho| -> 1 */
   double p = (1 / (2 * M_PI * sigma_x * sigma_y * sqrt(c))) 
     * exp (-(u * u - 2 * rho * u * v + v * v) / (2 * c));
   return p;
