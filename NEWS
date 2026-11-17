@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #59912 (header file for gsl_permute_matrix missing from
+   the documentation; reported by B. Upadhaya)
+
 ** fix for bug #66128 (gsl_sf_result_e10 documentation; reported by
    J. Wuttke)
 

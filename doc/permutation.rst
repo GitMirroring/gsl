@@ -153,8 +153,9 @@ Permutation functions
 Applying Permutations
 =====================
 
-The following functions are defined in the header files :file:`gsl_permute.h`
-and :file:`gsl_permute_vector.h`.
+The following functions are defined in the header files :file:`gsl_permute.h`,
+:file:`gsl_permute_vector.h` and :file:`gsl_permute_matrix.h`, except
+:func:`gsl_permutation_mul`, which is defined in :file:`gsl_permutation.h`.
 
 .. function:: int gsl_permute (const size_t * p, double * data, size_t stride, size_t n)
 
