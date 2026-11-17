@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
 #include <gsl/gsl_ieee_utils.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_interp.h>
@@ -331,6 +332,92 @@ test_bicubic_nonlinear_nonsq()
   return status;
 }
 
+static int domain_handler_calls;
+
+static void
+domain_handler(const char * reason, const char * file, int line, int gsl_errno)
+{
+  (void) reason; (void) file; (void) line; (void) gsl_errno;
+  domain_handler_calls++;
+}
+
+/*
+ * The _e evaluators return GSL_EDOM and NaN for points outside the grid
+ * without calling the error handler, as in 1D (bug #60371)
+ */
+static int
+test_interp2d_domain(void)
+{
+  typedef int (*eval_e_fn)(const gsl_interp2d *, const double[], const double[],
+                           const double[], const double, const double,
+                           gsl_interp_accel *, gsl_interp_accel *, double *);
+  typedef int (*spline_e_fn)(const gsl_spline2d *, const double, const double,
+                             gsl_interp_accel *, gsl_interp_accel *, double *);
+  const eval_e_fn f[] = { gsl_interp2d_eval_e, gsl_interp2d_eval_deriv_x_e,
+                          gsl_interp2d_eval_deriv_y_e, gsl_interp2d_eval_deriv_xx_e,
+                          gsl_interp2d_eval_deriv_yy_e, gsl_interp2d_eval_deriv_xy_e };
+  const spline_e_fn g[] = { gsl_spline2d_eval_e, gsl_spline2d_eval_deriv_x_e,
+                            gsl_spline2d_eval_deriv_y_e, gsl_spline2d_eval_deriv_xx_e,
+                            gsl_spline2d_eval_deriv_yy_e, gsl_spline2d_eval_deriv_xy_e };
+  const gsl_interp2d_type * T[] = { gsl_interp2d_bilinear, gsl_interp2d_bicubic };
+  const double xarr[] = { 0.0, 1.0, 2.0, 3.0 };
+  const double yarr[] = { 0.0, 1.0, 2.0, 3.0 };
+  const double zarr[] = { 1.0, 1.1, 1.2, 1.3,
+                          1.1, 1.2, 1.3, 1.4,
+                          1.2, 1.3, 1.4, 1.5,
+                          1.3, 1.4, 1.5, 1.6 };
+  const double pts[][2] = { { -0.5, 1.5 }, { 3.5, 1.5 }, { 1.5, -0.5 }, { 1.5, 3.5 } };
+  gsl_error_handler_t * old_handler = gsl_set_error_handler(&domain_handler);
+  gsl_interp_accel * xa = gsl_interp_accel_alloc();
+  gsl_interp_accel * ya = gsl_interp_accel_alloc();
+  int status = 0;
+  size_t i, j, k;
+
+  domain_handler_calls = 0;
+
+  for (i = 0; i < sizeof(T) / sizeof(T[0]); i++)
+    {
+      gsl_interp2d * interp = gsl_interp2d_alloc(T[i], 4, 4);
+      gsl_spline2d * spline = gsl_spline2d_alloc(T[i], 4, 4);
+
+      gsl_interp2d_init(interp, xarr, yarr, zarr, 4, 4);
+      gsl_spline2d_init(spline, xarr, yarr, zarr, 4, 4);
+
+      for (j = 0; j < sizeof(f) / sizeof(f[0]); j++)
+        {
+          for (k = 0; k < sizeof(pts) / sizeof(pts[0]); k++)
+            {
+              double z = 0.0;
+              int s = f[j](interp, xarr, yarr, zarr, pts[k][0], pts[k][1], xa, ya, &z);
+              status |= (s != GSL_EDOM || !gsl_isnan(z));
+
+              z = 0.0;
+              s = g[j](spline, pts[k][0], pts[k][1], xa, ya, &z);
+              status |= (s != GSL_EDOM || !gsl_isnan(z));
+            }
+        }
+
+      /* the non-_e versions still call the error handler, once each */
+      status |= !gsl_isnan(gsl_interp2d_eval(interp, xarr, yarr, zarr,
+                                             pts[0][0], pts[0][1], xa, ya));
+      status |= !gsl_isnan(gsl_spline2d_eval_deriv_x(spline, pts[3][0], pts[3][1],
+                                                     xa, ya));
+
+      gsl_interp2d_free(interp);
+      gsl_spline2d_free(spline);
+    }
+
+  gsl_interp_accel_free(xa);
+  gsl_interp_accel_free(ya);
+  gsl_set_error_handler(old_handler);
+
+  status |= (domain_handler_calls != 2 * (int) (sizeof(T) / sizeof(T[0])));
+  gsl_test(status, "2D evaluators out of range: GSL_EDOM and NaN, error handler only for non-_e (%d calls)",
+           domain_handler_calls);
+
+  return status;
+}
+
 /* runs all the tests */
 int
 test_interp2d_main(void)
@@ -342,6 +429,7 @@ test_interp2d_main(void)
   status += test_bicubic();
   status += test_bicubic_nonlinear();
   status += test_bicubic_nonlinear_nonsq();
+  status += test_interp2d_domain();
 
   return status;
 }

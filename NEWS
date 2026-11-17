@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #60371 (gsl_interp2d and gsl_spline2d _e functions
+   called the error handler for points outside the grid instead of
+   returning GSL_EDOM; reported by D. Lebrun-Grandie)
+
 ** fix for bug #68098 (gsl_ran_bivariate_gaussian_pdf is more accurate
    for |rho| near 1, and the documentation states |rho| < 1; reported
    by Fermé le Lundi)

@@ -138,13 +138,13 @@ interp2d_eval(int (*evaluator)(const void *, const double xa[], const double ya[
                                gsl_interp_accel * xa, gsl_interp_accel * ya,
                                double * result)
 {
-  if (x < interp->xmin || x > interp->xmax)
+  /* as in 1D, the _e functions return GSL_EDOM without calling the
+     error handler; the non-_e functions call it via DISCARD_STATUS */
+  if (x < interp->xmin || x > interp->xmax ||
+      y < interp->ymin || y > interp->ymax)
     {
-      GSL_ERROR ("interpolation x value out of range", GSL_EDOM);
-    }
-  else if (y < interp->ymin || y > interp->ymax)
-    {
-      GSL_ERROR ("interpolation y value out of range", GSL_EDOM);
+      *result = GSL_NAN;
+      return GSL_EDOM;
     }
 
   return evaluator(interp->state, xarr, yarr, zarr,
