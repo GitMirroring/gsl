@@ -1,5 +1,10 @@
 * What is new in gsl-2.9:
 
+** fix for bug #37408 (GSL_CONST_*_ASTRONOMICAL_UNIT is now the IAU 2012
+   value of exactly 149 597 870 700 m, GSL_CONST_*_PARSEC is 648000/pi au,
+   and GSL_CONST_*_LIGHT_YEAR uses the Julian year of 365.25 days;
+   reported by S. Maret)
+
 ** fix for bug #60371 (gsl_interp2d and gsl_spline2d _e functions
    called the error handler for points outside the grid instead of
    returning GSL_EDOM; reported by D. Lebrun-Grandie)

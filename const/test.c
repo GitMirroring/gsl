@@ -44,9 +44,23 @@ main (void)
   {
     double ly = GSL_CONST_CGS_LIGHT_YEAR;
     double c = GSL_CONST_CGS_SPEED_OF_LIGHT;
-    double y = 365.2425 * GSL_CONST_CGS_DAY;
+    double y = 365.25 * GSL_CONST_CGS_DAY;
     
-    gsl_test_rel (ly, c * y, 1e-6, "light year (cgs)");
+    gsl_test_rel (ly, c * y, 1e-15, "light year (cgs)");
+  }
+
+  /* au = 149 597 870 700 m exactly, pc = 648000/pi au (bug #37408) */
+  {
+    gsl_test_rel (GSL_CONST_MKSA_ASTRONOMICAL_UNIT, 149597870700.0, 1e-16,
+                  "astronomical unit (mksa)");
+    gsl_test_rel (GSL_CONST_CGS_ASTRONOMICAL_UNIT, 14959787070000.0, 1e-16,
+                  "astronomical unit (cgs)");
+    gsl_test_rel (GSL_CONST_MKSA_PARSEC,
+                  648000.0 / M_PI * GSL_CONST_MKSA_ASTRONOMICAL_UNIT, 1e-15,
+                  "parsec (mksa)");
+    gsl_test_rel (GSL_CONST_CGSM_PARSEC,
+                  648000.0 / M_PI * GSL_CONST_CGSM_ASTRONOMICAL_UNIT, 1e-15,
+                  "parsec (cgsm)");
   }
 
   {
@@ -60,9 +74,9 @@ main (void)
   {
     double ly = GSL_CONST_CGSM_LIGHT_YEAR;
     double c = GSL_CONST_CGSM_SPEED_OF_LIGHT;
-    double y = 365.2425 * GSL_CONST_CGSM_DAY;
+    double y = 365.25 * GSL_CONST_CGSM_DAY;
     
-    gsl_test_rel (ly, c * y, 1e-6, "light year (cgsm)");
+    gsl_test_rel (ly, c * y, 1e-15, "light year (cgsm)");
   }
 
   {

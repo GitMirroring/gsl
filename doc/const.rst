@@ -89,7 +89,8 @@ Astronomy and Astrophysics
 
 .. macro:: GSL_CONST_MKSA_ASTRONOMICAL_UNIT
 
-   The length of 1 astronomical unit (mean earth-sun distance), :math:`au`.
+   The length of 1 astronomical unit, :math:`au`, defined as exactly
+   149 597 870 700 m (IAU 2012 Resolution B2).
 
 .. macro:: GSL_CONST_MKSA_GRAVITATIONAL_CONSTANT
 
@@ -97,11 +98,12 @@ Astronomy and Astrophysics
 
 .. macro:: GSL_CONST_MKSA_LIGHT_YEAR
 
-   The distance of 1 light-year, :math:`ly`.
+   The distance of 1 light-year, :math:`ly`, defined as the distance light
+   travels in one Julian year of 365.25 days.
 
 .. macro:: GSL_CONST_MKSA_PARSEC
 
-   The distance of 1 parsec, :math:`pc`.
+   The distance of 1 parsec, :math:`pc`, defined as :math:`648000/\pi` au.
 
 .. macro:: GSL_CONST_MKSA_GRAV_ACCEL
 
@@ -615,7 +617,7 @@ The required data is the average distance of each planet from the Sun in
 astronomical units (the eccentricities and inclinations of the orbits
 will be neglected for the purposes of this calculation).  The average
 radius of the orbit of Mars is 1.52 astronomical units, and for the
-orbit of Earth it is 1 astronomical unit (by definition).  These values
+orbit of Earth it is about 1 astronomical unit.  These values
 are combined with the MKSA values of the constants for the speed of
 light and the length of an astronomical unit to produce a result for the
 shortest and longest light-travel times in seconds.  The figures are
