@@ -931,8 +931,13 @@ gsl_complex_arcsinh (gsl_complex a)
 gsl_complex
 gsl_complex_arccosh (gsl_complex a)
 {                               /* z = arccosh(a) */
+  /* arccosh(a) = +-i arccos(a), with Re >= 0 and Im of the sign of
+     Im(a); set the parts directly, since multiplying by +-i would give
+     -0 parts for real a (bug #47345) */
   gsl_complex z = gsl_complex_arccos (a);
-  z = gsl_complex_mul_imag (z, GSL_IMAG(z) > 0 ? -1.0 : 1.0);
+  double u = fabs (GSL_REAL (z));
+  double v = fabs (GSL_IMAG (z));
+  GSL_SET_COMPLEX (&z, v, GSL_IMAG (a) < 0.0 ? -u : u);
   return z;
 }
 

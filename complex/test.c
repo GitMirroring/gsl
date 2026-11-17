@@ -99,11 +99,40 @@ test_byvalue (void)
   }
 }
 
+/* x == y, and both have the same sign if they are zero */
+static int
+same_signed (double x, double y)
+{
+  if (x == 0.0 && y == 0.0)
+    return (1.0 / x > 0.0) == (1.0 / y > 0.0);
+  return x == y;
+}
+
+/* gsl_complex_arccosh on the real axis agrees with
+   gsl_complex_arccosh_real, signs of zero parts included (bug #47345) */
+static void
+test_arccosh_real_axis (void)
+{
+  const double xs[] = { -2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0 };
+  size_t i;
+
+  for (i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
+    {
+      gsl_complex z = gsl_complex_arccosh (gsl_complex_rect (xs[i], 0.0));
+      gsl_complex w = gsl_complex_arccosh_real (xs[i]);
+      gsl_test (!same_signed (GSL_REAL (z), GSL_REAL (w))
+                || !same_signed (GSL_IMAG (z), GSL_IMAG (w)),
+                "gsl_complex_arccosh(%g + 0i) = (%g, %g), expected (%g, %g)",
+                xs[i], GSL_REAL (z), GSL_IMAG (z), GSL_REAL (w), GSL_IMAG (w));
+    }
+}
+
 int
 main (void)
 {
   test_all();
   test_byvalue();
+  test_arccosh_real_axis();
 
   exit (gsl_test_summary ());
 }
