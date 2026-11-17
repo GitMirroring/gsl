@@ -105,6 +105,55 @@ main (void)
     gsl_test_rel(s, sigma, 1e-10, "stefan boltzmann constant");
   }
 
+  /* CODATA 2022: the 2019 SI defining constants are exact, and so are
+     the constants derived only from them (bug #60635) */
+  {
+    double h = GSL_CONST_MKSA_PLANCKS_CONSTANT_H;
+    double e = GSL_CONST_MKSA_ELECTRON_CHARGE;
+    double k = GSL_CONST_MKSA_BOLTZMANN;
+    double NA = GSL_CONST_NUM_AVOGADRO;
+
+    gsl_test_rel (h, 6.62607015e-34, 1e-16, "planck constant (SI 2019)");
+    gsl_test_rel (e, 1.602176634e-19, 1e-16, "electron charge (SI 2019)");
+    gsl_test_rel (k, 1.380649e-23, 1e-16, "boltzmann constant (SI 2019)");
+    gsl_test_rel (NA, 6.02214076e23, 1e-16, "avogadro constant (SI 2019)");
+
+    gsl_test_rel (GSL_CONST_MKSA_PLANCKS_CONSTANT_HBAR, h / (2.0 * M_PI), 1e-15,
+                  "hbar = h / 2 pi");
+    gsl_test_rel (GSL_CONST_MKSA_ELECTRON_VOLT, e, 1e-16, "electron volt = e");
+    gsl_test_rel (GSL_CONST_MKSA_FARADAY, NA * e, 1e-15, "faraday = N_A e");
+    gsl_test_rel (GSL_CONST_MKSA_MOLAR_GAS, NA * k, 1e-15, "molar gas = N_A k");
+    gsl_test_rel (GSL_CONST_MKSA_STANDARD_GAS_VOLUME, NA * k * 273.15 / 1e5, 1e-15,
+                  "standard gas volume = R (273.15 K) / (100 kPa)");
+    gsl_test_rel (GSL_CONST_CGSM_FARADAY, 0.1 * NA * e, 1e-15, "faraday (cgsm)");
+  }
+
+  /* measured CODATA 2022 values, and relations between them that hold
+     to the published precision */
+  {
+    double c = GSL_CONST_MKSA_SPEED_OF_LIGHT;
+    double h = GSL_CONST_MKSA_PLANCKS_CONSTANT_H;
+    double me = GSL_CONST_MKSA_MASS_ELECTRON;
+    double alpha = GSL_CONST_NUM_FINE_STRUCTURE;
+    double mu0 = GSL_CONST_MKSA_VACUUM_PERMEABILITY;
+    double eps0 = GSL_CONST_MKSA_VACUUM_PERMITTIVITY;
+
+    gsl_test_rel (GSL_CONST_MKSA_GRAVITATIONAL_CONSTANT, 6.67430e-11, 1e-16,
+                  "gravitational constant (CODATA 2022)");
+    gsl_test_rel (alpha, 7.2973525643e-3, 1e-16, "fine structure constant (CODATA 2022)");
+    gsl_test_rel (mu0 * eps0 * c * c, 1.0, 1e-10, "mu0 eps0 c^2 = 1");
+    gsl_test_rel (mu0, 2.0 * alpha * h / (GSL_CONST_MKSA_ELECTRON_CHARGE *
+                                          GSL_CONST_MKSA_ELECTRON_CHARGE * c),
+                  1e-9, "mu0 = 2 alpha h / (e^2 c)");
+    gsl_test_rel (GSL_CONST_MKSA_RYDBERG, alpha * alpha * me * c * c / 2.0, 1e-9,
+                  "rydberg = alpha^2 m_e c^2 / 2");
+    gsl_test_rel (GSL_CONST_MKSA_BOHR_RADIUS,
+                  GSL_CONST_MKSA_PLANCKS_CONSTANT_HBAR / (alpha * me * c), 1e-9,
+                  "bohr radius = hbar / (alpha m_e c)");
+    gsl_test_rel (GSL_CONST_MKSA_SOLAR_MASS * GSL_CONST_MKSA_GRAVITATIONAL_CONSTANT,
+                  1.3271244e20, 1e-15, "solar mass = IAU nominal GM_sun / G");
+  }
+
 
   exit (gsl_test_summary ());
 }

@@ -21,6 +21,12 @@ The definitions of constants in the MKSA system are available in the file
 structure constant, which are pure numbers are defined in
 :file:`gsl_const_num.h`.
 
+The physical constants use the 2022 CODATA recommended values.  Since
+the 2019 revision of the SI, the speed of light, the Planck constant, the
+elementary charge, the Boltzmann constant and the Avogadro constant are
+exact, and so are constants derived only from them, such as the Faraday
+constant and the molar gas constant.
+
 The full list of constants is described briefly below.  Consult the
 header files themselves for the values of the constants used in the
 library.
@@ -72,7 +78,8 @@ Fundamental Constants
 
 .. macro:: GSL_CONST_MKSA_STANDARD_GAS_VOLUME
 
-   The standard gas volume, :math:`V_0`.
+   The standard gas volume, :math:`V_0`, the molar volume of an ideal
+   gas at 273.15 K and 100 kPa.
 
 .. macro:: GSL_CONST_MKSA_STEFAN_BOLTZMANN_CONSTANT
 
@@ -111,7 +118,9 @@ Astronomy and Astrophysics
 
 .. macro:: GSL_CONST_MKSA_SOLAR_MASS
 
-   The mass of the Sun.
+   The mass of the Sun, computed from the IAU 2015 nominal solar mass
+   parameter :math:`GM_\odot = 1.3271244 \times 10^{20} \, \mathrm{m^3 \, s^{-2}}`
+   and the gravitational constant :math:`G`.
 
 .. index::
    single: atomic physics, constants
@@ -634,15 +643,15 @@ Here is the output from the program,
 References and Further Reading
 ==============================
 
-The authoritative sources for physical constants are the 2006 CODATA
+The authoritative sources for physical constants are the 2022 CODATA
 recommended values, published in the article below. Further
 information on the values of physical constants is also available from
 the NIST website.
 
-* P.J. Mohr, B.N. Taylor, D.B. Newell, "CODATA Recommended
-  Values of the Fundamental Physical Constants: 2006", Reviews of
-  Modern Physics, 80(2), pp. 633--730 (2008).
+* P.J. Mohr, D.B. Newell, B.N. Taylor, E. Tiesinga, "CODATA Recommended
+  Values of the Fundamental Physical Constants: 2022", Reviews of
+  Modern Physics, 97, 025002 (2025).
 
-* http://www.physics.nist.gov/cuu/Constants/index.html
+* https://physics.nist.gov/cuu/Constants/index.html
 
 * http://physics.nist.gov/Pubs/SP811/appenB9.html
