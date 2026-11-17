@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #58068 (documentation of gsl_sf_bessel_Jnu and
+   gsl_sf_bessel_Ynu now states x > 0; reported by J. Vanover)
+
 ** fix for bug #59912 (header file for gsl_permute_matrix missing from
    the documentation; reported by B. Upadhaya)
 

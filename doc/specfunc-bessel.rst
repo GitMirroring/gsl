@@ -465,7 +465,7 @@ Regular Bessel Function---Fractional Order
               int gsl_sf_bessel_Jnu_e (double nu, double x, gsl_sf_result * result)
 
    These routines compute the regular cylindrical Bessel function of
-   fractional order :math:`\nu`, :math:`J_\nu(x)`.
+   fractional order :math:`\nu`, :math:`J_\nu(x)` for :math:`x>0`.
 .. Exceptional Return Values: GSL_EDOM, GSL_EUNDRFLW
 
 .. function:: int gsl_sf_bessel_sequence_Jnu_e (double nu, gsl_mode_t mode, size_t size, double v[])
@@ -484,8 +484,8 @@ Irregular Bessel Functions---Fractional Order
               int gsl_sf_bessel_Ynu_e (double nu, double x, gsl_sf_result * result)
 
    These routines compute the irregular cylindrical Bessel function of
-   fractional order :math:`\nu`, :math:`Y_\nu(x)`.
-.. Exceptional Return Values: 
+   fractional order :math:`\nu`, :math:`Y_\nu(x)` for :math:`x>0`.
+.. Exceptional Return Values: GSL_EDOM
 
 Regular Modified Bessel Functions---Fractional Order
 ----------------------------------------------------
