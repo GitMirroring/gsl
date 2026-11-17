@@ -165,6 +165,48 @@ main (void)
     gsl_permutation_free (p);
   }
 
+  /* all 7! permutations: each gsl_permutation_next is valid and
+     lexicographically larger, and gsl_permutation_prev undoes it */
+  {
+    const size_t n = 7;
+    size_t count = 1, j;
+    int status = 0;
+    gsl_permutation * p = gsl_permutation_alloc (n);
+    gsl_permutation * q = gsl_permutation_alloc (n);
+    gsl_permutation * r = gsl_permutation_alloc (n);
+
+    gsl_permutation_init (p);
+    gsl_permutation_memcpy (q, p);
+
+    while (gsl_permutation_next (p) == GSL_SUCCESS)
+      {
+        count++;
+        status |= (gsl_permutation_valid (p) != GSL_SUCCESS);
+
+        for (j = 0; j < n && p->data[j] == q->data[j]; j++)
+          ;
+        status |= (j == n || p->data[j] < q->data[j]);
+
+        gsl_permutation_memcpy (r, p);
+        status |= (gsl_permutation_prev (r) != GSL_SUCCESS);
+        for (j = 0; j < n; j++)
+          status |= (r->data[j] != q->data[j]);
+
+        gsl_permutation_memcpy (q, p);
+      }
+
+    for (j = 0; j < n; j++)
+      status |= (p->data[j] != n - 1 - j);
+
+    gsl_test (status || count != 5040,
+              "gsl_permutation_next/prev, 7-th order permutation, %lu steps",
+              (unsigned long) count);
+
+    gsl_permutation_free (p);
+    gsl_permutation_free (q);
+    gsl_permutation_free (r);
+  }
+
 #ifdef JUNK
   {
     int i;

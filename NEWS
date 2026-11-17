@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #51104 (faster gsl_permutation_next and
+   gsl_permutation_prev; reported by P. Sinitsyn)
+
 ** fix for bug #47345 (gsl_complex_arccosh returned zero parts with the
    wrong sign for real arguments; reported by M. Welinder)
 

@@ -148,14 +148,14 @@ gsl_permutation_next (gsl_permutation * p)
      return GSL_FAILURE;
     }
 
-  k = i + 1;
+  /* data[i+1..size-1] is decreasing, so the smallest element in it
+     greater than data[i] is the last such one (Knuth, Algorithm L) */
 
-  for (j = i + 2; j < size; j++ )
+  k = size - 1;
+
+  while (p->data[k] < p->data[i])
     {
-      if ((p->data[j] > p->data[i]) && (p->data[j] < p->data[k]))
-        {
-          k = j;
-        }
+      k--;
     }
 
   /* swap i and k */
@@ -199,14 +199,14 @@ gsl_permutation_prev (gsl_permutation * p)
       return GSL_FAILURE;
     }
 
-  k = i + 1;
+  /* data[i+1..size-1] is increasing, so the largest element in it
+     less than data[i] is the last such one */
 
-  for (j = i + 2; j < size; j++ )
+  k = size - 1;
+
+  while (p->data[k] > p->data[i])
     {
-      if ((p->data[j] < p->data[i]) && (p->data[j] > p->data[k]))
-        {
-          k = j;
-        }
+      k--;
     }
 
   /* swap i and k */
