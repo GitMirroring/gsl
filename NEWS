@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** partial fix for bug #47402 (documented return type of the Mathieu functions
+   without _e is double, not int; reported by V. Kisil)
+
 ** fix for bug #58068 (documentation of gsl_sf_bessel_Jnu and
    gsl_sf_bessel_Ynu now states x > 0; reported by J. Vanover)
 

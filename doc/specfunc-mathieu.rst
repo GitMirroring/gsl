@@ -182,9 +182,9 @@ Mathieu Function Characteristic Values
 --------------------------------------
 .. index:: Mathieu Function Characteristic Values
 
-.. function:: int gsl_sf_mathieu_a (int n, double q)
+.. function:: double gsl_sf_mathieu_a (int n, double q)
               int gsl_sf_mathieu_a_e (int n, double q, gsl_sf_result * result)
-              int gsl_sf_mathieu_b (int n, double q)
+              double gsl_sf_mathieu_b (int n, double q)
               int gsl_sf_mathieu_b_e (int n, double q, gsl_sf_result * result)
 
    These routines compute the characteristic values :math:`a_n(q)`,
@@ -205,9 +205,9 @@ Angular Mathieu Functions
    single: ce(q,x), Mathieu function
    single: se(q,x), Mathieu function
 
-.. function:: int gsl_sf_mathieu_ce (int n, double q, double x)
+.. function:: double gsl_sf_mathieu_ce (int n, double q, double x)
               int gsl_sf_mathieu_ce_e (int n, double q, double x, gsl_sf_result * result)
-              int gsl_sf_mathieu_se (int n, double q, double x)
+              double gsl_sf_mathieu_se (int n, double q, double x)
               int gsl_sf_mathieu_se_e (int n, double q, double x, gsl_sf_result * result)
 
    These routines compute the angular Mathieu functions :math:`ce_n(q,x)`
@@ -225,9 +225,9 @@ Radial Mathieu Functions
 ------------------------
 .. index:: Radial Mathieu Functions
 
-.. function:: int gsl_sf_mathieu_Mc (int j, int n, double q, double x)
+.. function:: double gsl_sf_mathieu_Mc (int j, int n, double q, double x)
               int gsl_sf_mathieu_Mc_e (int j, int n, double q, double x, gsl_sf_result * result)
-              int gsl_sf_mathieu_Ms (int j, int n, double q, double x)
+              double gsl_sf_mathieu_Ms (int j, int n, double q, double x)
               int gsl_sf_mathieu_Ms_e (int j, int n, double q, double x, gsl_sf_result * result)
 
    These routines compute the radial :data:`j`-th kind Mathieu functions
