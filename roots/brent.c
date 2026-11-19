@@ -52,7 +52,7 @@ brent_init (void * vstate, gsl_function * f, double * root, double x_lower, doub
 
   double f_lower, f_upper ;
 
-  *root = 0.5 * (x_lower + x_upper) ;
+  *root = midpoint (x_lower, x_upper) ;
 
   SAFE_FUNC_CALL (f, x_lower, &f_lower);
   SAFE_FUNC_CALL (f, x_upper, &f_upper);
@@ -112,7 +112,7 @@ brent_iterate (void * vstate, gsl_function * f, double * root, double * x_lower,
     }
   
   tol = 0.5 * GSL_DBL_EPSILON * fabs (b);
-  m = 0.5 * (c - b);
+  m = half_diff (b, c);
   
   if (fb == 0)
     {
@@ -148,7 +148,7 @@ brent_iterate (void * vstate, gsl_function * f, double * root, double * x_lower,
     }
   else
     {
-      double p, q, r;   /* use inverse cubic interpolation */
+      double p, q, r;   /* use inverse quadratic interpolation */
       double s = fb / fa;
       
       if (ac_equal)

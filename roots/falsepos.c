@@ -88,7 +88,7 @@ typedef struct
     int side;                   /* endpoint replaced on the previous
                                    iteration: -1 lower, +1 upper, 0 none */
     double w_max;               /* largest bracket width allowed after
-                                   this iteration */
+                                   this iteration, divided by 4 */
     int bisect;                 /* take a bisection step next */
   }
 falsepos_state_t;
@@ -103,7 +103,7 @@ falsepos_init (void * vstate, gsl_function * f, double * root, double x_lower, d
 
   double f_lower, f_upper ;
 
-  *root = 0.5 * (x_lower + x_upper);
+  *root = midpoint (x_lower, x_upper);
 
   SAFE_FUNC_CALL (f, x_lower, &f_lower);
   SAFE_FUNC_CALL (f, x_upper, &f_upper);
@@ -113,7 +113,7 @@ falsepos_init (void * vstate, gsl_function * f, double * root, double x_lower, d
   state->g_lower = f_lower;
   state->g_upper = f_upper;
   state->side = 0;
-  state->w_max = 2.0 * (x_upper - x_lower);
+  state->w_max = half_diff (x_lower, x_upper);
   state->bisect = 0;
 
   if ((f_lower < 0.0 && f_upper < 0.0) || (f_lower > 0.0 && f_upper > 0.0))
@@ -164,7 +164,7 @@ falsepos_iterate (void * vstate, gsl_function * f, double * root, double * x_low
   
   if (state->bisect)
     {
-      x_linear = 0.5 * (x_left + x_right);
+      x_linear = midpoint (x_left, x_right);
     }
   else
     {
@@ -217,7 +217,7 @@ falsepos_iterate (void * vstate, gsl_function * f, double * root, double * x_low
      rate of bisection */
 
   state->w_max *= M_SQRT1_2;
-  state->bisect = (*x_upper - *x_lower > state->w_max);
+  state->bisect = (0.5 * half_diff (*x_lower, *x_upper) > state->w_max);
 
   /* The best estimate of the root is the endpoint with the smaller
      function value */

@@ -28,7 +28,12 @@
    x_accelerated[i] = x[i] - (x[i+1] - x[i])**2 / (x[i+2] - 2*x[i+1] + x[i])
 
    We can only use the accelerated estimate after three iterations,
-   and use the unaccelerated value until then.
+   and use the unaccelerated value until then. The acceleration is
+   only valid for a contracting sequence, so it is used only when the
+   Newton steps decrease, |x[i+2] - x[i+1]| < |x[i+1] - x[i]|.
+   Otherwise, e.g. when the Newton iterates cycle between two points,
+   the extrapolated value would be constant and appear to converge to
+   a point which is not a root.
 
  */
 
@@ -119,8 +124,8 @@ steffenson_iterate (void * vstate, gsl_function_fdf * fdf, double * root)
       double u = (x - x_1) ;
       double v = (x_new - 2 * x + x_1);
 
-      if (v == 0)
-        *root = x_new;  /* avoid division by zero */
+      if (v == 0 || !(fabs (x_new - x) < fabs (u)))
+        *root = x_new;  /* avoid division by zero, or not contracting */
       else
         *root = x_1 - u * u / v ;  /* accelerated value */
     }

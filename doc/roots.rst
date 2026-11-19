@@ -409,6 +409,9 @@ several standard ways.
 
    assuming that the true root :math:`r^*` is contained within the interval.
 
+   An interval which has collapsed to a single point, :math:`a = b`, also
+   returns :macro:`GSL_SUCCESS`, even for zero tolerances.
+
 .. function:: int gsl_root_test_delta (double x1, double x0, double epsabs, double epsrel)
 
    This function tests for the convergence of the sequence :data:`x0`,
@@ -444,10 +447,10 @@ several standard ways.
 
          |f| < epsabs
 
-   and returns :macro:`GSL_CONTINUE` otherwise.  This criterion is suitable
-   for situations where the precise location of the root, :math:`x`, is
-   unimportant provided a value can be found where the residual,
-   :math:`|f(x)|`, is small enough.
+   or if :math:`f = 0`, and returns :macro:`GSL_CONTINUE` otherwise.  This
+   criterion is suitable for situations where the precise location of the
+   root, :math:`x`, is unimportant provided a value can be found where the
+   residual, :math:`|f(x)|`, is small enough.
 
 Root Bracketing Algorithms
 ==========================
@@ -751,7 +754,11 @@ These algorithms make use of both the function and its derivative.
       its first value so the method returns accelerated values on the second
       and subsequent iterations.  On the first iteration it returns the
       ordinary Newton estimate.  The Newton iterate is also returned if the
-      denominator of the acceleration term ever becomes zero.
+      denominator of the acceleration term ever becomes zero, or if the
+      Newton steps are not decreasing, since the acceleration is only valid
+      for a converging sequence.  Otherwise, for example when the Newton
+      iterates cycle between two points, the accelerated values could
+      appear to converge to a point which is not a root.
 
       As with all acceleration procedures this method can become unstable if
       the function is not well-behaved. 

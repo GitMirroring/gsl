@@ -50,7 +50,9 @@ gsl_root_test_interval (double x_lower, double x_upper, double epsabs, double ep
 
   tolerance = epsabs + epsrel * min_abs  ;
   
-  if (fabs(x_upper - x_lower) < tolerance)
+  /* a bracket which has collapsed to a point has converged, even for
+     zero tolerances */
+  if (fabs(x_upper - x_lower) < tolerance || x_lower == x_upper)
     return GSL_SUCCESS;
   
   return GSL_CONTINUE ;
@@ -59,7 +61,7 @@ gsl_root_test_interval (double x_lower, double x_upper, double epsabs, double ep
 int
 gsl_root_test_delta (double x1, double x0, double epsabs, double epsrel)
 {
-  const double tolerance = epsabs + epsrel * fabs(x1)  ;
+  double tolerance;
 
   if (epsrel < 0.0)
     GSL_ERROR ("relative tolerance is negative", GSL_EBADTOL);
@@ -67,6 +69,8 @@ gsl_root_test_delta (double x1, double x0, double epsabs, double epsrel)
   if (epsabs < 0.0)
     GSL_ERROR ("absolute tolerance is negative", GSL_EBADTOL);
   
+  tolerance = epsabs + epsrel * fabs(x1);
+
   if (fabs(x1 - x0) < tolerance || x1 == x0)
     return GSL_SUCCESS;
   
@@ -79,7 +83,8 @@ gsl_root_test_residual (double f, double epsabs)
   if (epsabs < 0.0)
     GSL_ERROR ("absolute tolerance is negative", GSL_EBADTOL);
  
-  if (fabs(f) < epsabs)
+  /* an exact zero is a root, even for a zero tolerance */
+  if (fabs(f) < epsabs || f == 0.0)
     return GSL_SUCCESS;
   
   return GSL_CONTINUE ;

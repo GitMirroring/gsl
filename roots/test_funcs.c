@@ -44,6 +44,8 @@ typedef struct
 #define ROOT_TEST_DIVERGES  4   /* the fdfsolvers must not converge from x0 */
 #define ROOT_TEST_NO_BRACKET 8  /* no bracket: not used for the fsolvers */
 #define ROOT_TEST_NO_X0     16  /* no starting point: not used for the fdfsolvers */
+#define ROOT_TEST_CYCLE     32  /* newton iterates from x0 cycle: the fdfsolvers
+                                   which take newton steps must not converge */
 
 typedef struct
 {
@@ -95,6 +97,10 @@ static double pow7_df (double x, void * p) { U(p); return 7.0 * pow (x - 1.0, 6.
 static double lin_f  (double x, void * p) { U(p); return -M_PI * x + M_E; }
 static double lin_df (double x, void * p) { U(x); U(p); return -M_PI; }
 
+/* x^3 - 2x + 2: newton iterates from x0 = 0 cycle between 0 and 1 */
+static double cycle_f  (double x, void * p) { U(p); return (x * x - 2.0) * x + 2.0; }
+static double cycle_df (double x, void * p) { U(p); return 3.0 * x * x - 2.0; }
+
 static const root_test_t sin_test      = { sin_f,      sin_df };
 static const root_test_t cos_test      = { cos_f,      cos_df };
 static const root_test_t pow20_test    = { pow20_f,    pow20_df };
@@ -104,6 +110,7 @@ static const root_test_t xexp_test     = { xexp_f,     xexp_df };
 static const root_test_t logistic_test = { logistic_f, logistic_df };
 static const root_test_t pow7_test     = { pow7_f,     pow7_df };
 static const root_test_t lin_test      = { lin_f,      lin_df };
+static const root_test_t cycle_test    = { cycle_f,    cycle_df };
 
 #define NOP  { 0.0, 0.0, 0.0 }  /* no parameters */
 #define NOBR ROOT_TEST_NO_BRACKET
@@ -125,5 +132,6 @@ static const root_test_function test_basic_functions[] =
   { &logistic_test, NOP,     0.0,        0.0,    0.0,   0.0,         NOBR | ROOT_TEST_DIVERGES, "1/(1 + exp(x)), x -> +inf" },
   { &pow7_test,     NOP,     0.9995,     1.0002, 0.9,   1.0,         ROOT_TEST_MULTIPLE, "(x - 1)^7" },
   { &lin_test,      NOP,     0.0,        0.0,    1.5,   M_E / M_PI,  NOBR, "-pi x + e" },
+  { &cycle_test,    NOP,    -3.0,       -1.0,    0.0,  -1.7692923542386314, ROOT_TEST_CYCLE, "x^3 - 2x + 2" },
   { NULL,           NOP,     0.0,        0.0,    0.0,   0.0,         0, NULL }
 };

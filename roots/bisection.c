@@ -50,7 +50,7 @@ bisection_init (void * vstate, gsl_function * f, double * root, double x_lower, 
 
   double f_lower, f_upper ;
 
-  *root = 0.5 * (x_lower + x_upper) ;
+  *root = midpoint (x_lower, x_upper) ;
 
   SAFE_FUNC_CALL (f, x_lower, &f_lower);
   SAFE_FUNC_CALL (f, x_upper, &f_upper);
@@ -94,7 +94,7 @@ bisection_iterate (void * vstate, gsl_function * f, double * root, double * x_lo
       return GSL_SUCCESS;
     }
   
-  x_bisect = (x_left + x_right) / 2.0;
+  x_bisect = midpoint (x_left, x_right);
   
   SAFE_FUNC_CALL (f, x_bisect, &f_bisect);
       
@@ -110,13 +110,13 @@ bisection_iterate (void * vstate, gsl_function * f, double * root, double * x_lo
   
   if ((f_lower > 0.0 && f_bisect < 0.0) || (f_lower < 0.0 && f_bisect > 0.0))
     {
-      *root = 0.5 * (x_left + x_bisect) ;
+      *root = midpoint (x_left, x_bisect) ;
       *x_upper = x_bisect;
       state->f_upper = f_bisect;
     }
   else
     {
-      *root = 0.5 * (x_bisect + x_right) ;
+      *root = midpoint (x_bisect, x_right) ;
       *x_lower = x_bisect;
       state->f_lower = f_bisect;
     }

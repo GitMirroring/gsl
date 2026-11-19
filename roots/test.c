@@ -54,6 +54,7 @@ typedef struct
   const gsl_root_fdfsolver_type * T;
   int multiple;         /* converges fast enough at a multiple root */
   int nonsmooth;        /* converges at a root where f is not differentiable */
+  int newton_steps;     /* iterates are newton steps (cycle on ROOT_TEST_CYCLE) */
 } fdfsolver_info;
 
 static gsl_function
@@ -315,16 +316,15 @@ test_fsolver_invalid (const gsl_root_fsolver_type * T, double lower_bound,
 }
 
 /* Solve with the fdfsolver T from the starting point of tf: it must
-   converge to the reference root, or not converge if tf is flagged
-   ROOT_TEST_DIVERGES */
+   converge to the reference root, or not converge if diverges is set */
 
 static void
-test_fdfsolver (const gsl_root_fdfsolver_type * T, const root_test_function * tf)
+test_fdfsolver (const gsl_root_fdfsolver_type * T, const root_test_function * tf,
+                const int diverges)
 {
   gsl_function_fdf FDF = make_function_fdf (tf);
   gsl_function F = make_function (tf);
   gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc (T);
-  const int diverges = (tf->flags & ROOT_TEST_DIVERGES);
   int status;
   size_t iterations = 0;
   double prev, r;
@@ -527,9 +527,254 @@ test_table (const fsolver_info fsolvers[], const fdfsolver_info fdfsolvers[],
           if ((tf->flags & ROOT_TEST_NONSMOOTH) && !fdfsolvers[i].nonsmooth)
             continue;
 
-          test_fdfsolver (fdfsolvers[i].T, tf);
+          test_fdfsolver (fdfsolvers[i].T, tf,
+                          (tf->flags & ROOT_TEST_DIVERGES)
+                          || ((tf->flags & ROOT_TEST_CYCLE) && fdfsolvers[i].newton_steps));
         }
     }
+}
+
+/* Edge cases for the fsolvers: brackets near the overflow threshold
+   and over the whole range of doubles, subnormal brackets, roots at an
+   endpoint, collapsed brackets, zero tolerances, and functions which
+   are not finite inside the bracket. */
+
+static double
+shift_f (double x, void * params)
+{
+  return x - *(const double *) params;
+}
+
+static double
+nan_f (double x, void * params)
+{
+  U(params);
+  return (x > 0.3 && x < 0.6) ? GSL_NAN : x - 0.5;
+}
+
+static double
+inf_f (double x, void * params)
+{
+  U(params);
+  return (x > 0.3 && x < 0.6) ? GSL_POSINF : x - 0.5;
+}
+
+/* iterate until the bracket test succeeds, iterate fails, or maxiter
+   iterations; return the status of the last test or iterate */
+static int
+solve_fsolver (gsl_root_fsolver * s, const double epsabs, const double epsrel,
+               const size_t maxiter)
+{
+  size_t iterations = 0;
+  int status;
+
+  do
+    {
+      iterations++;
+      status = gsl_root_fsolver_iterate (s);
+
+      if (status != GSL_SUCCESS)
+        return status;
+
+      status = gsl_root_test_interval (gsl_root_fsolver_x_lower (s),
+                                       gsl_root_fsolver_x_upper (s),
+                                       epsabs, epsrel);
+    }
+  while (status == GSL_CONTINUE && iterations < maxiter);
+
+  return status;
+}
+
+static void
+test_fsolver_shift (const gsl_root_fsolver_type * T, double c, double a, double b,
+                    double epsabs, double epsrel, size_t maxiter, double tol,
+                    const char * desc)
+{
+  gsl_root_fsolver * s = gsl_root_fsolver_alloc (T);
+  gsl_function F;
+  int status;
+  double r;
+
+  F.function = &shift_f;
+  F.params = &c;
+
+  gsl_root_fsolver_set (s, &F, a, b);
+  status = solve_fsolver (s, epsabs, epsrel, maxiter);
+  r = gsl_root_fsolver_root (s);
+
+  gsl_test (status, "%s, %s [%g, %g] (%g obs vs %g expected)", T->name, desc,
+            a, b, r, c);
+  gsl_test (!(fabs (r - c) <= tol), "%s, %s [%g, %g], root %.17g vs %.17g",
+            T->name, desc, a, b, r, c);
+
+  gsl_root_fsolver_free (s);
+}
+
+static void
+test_fsolver_edge (const gsl_root_fsolver_type * T)
+{
+  gsl_root_fsolver * s = gsl_root_fsolver_alloc (T);
+  gsl_function F;
+  double c;
+  int status, i;
+
+  /* brackets near the overflow threshold and over all doubles */
+  test_fsolver_shift (T, 1.5e308, 1.0e308, 1.7e308, 0.0, EPSREL, MAX_ITERATIONS,
+                      EPSREL * 1.5e308, "x - 1.5e308");
+  test_fsolver_shift (T, 1.0, -GSL_DBL_MAX, GSL_DBL_MAX, EPSABS, EPSREL, 1200,
+                      2.0 * EPSREL, "x - 1");
+
+  /* subnormal root and bracket, to within two subnormal units */
+  test_fsolver_shift (T, 3.0e-320, 0.0, 1.0e-319, 1.0e-323, 0.0, 1200,
+                      1.0e-323, "x - 3e-320");
+
+  /* roots at the endpoints */
+  test_fsolver_shift (T, 0.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0, "x, root at lower endpoint");
+  test_fsolver_shift (T, 1.0, 0.0, 1.0, 0.0, 0.0, 1, 0.0, "x - 1, root at upper endpoint");
+
+  /* an exact root collapses the bracket, which then converges for zero
+     tolerances and remains unchanged on further iterations */
+  c = 0.5;
+  F.function = &shift_f;
+  F.params = &c;
+  gsl_root_fsolver_set (s, &F, 0.0, 1.0);
+  status = solve_fsolver (s, 0.0, 0.0, MAX_ITERATIONS);
+  gsl_test (status, "%s, x - 0.5 [0, 1], zero tolerance, collapsed bracket converges",
+            T->name);
+
+  for (i = 0; i < 3; i++)
+    {
+      status = gsl_root_fsolver_iterate (s);
+      gsl_test (status != GSL_SUCCESS
+                || gsl_root_fsolver_x_lower (s) != 0.5
+                || gsl_root_fsolver_x_upper (s) != 0.5
+                || gsl_root_fsolver_root (s) != 0.5,
+                "%s, x - 0.5 [0, 1], iterate on collapsed bracket", T->name);
+    }
+
+  /* with zero tolerances the bracket must shrink to one unit in the
+     last place around the root */
+  F = make_function (&test_basic_functions[0]);   /* sin(x) */
+  gsl_root_fsolver_set (s, &F, 3.0, 4.0);
+  status = solve_fsolver (s, 0.0, 0.0, 200);
+  {
+    const double lo = gsl_root_fsolver_x_lower (s);
+    const double hi = gsl_root_fsolver_x_upper (s);
+
+    gsl_test ((status != GSL_SUCCESS && status != GSL_CONTINUE)
+              || hi > nextafter (lo, 4.0) || !(lo <= M_PI && M_PI <= hi),
+              "%s, sin(x) [3, 4], zero tolerance, final bracket [%.17g, %.17g] is one ulp",
+              T->name, lo, hi);
+  }
+
+  /* a function value which is not finite is an error */
+  F.function = &nan_f;
+  F.params = NULL;
+  gsl_root_fsolver_set (s, &F, 0.0, 1.0);
+  status = solve_fsolver (s, EPSABS, EPSREL, MAX_ITERATIONS);
+  gsl_test (status != GSL_EBADFUNC, "%s, NaN inside bracket returns GSL_EBADFUNC",
+            T->name);
+
+  F.function = &inf_f;
+  gsl_root_fsolver_set (s, &F, 0.0, 1.0);
+  status = solve_fsolver (s, EPSABS, EPSREL, MAX_ITERATIONS);
+  gsl_test (status != GSL_EBADFUNC, "%s, Inf inside bracket returns GSL_EBADFUNC",
+            T->name);
+
+  gsl_root_fsolver_free (s);
+}
+
+/* error returns of the fdfsolvers: a zero derivative, and a function
+   value which is not finite */
+
+static double sq1_f  (double x, void * p) { U(p); return x * x - 1.0; }
+static double sq1_df (double x, void * p) { U(p); return 2.0 * x; }
+static void sq1_fdf (double x, void * p, double * y, double * dy)
+{
+  *y = sq1_f (x, p);
+  *dy = sq1_df (x, p);
+}
+
+static double log_f  (double x, void * p) { U(p); return log (x); }
+static double log_df (double x, void * p) { U(p); return 1.0 / x; }
+static void log_fdf (double x, void * p, double * y, double * dy)
+{
+  *y = log_f (x, p);
+  *dy = log_df (x, p);
+}
+
+static void
+test_fdfsolver_errors (const gsl_root_fdfsolver_type * T)
+{
+  gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc (T);
+  gsl_function_fdf FDF;
+  int status;
+
+  /* f'(0) = 0 for x^2 - 1 */
+  FDF.f = &sq1_f;
+  FDF.df = &sq1_df;
+  FDF.fdf = &sq1_fdf;
+  FDF.params = NULL;
+  gsl_root_fdfsolver_set (s, &FDF, 0.0);
+  status = gsl_root_fdfsolver_iterate (s);
+  gsl_test (status != GSL_EZERODIV, "%s, zero derivative returns GSL_EZERODIV",
+            T->name);
+
+  /* the first step from 3 for log(x) is to x = 3 - 3 log(3) < 0 */
+  FDF.f = &log_f;
+  FDF.df = &log_df;
+  FDF.fdf = &log_fdf;
+  gsl_root_fdfsolver_set (s, &FDF, 3.0);
+  status = gsl_root_fdfsolver_iterate (s);
+  gsl_test (status != GSL_EBADFUNC, "%s, NaN function value returns GSL_EBADFUNC",
+            T->name);
+
+  gsl_root_fdfsolver_free (s);
+}
+
+/* the convergence tests */
+
+static void
+test_convergence (void)
+{
+  gsl_test_int (gsl_root_test_interval (1.0, 1.0, 0.0, 0.0), GSL_SUCCESS,
+                "gsl_root_test_interval, collapsed bracket, zero tolerance");
+  gsl_test_int (gsl_root_test_interval (1.0, 1.0 + 1.0e-12, 0.0, 1.0e-10), GSL_SUCCESS,
+                "gsl_root_test_interval, relative tolerance");
+  gsl_test_int (gsl_root_test_interval (1.0, 2.0, 0.5, 0.0), GSL_CONTINUE,
+                "gsl_root_test_interval, absolute tolerance not met");
+  gsl_test_int (gsl_root_test_interval (1.0, 2.0, 0.0, 0.5), GSL_CONTINUE,
+                "gsl_root_test_interval, relative tolerance not met");
+  gsl_test_int (gsl_root_test_interval (-1.0e-20, 1.0e-20, 0.0, 1.0e-10), GSL_CONTINUE,
+                "gsl_root_test_interval, bracket around 0 needs epsabs");
+  gsl_test_int (gsl_root_test_interval (-1.0e-20, 1.0e-20, 1.0e-19, 0.0), GSL_SUCCESS,
+                "gsl_root_test_interval, bracket around 0 with epsabs");
+  gsl_test_int (gsl_root_test_interval (2.0, 1.0, 0.1, 0.1), GSL_EINVAL,
+                "gsl_root_test_interval, lower > upper");
+  gsl_test_int (gsl_root_test_interval (1.0, 2.0, -0.1, 0.1), GSL_EBADTOL,
+                "gsl_root_test_interval, negative epsabs");
+  gsl_test_int (gsl_root_test_interval (1.0, 2.0, 0.1, -0.1), GSL_EBADTOL,
+                "gsl_root_test_interval, negative epsrel");
+
+  gsl_test_int (gsl_root_test_delta (1.0, 1.0, 0.0, 0.0), GSL_SUCCESS,
+                "gsl_root_test_delta, equal, zero tolerance");
+  gsl_test_int (gsl_root_test_delta (1.0 + 1.0e-12, 1.0, 0.0, 1.0e-10), GSL_SUCCESS,
+                "gsl_root_test_delta, relative tolerance");
+  gsl_test_int (gsl_root_test_delta (2.0, 1.0, 0.5, 0.0), GSL_CONTINUE,
+                "gsl_root_test_delta, tolerance not met");
+  gsl_test_int (gsl_root_test_delta (2.0, 1.0, -0.1, 0.1), GSL_EBADTOL,
+                "gsl_root_test_delta, negative epsabs");
+  gsl_test_int (gsl_root_test_delta (2.0, 1.0, 0.1, -0.1), GSL_EBADTOL,
+                "gsl_root_test_delta, negative epsrel");
+
+  gsl_test_int (gsl_root_test_residual (0.0, 0.0), GSL_SUCCESS,
+                "gsl_root_test_residual, exact zero, zero tolerance");
+  gsl_test_int (gsl_root_test_residual (-1.0e-12, 1.0e-10), GSL_SUCCESS,
+                "gsl_root_test_residual, tolerance met");
+  gsl_test_int (gsl_root_test_residual (1.0e-9, 1.0e-10), GSL_CONTINUE,
+                "gsl_root_test_residual, tolerance not met");
+  gsl_test_int (gsl_root_test_residual (1.0, -0.1), GSL_EBADTOL,
+                "gsl_root_test_residual, negative epsabs");
 }
 
 static void
@@ -555,13 +800,13 @@ main (void)
   fsolvers[4].T = NULL;                       fsolvers[4].bounded = 0;
 
   fdfsolvers[0].T = gsl_root_fdfsolver_newton;
-  fdfsolvers[0].multiple = 0; fdfsolvers[0].nonsmooth = 0;
+  fdfsolvers[0].multiple = 0; fdfsolvers[0].nonsmooth = 0; fdfsolvers[0].newton_steps = 1;
   fdfsolvers[1].T = gsl_root_fdfsolver_secant;
-  fdfsolvers[1].multiple = 0; fdfsolvers[1].nonsmooth = 1;
+  fdfsolvers[1].multiple = 0; fdfsolvers[1].nonsmooth = 1; fdfsolvers[1].newton_steps = 0;
   fdfsolvers[2].T = gsl_root_fdfsolver_steffenson;
-  fdfsolvers[2].multiple = 1; fdfsolvers[2].nonsmooth = 1;
+  fdfsolvers[2].multiple = 1; fdfsolvers[2].nonsmooth = 1; fdfsolvers[2].newton_steps = 1;
   fdfsolvers[3].T = NULL;
-  fdfsolvers[3].multiple = 0; fdfsolvers[3].nonsmooth = 0;
+  fdfsolvers[3].multiple = 0; fdfsolvers[3].nonsmooth = 0; fdfsolvers[3].newton_steps = 0;
 
   gsl_set_error_handler (&my_error_handler);
 
@@ -575,10 +820,18 @@ main (void)
       test_fsolver_invalid (fsolvers[i].T, 0.1, 0.2);
     }
 
+  for (i = 0; fsolvers[i].T != NULL; i++)
+    {
+      test_fsolver_edge (fsolvers[i].T);
+    }
+
   for (i = 0; fdfsolvers[i].T != NULL; i++)
     {
       test_fdf_set_calls (fdfsolvers[i].T);
+      test_fdfsolver_errors (fdfsolvers[i].T);
     }
+
+  test_convergence ();
 
   exit (gsl_test_summary ());
 }

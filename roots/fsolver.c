@@ -23,6 +23,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_roots.h>
 
+#include "roots.h"
+
 gsl_root_fsolver *
 gsl_root_fsolver_alloc (const gsl_root_fsolver_type * T)
 {
@@ -59,7 +61,7 @@ gsl_root_fsolver_set (gsl_root_fsolver * s, gsl_function * f, double x_lower, do
     }
 
   s->function = f;
-  s->root = 0.5 * (x_lower + x_upper);  /* initial estimate */
+  s->root = midpoint (x_lower, x_upper);  /* initial estimate */
   s->x_lower = x_lower;
   s->x_upper = x_upper;
 

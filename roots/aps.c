@@ -113,7 +113,7 @@ typedef struct
   double f_tol;               /* function values closer than this are
                                  not distinct */
   double w_max;               /* largest bracket width allowed after
-                                 this step */
+                                 this step, divided by 4 */
   int step;                   /* next step */
   int resume;                 /* step to take after a bisection */
   int first;                  /* first interpolation step */
@@ -233,7 +233,7 @@ aps_init (void * vstate, gsl_function * f, double * root, double x_lower, double
 
   double f_lower, f_upper ;
 
-  *root = 0.5 * (x_lower + x_upper);
+  *root = midpoint (x_lower, x_upper);
 
   SAFE_FUNC_CALL (f, x_lower, &f_lower);
   SAFE_FUNC_CALL (f, x_upper, &f_upper);
@@ -245,7 +245,7 @@ aps_init (void * vstate, gsl_function * f, double * root, double x_lower, double
   state->e = x_upper;
   state->f_e = f_upper;
   state->f_tol = 32.0 * GSL_DBL_EPSILON * GSL_MAX (fabs (f_lower), fabs (f_upper));
-  state->w_max = 2.0 * (x_upper - x_lower);
+  state->w_max = half_diff (x_lower, x_upper);
   state->step = STEP_SECANT;
   state->resume = STEP_INTERP1;
   state->first = 1;
@@ -312,9 +312,9 @@ aps_iterate (void * vstate, gsl_function * f, double * root, double * x_lower, d
 
         c = u - 2.0 * fu * (b - a) / (fb - fa);
 
-        if (fabs (c - u) > 0.5 * (b - a))
+        if (fabs (c - u) > half_diff (a, b))
           {
-            c = a + 0.5 * (b - a);
+            c = a + half_diff (a, b);
           }
         else if (fabs (c - u) <= GSL_DBL_EPSILON * fabs (u))
           {
@@ -342,7 +342,7 @@ aps_iterate (void * vstate, gsl_function * f, double * root, double * x_lower, d
       break;
 
     default:                    /* STEP_BISECT */
-      c = a + 0.5 * (b - a);
+      c = a + half_diff (a, b);
       state->e = state->d;
       state->f_e = state->f_d;
       next = state->resume;
@@ -384,7 +384,8 @@ aps_iterate (void * vstate, gsl_function * f, double * root, double * x_lower, d
 
   state->w_max *= M_SQRT1_2;
 
-  if (state->step != STEP_BISECT && *x_upper - *x_lower > state->w_max)
+  if (state->step != STEP_BISECT
+      && 0.5 * half_diff (*x_lower, *x_upper) > state->w_max)
     {
       state->resume = next;
       next = STEP_BISECT;

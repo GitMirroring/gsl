@@ -35,6 +35,25 @@ do { \
     GSL_ERROR("function value is not finite", GSL_EBADFUNC); \
 } while (0)
 
+/* (a + b)/2 and (b - a)/2 without overflow. For finite results these
+   are identical to the usual expressions, since scaling by 1/2 is
+   exact; the alternative forms are used only when a + b or b - a
+   overflows, e.g. for the bracket [-GSL_DBL_MAX, GSL_DBL_MAX]. */
+
+static inline double
+midpoint (const double a, const double b)
+{
+  const double m = 0.5 * (a + b);
+  return gsl_finite (m) ? m : 0.5 * a + 0.5 * b;
+}
+
+static inline double
+half_diff (const double a, const double b)
+{
+  const double h = 0.5 * (b - a);
+  return gsl_finite (h) ? h : 0.5 * b - 0.5 * a;
+}
+
 /* Return the trial point c moved, if necessary, to lie at least
    delta = 2 GSL_DBL_EPSILON max(|a|,|b|) inside the bracket (a,b), as
    in Brent's method, or the midpoint if the bracket is narrower than
@@ -47,9 +66,9 @@ interior_point (const double c, const double a, const double b)
 {
   const double delta = 2.0 * GSL_DBL_EPSILON * GSL_MAX (fabs (a), fabs (b));
 
-  if (b - a <= 2.0 * delta || gsl_isnan (c))
+  if (half_diff (a, b) <= delta || gsl_isnan (c))
     {
-      return 0.5 * (a + b);
+      return midpoint (a, b);
     }
   else if (c < a + delta)
     {
