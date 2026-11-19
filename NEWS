@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #38548 (uniform histogram bin edges are now exact when
+   representable, e.g. at integers, so integer data fall into the
+   expected bins; reported by C. Leitold)
+
 ** fix for bug #60635 (physical constants updated to the CODATA 2022
    recommended values, with the exact values of the 2019 SI defining
    constants; GSL_CONST_*_SOLAR_MASS is computed from the IAU nominal

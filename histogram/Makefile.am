@@ -6,7 +6,7 @@ AM_CPPFLAGS = -I$(top_srcdir)
 
 libgslhistogram_la_SOURCES = add.c  get.c init.c params.c reset.c file.c pdf.c gsl_histogram.h add2d.c get2d.c init2d.c params2d.c reset2d.c file2d.c pdf2d.c gsl_histogram2d.h calloc_range.c calloc_range2d.c copy.c copy2d.c maxval.c maxval2d.c oper.c oper2d.c stat.c stat2d.c
 
-noinst_HEADERS = urand.c find.c find2d.c
+noinst_HEADERS = urand.c find.c find2d.c uniform.c
 
 check_PROGRAMS = test
 TESTS = $(check_PROGRAMS)

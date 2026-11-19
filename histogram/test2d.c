@@ -34,6 +34,61 @@
 #define MR 10
 #define NR 5
 
+/* uniform bin edges at integers must be exact (bug #38548) */
+
+static void
+test2d_uniform (void)
+{
+  gsl_histogram2d *h = gsl_histogram2d_calloc_uniform (60, 40, 0.0, 60.0, -20.0, 20.0);
+  int status = 0;
+  size_t i, j;
+
+  for (i = 0; i <= 60; i++)
+    {
+      if (h->xrange[i] != (double) i)
+        status = 1;
+    }
+
+  for (j = 0; j <= 40; j++)
+    {
+      if (h->yrange[j] != (double) j - 20.0)
+        status = 1;
+    }
+
+  for (i = 0; i < 60; i++)
+    {
+      for (j = 0; j < 40; j++)
+        {
+          size_t k, l;
+          gsl_histogram2d_find (h, (double) i, (double) j - 20.0, &k, &l);
+          if (k != i || l != j)
+            status = 1;
+        }
+    }
+
+  gsl_test (status, "gsl_histogram2d_calloc_uniform integer edges and bins");
+
+  gsl_histogram2d_set_ranges_uniform (h, 0.0, 60.0, -20.0, 20.0);
+
+  status = 0;
+
+  for (i = 0; i <= 60; i++)
+    {
+      if (h->xrange[i] != (double) i)
+        status = 1;
+    }
+
+  for (j = 0; j <= 40; j++)
+    {
+      if (h->yrange[j] != (double) j - 20.0)
+        status = 1;
+    }
+
+  gsl_test (status, "gsl_histogram2d_set_ranges_uniform integer edges");
+
+  gsl_histogram2d_free (h);
+}
+
 void
 test2d (void)
 {
@@ -750,4 +805,6 @@ test2d (void)
   gsl_histogram2d_free (h1);
   gsl_histogram2d_free (g);
   gsl_histogram2d_free (hr);
+
+  test2d_uniform ();
 }

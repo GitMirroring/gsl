@@ -22,6 +22,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_histogram.h>
 
+#include "uniform.c"
+
 gsl_histogram *
 gsl_histogram_alloc (size_t n)
 {
@@ -65,19 +67,6 @@ gsl_histogram_alloc (size_t n)
   h->n = n;
 
   return h;
-}
-
-static void
-make_uniform (double range[], size_t n, double xmin, double xmax)
-{
-  size_t i;
-
-  for (i = 0; i <= n; i++)
-    {
-      double f1 = ((double) (n-i) / (double) n);
-      double f2 = ((double) i / (double) n);
-      range[i] = f1 * xmin +  f2 * xmax;
-    }
 }
 
 gsl_histogram *

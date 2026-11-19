@@ -20,12 +20,108 @@
 #include <config.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <gsl/gsl_math.h>
 #include <gsl/gsl_histogram.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_ieee_utils.h>
 
 #define N 397
 #define NR 10
+
+/* uniform bin edges at integers must be exact, so that integer data
+   fall into the expected bins (bug #38548) */
+
+static void
+test1d_uniform (void)
+{
+  int xmin;
+  size_t n, i;
+
+  {
+    gsl_histogram *h = gsl_histogram_calloc_uniform (60, 0.0, 60.0);
+    size_t k;
+
+    gsl_test (h->range[31] != 31.0,
+              "gsl_histogram_calloc_uniform range[31] on [0,60]");
+    gsl_histogram_find (h, 31.0, &k);
+    gsl_test_int ((int) k, 31, "gsl_histogram_find 31 on [0,60]");
+    gsl_histogram_free (h);
+  }
+
+  {
+    int status = 0;
+
+    for (xmin = -50; xmin <= 50; xmin += 7)
+      {
+        for (n = 1; n <= 200; n++)
+          {
+            gsl_histogram *h = gsl_histogram_alloc (n);
+
+            gsl_histogram_set_ranges_uniform (h, (double) xmin,
+                                              (double) xmin + (double) n);
+
+            for (i = 0; i <= n; i++)
+              {
+                if (h->range[i] != (double) xmin + (double) i)
+                  status = 1;
+              }
+
+            for (i = 0; i < n; i++)
+              {
+                size_t k;
+                gsl_histogram_find (h, (double) xmin + (double) i, &k);
+                if (k != i)
+                  status = 1;
+              }
+
+            gsl_histogram_free (h);
+          }
+      }
+
+    gsl_test (status, "gsl_histogram_set_ranges_uniform integer edges and bins");
+  }
+
+  /* non-integer edges: endpoints exact, edges increasing */
+  {
+    int status = 0;
+
+    for (n = 1; n <= 200; n++)
+      {
+        gsl_histogram *h = gsl_histogram_calloc_uniform (n, 0.1, 0.7);
+
+        if (h->range[0] != 0.1 || h->range[n] != 0.7)
+          status = 1;
+
+        for (i = 0; i < n; i++)
+          {
+            if (!(h->range[i] < h->range[i + 1]))
+              status = 1;
+          }
+
+        gsl_histogram_free (h);
+      }
+
+    gsl_test (status, "gsl_histogram_calloc_uniform non-integer edges");
+  }
+
+  /* xmax - xmin overflows */
+  {
+    gsl_histogram *h = gsl_histogram_calloc_uniform (4, -GSL_DBL_MAX, GSL_DBL_MAX);
+    int status = 0;
+
+    for (i = 0; i < 4; i++)
+      {
+        if (!(h->range[i] < h->range[i + 1]))
+          status = 1;
+      }
+
+    if (h->range[0] != -GSL_DBL_MAX || h->range[2] != 0.0 || h->range[4] != GSL_DBL_MAX)
+      status = 1;
+
+    gsl_test (status, "gsl_histogram_calloc_uniform on [-DBL_MAX,DBL_MAX]");
+    gsl_histogram_free (h);
+  }
+}
 
 void
 test1d (void)
@@ -480,4 +576,6 @@ test1d (void)
   gsl_histogram_free (g);
   gsl_histogram_free (h1);
   gsl_histogram_free (hr);
+
+  test1d_uniform ();
 }

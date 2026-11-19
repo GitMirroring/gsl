@@ -23,6 +23,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_histogram2d.h>
 
+#include "uniform.c"
+
 gsl_histogram2d *
 gsl_histogram2d_alloc (const size_t nx, const size_t ny)
 {
@@ -85,19 +87,6 @@ gsl_histogram2d_alloc (const size_t nx, const size_t ny)
   h->ny = ny;
 
   return h;
-}
-
-static void
-make_uniform (double range[], size_t n, double xmin, double xmax)
-{
-  size_t i;
-
-  for (i = 0; i <= n; i++)
-    {
-      double f1 = ((double) (n-i) / (double) n);
-      double f2 = ((double) i / (double) n);
-      range[i] = f1 * xmin +  f2 * xmax;
-    }
 }
 
 gsl_histogram2d *
