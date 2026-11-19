@@ -1,12 +1,38 @@
 # -*- org -*-
 #+CATEGORY: roots
 
-* Add an inline version of the iterate method for speed? Perhaps not,
-the time taken for each iteration surely dominated by the convergence
-test.
+* Safeguarded Newton with a bracket (Newton-bisection hybrid, as in
+Numerical Recipes rtsafe or Boost newton_raphson_iterate), and possibly
+a Halley variant. There is nothing between the unsafe Newton solver and
+the derivative-free bracketing solvers. This needs new API: a solver
+which takes both a bracket and f' (Halley also needs f'', which
+gsl_function_fdf does not provide).
 
-* Numerical derivatives? Maybe have a function to manufacture an fdf
-from an f and optionally a df. (We'll need to approximate the
-derivative if it is not provided; this is something which should be
-done outside the root finding package.)
+* Bracket finder: expand or scan from a starting point until f changes
+sign (cf. Boost bracket_and_solve_root, Numerical Recipes zbrac/zbrak).
+gsl_min_find_bracket exists for minimization, but nothing for roots.
 
+* Tolerance API for the fsolvers, e.g. an optional
+gsl_root_fsolver_set_tolerance (s, epsabs, epsrel). The solvers cannot
+see the user's tolerance, which rules out the ITP method (Oliveira &
+Takahashi, ACM TOMS 47(1), 2020; never more function evaluations than
+bisection) and the tolerance-based minimum step of the TOMS 748 paper
+and of Brent's original algorithm.
+
+* ITP solver, once the tolerance API exists.
+
+* Numerical derivatives: a function to manufacture an fdf from an f and
+optionally a df, using gsl_deriv to approximate the derivative if it is
+not provided, so that the fdfsolvers can be used without an analytic
+derivative.
+
+* Remove the dead files utility.c, demo.c, demo1.c, demof.c, demof.h:
+they are not built or distributed and use the pre-1.0 API. The examples
+in the manual are doc/examples/roots.c and doc/examples/demo_fn.c.
+
+* Lower priority: Ridders' method; Chandrupatla's method; a one-call
+convenience driver.
+
+* An inline version of the iterate method for speed is not worthwhile:
+the time taken by each iteration is dominated by the function
+evaluations and the convergence test.
