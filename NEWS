@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #35032 (the testing functions in gsl_test.h are now
+   documented in the manual; reported by S. Kirpichev)
+
 ** fix for bug #38548 (uniform histogram bin edges are now exact when
    representable, e.g. at integers, so integer data fall into the
    expected bins; reported by C. Leitold)

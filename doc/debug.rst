@@ -351,6 +351,106 @@ errors these options catch.
 .. defined main as :code:`int main (void)` in ANSI C. Clearly there is some
 .. work to do before this program is ready to run.
 
+.. index::
+   single: testing utilities
+   single: test programs, writing
+
+Testing utilities
+=================
+
+The functions described in this section are used by the GSL test suite
+and are available for writing test programs.  They are declared in the
+header file :file:`gsl_test.h`.  Each function records one test as
+passed or failed and prints a line to :code:`stdout` for every failed
+test.  The description argument is a :code:`printf` format string,
+followed by any arguments it requires.  A failed test prints the
+description prefixed by :code:`FAIL:`, the observed and expected values
+where the test compares values, and, unless verbose output is enabled
+(see below), the index of the test in brackets.
+
+.. function:: void gsl_test (const int status, const char * description, ...)
+
+   This function records a test which has failed if :data:`status` is
+   non-zero and passed otherwise.
+
+.. function:: void gsl_test_rel (const double result, const double expected, const double relative_error, const char * description, ...)
+
+   This function records a test which passes if :data:`result` agrees
+   with :data:`expected` to within the relative error
+   :data:`relative_error`, i.e. if
+   :math:`|result - expected| \le relative\_error \, |expected|`.  If
+   :data:`expected` is zero the test is
+   :math:`|result| \le relative\_error`.  A NaN matches only a NaN, and
+   an infinity matches only an infinity of the same sign.  A test with a
+   subnormal value of :data:`expected` always fails.
+
+.. function:: void gsl_test_abs (const double result, const double expected, const double absolute_error, const char * description, ...)
+
+   This function records a test which passes if
+   :math:`|result - expected| \le absolute\_error`.  NaN, infinite and
+   subnormal values of :data:`expected` are treated as in
+   :func:`gsl_test_rel`.
+
+.. function:: void gsl_test_factor (const double result, const double expected, const double factor, const char * description, ...)
+
+   This function records a test which passes if :data:`result` is equal
+   to :data:`expected` or the ratio :data:`result`/:data:`expected` lies
+   between :math:`1/factor` and :data:`factor`.  If :data:`expected` is
+   zero, :data:`result` must also be zero.  A test with a subnormal value
+   of :data:`expected` always fails.
+
+.. function:: void gsl_test_int (const int result, const int expected, const char * description, ...)
+
+   This function records a test which passes if the integers
+   :data:`result` and :data:`expected` are equal.
+
+.. function:: void gsl_test_str (const char * result, const char * expected, const char * description, ...)
+
+   This function records a test which passes if the strings
+   :data:`result` and :data:`expected` are equal.
+
+.. function:: void gsl_test_verbose (const int verbose)
+
+   This function sets the verbosity of the test output.  If
+   :data:`verbose` is non-zero, passed tests are printed as well as
+   failed ones, prefixed by :code:`PASS:`.  The default is zero, which
+   prints only failed tests.
+
+.. macro:: GSL_TEST_VERBOSE
+
+   Environment variable which sets the initial verbosity of the test
+   output.  It is read when the first test is recorded, and a non-empty
+   value is converted to an integer and used as the argument of
+   :func:`gsl_test_verbose`.  For example, :code:`GSL_TEST_VERBOSE=1`
+   prints passed tests as well as failed ones.
+
+.. function:: int gsl_test_summary (void)
+
+   This function returns :code:`EXIT_SUCCESS` if every test recorded so
+   far has passed, and :code:`EXIT_FAILURE` otherwise.  When the
+   verbosity is zero and all tests have passed it prints a line of the
+   form :code:`Completed [n/n]`.  A test program typically ends with
+   :code:`exit (gsl_test_summary ());`.
+
+The following program tests two library functions,
+
+.. code-block:: c
+
+   #include <stdlib.h>
+   #include <gsl/gsl_math.h>
+   #include <gsl/gsl_sf_bessel.h>
+   #include <gsl/gsl_test.h>
+
+   int
+   main (void)
+   {
+     gsl_test_rel (gsl_sf_bessel_J0 (0.0), 1.0, 1e-15, "J0(0)");
+     gsl_test_abs (gsl_hypot (3.0, 4.0), 5.0, 1e-15, "hypot(%g,%g)", 3.0, 4.0);
+     exit (gsl_test_summary ());
+   }
+
+and prints :code:`Completed [2/2]` when both tests pass.
+
 References and Further Reading
 ==============================
 
