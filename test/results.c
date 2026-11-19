@@ -71,6 +71,35 @@ update (int s)
     }
 }
 
+/* Common checks for comparing doubles: a NaN matches only a NaN, an
+   infinity only an infinity of the same sign, and a subnormal expected
+   value is reported as a failure (status -1). Returns 1 and sets
+   *status if one of these cases applies, 0 otherwise. */
+
+static int
+check_special (const double result, const double expected, int * status)
+{
+  if (gsl_isnan(result) || gsl_isnan(expected)) 
+    {
+      *status = gsl_isnan(result) != gsl_isnan(expected); 
+    }
+  else if (gsl_isinf(result) || gsl_isinf(expected)) 
+    {
+      *status = gsl_isinf(result) != gsl_isinf(expected); 
+    }
+  else if ((expected > 0 && expected < GSL_DBL_MIN)
+           || (expected < 0 && expected > -(GSL_DBL_MIN)))
+    {
+      *status = -1;
+    }
+  else
+    {
+      return 0;
+    }
+
+  return 1;
+}
+
 void
 gsl_test (const int status, const char *test_description,...)
 {
@@ -109,20 +138,9 @@ gsl_test_rel (const double result, const double expected,
 
   if (!tests) initialise();
 
-  /* Check for NaN vs inf vs number */
-
-  if (gsl_isnan(result) || gsl_isnan(expected)) 
+  if (check_special (result, expected, &status))
     {
-      status = gsl_isnan(result) != gsl_isnan(expected); 
-    }
-  else if (gsl_isinf(result) || gsl_isinf(expected)) 
-    {
-      status = gsl_isinf(result) != gsl_isinf(expected); 
-    }
-  else if ((expected > 0 && expected < GSL_DBL_MIN)
-           || (expected < 0 && expected > -(GSL_DBL_MIN)))
-    {
-      status = -1;
+      /* NaN, inf or subnormal */
     }
   else if (expected != 0 ) 
     {
@@ -186,20 +204,9 @@ gsl_test_abs (const double result, const double expected,
 
   if (!tests) initialise();
 
-  /* Check for NaN vs inf vs number */
-
-  if (gsl_isnan(result) || gsl_isnan(expected)) 
+  if (check_special (result, expected, &status))
     {
-      status = gsl_isnan(result) != gsl_isnan(expected); 
-    }
-  else if (gsl_isinf(result) || gsl_isinf(expected)) 
-    {
-      status = gsl_isinf(result) != gsl_isinf(expected); 
-    }
-  else if ((expected > 0 && expected < GSL_DBL_MIN)
-           || (expected < 0 && expected > -(GSL_DBL_MIN)))
-    {
-      status = -1;
+      /* NaN, inf or subnormal */
     }
   else 
     {
@@ -261,10 +268,9 @@ gsl_test_factor (const double result, const double expected,
 
   if (!tests) initialise();
   
-  if ((expected > 0 && expected < GSL_DBL_MIN)
-      || (expected < 0 && expected > -(GSL_DBL_MIN)))
+  if (check_special (result, expected, &status))
     {
-      status = -1;
+      /* NaN, inf or subnormal */
     }
   else if (result == expected) 
     {

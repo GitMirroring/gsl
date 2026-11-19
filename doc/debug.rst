@@ -396,8 +396,8 @@ where the test compares values, and, unless verbose output is enabled
    This function records a test which passes if :data:`result` is equal
    to :data:`expected` or the ratio :data:`result`/:data:`expected` lies
    between :math:`1/factor` and :data:`factor`.  If :data:`expected` is
-   zero, :data:`result` must also be zero.  A test with a subnormal value
-   of :data:`expected` always fails.
+   zero, :data:`result` must also be zero.  NaN, infinite and subnormal
+   values of :data:`expected` are treated as in :func:`gsl_test_rel`.
 
 .. function:: void gsl_test_int (const int result, const int expected, const char * description, ...)
 
