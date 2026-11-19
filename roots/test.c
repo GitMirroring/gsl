@@ -1,17 +1,17 @@
 /* roots/test.c
- * 
+ *
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 2007 Reid Priedhorsky, Brian Gough
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or (at
  * your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -19,196 +19,152 @@
 
 #include <config.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_test.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_ieee_utils.h>
+#include <gsl/gsl_deriv.h>
 
-#include "roots.h"
-#include "test.h"
+#define U(x) ((void) (x))              /* avoid unused parameter warnings */
 
 /* stopping parameters */
-const double EPSREL = (10 * GSL_DBL_EPSILON);
-const double EPSABS = (10 * GSL_DBL_EPSILON);
-const unsigned int MAX_ITERATIONS = 150;
-
-void my_error_handler (const char *reason, const char *file,
-                       int line, int err);
-
-static void test_f_evals (const char * description, gsl_function *f,
-                          double lower_bound, double upper_bound,
-                          int faster);
+static const double EPSREL = (10 * GSL_DBL_EPSILON);
+static const double EPSABS = (10 * GSL_DBL_EPSILON);
+static const unsigned int MAX_ITERATIONS = 150;
 
 #define WITHIN_TOL(a, b, epsrel, epsabs) \
  ((fabs((a) - (b)) < (epsrel) * GSL_MIN(fabs(a), fabs(b)) + (epsabs)))
 
-int
-main (void)
+#include "test_funcs.c"
+#include "test_aps.c"
+
+/* the solvers to test */
+
+typedef struct
 {
-  gsl_function F_sin, F_cos, F_func1, F_func2, F_func3, F_func4,
-	  F_func5, F_func6;
-  
-  gsl_function_fdf FDF_sin, FDF_cos, FDF_func1, FDF_func2, FDF_func3, FDF_func4,
-	  FDF_func5, FDF_func6, FDF_func7;
+  const gsl_root_fsolver_type * T;
+  int bounded;          /* at most about twice the evaluations of bisection */
+} fsolver_info;
 
-  const gsl_root_fsolver_type * fsolver[4] ;
-  const gsl_root_fdfsolver_type * fdfsolver[4] ;
+typedef struct
+{
+  const gsl_root_fdfsolver_type * T;
+  int multiple;         /* converges fast enough at a multiple root */
+  int nonsmooth;        /* converges at a root where f is not differentiable */
+} fdfsolver_info;
 
-  const gsl_root_fsolver_type ** T;
-  const gsl_root_fdfsolver_type ** S;
-
-  gsl_ieee_env_setup();
-
-  fsolver[0] = gsl_root_fsolver_bisection;
-  fsolver[1] = gsl_root_fsolver_brent;
-  fsolver[2] = gsl_root_fsolver_falsepos;
-  fsolver[3] = 0;
-
-  fdfsolver[0] = gsl_root_fdfsolver_newton;
-  fdfsolver[1] = gsl_root_fdfsolver_secant;
-  fdfsolver[2] = gsl_root_fdfsolver_steffenson;
-  fdfsolver[3] = 0;
-
-  F_sin = create_function (sin_f) ;
-  F_cos = create_function (cos_f) ; 
-  F_func1 = create_function (func1) ;
-  F_func2 = create_function (func2) ;
-  F_func3 = create_function (func3) ;
-  F_func4 = create_function (func4) ;
-  F_func5 = create_function (func5) ;
-  F_func6 = create_function (func6) ;
-
-  FDF_sin = create_fdf (sin_f, sin_df, sin_fdf) ;
-  FDF_cos = create_fdf (cos_f, cos_df, cos_fdf) ;
-  FDF_func1 = create_fdf (func1, func1_df, func1_fdf) ;
-  FDF_func2 = create_fdf (func2, func2_df, func2_fdf) ;
-  FDF_func3 = create_fdf (func3, func3_df, func3_fdf) ;
-  FDF_func4 = create_fdf (func4, func4_df, func4_fdf) ;
-  FDF_func5 = create_fdf (func5, func5_df, func5_fdf) ;
-  FDF_func6 = create_fdf (func6, func6_df, func6_fdf) ;
-  FDF_func7 = create_fdf(func7, func7_df, func7_fdf) ;
-
-  gsl_set_error_handler (&my_error_handler);
-
-  for (T = fsolver ; *T != 0 ; T++)
-    {
-      test_f (*T, "sin(x) [3, 4]", &F_sin, 3.0, 4.0, M_PI);
-      test_f (*T, "sin(x) [-4, -3]", &F_sin, -4.0, -3.0, -M_PI);
-      test_f (*T, "sin(x) [-1/3, 1]", &F_sin, -1.0 / 3.0, 1.0, 0.0);
-      test_f (*T, "cos(x) [0, 3]", &F_cos, 0.0, 3.0, M_PI / 2.0);
-      test_f (*T, "cos(x) [-3, 0]", &F_cos, -3.0, 0.0, -M_PI / 2.0);
-      test_f (*T, "x^20 - 1 [0.1, 2]", &F_func1, 0.1, 2.0, 1.0);
-      test_f (*T, "sqrt(|x|)*sgn(x)", &F_func2, -1.0 / 3.0, 1.0, 0.0);
-      test_f (*T, "x^2 - 1e-8 [0, 1]", &F_func3, 0.0, 1.0, sqrt (1e-8));
-      test_f (*T, "x exp(-x) [-1/3, 2]", &F_func4, -1.0 / 3.0, 2.0, 0.0);
-      test_f (*T, "(x - 1)^7 [0.9995, 1.0002]", &F_func6, 0.9995, 1.0002, 1.0);
-      
-      test_f_e (*T, "invalid range check [4, 0]", &F_sin, 4.0, 0.0, M_PI);
-      test_f_e (*T, "invalid range check [1, 1]", &F_sin, 1.0, 1.0, M_PI);
-      test_f_e (*T, "invalid range check [0.1, 0.2]", &F_sin, 0.1, 0.2, M_PI);
-    }
-
-  /* false position must need at most about twice as many function
-     evaluations as bisection, and fewer for smooth functions with a
-     simple root (bug #40092) */
-
-  test_f_evals ("sin(x) [3, 4]", &F_sin, 3.0, 4.0, 1);
-  test_f_evals ("cos(x) [0, 3]", &F_cos, 0.0, 3.0, 1);
-  test_f_evals ("x^20 - 1 [0.1, 2]", &F_func1, 0.1, 2.0, 1);
-  test_f_evals ("x^2 - 1e-8 [0, 1]", &F_func3, 0.0, 1.0, 1);
-  test_f_evals ("x exp(-x) [-1/3, 2]", &F_func4, -1.0 / 3.0, 2.0, 1);
-  test_f_evals ("sqrt(|x|)*sgn(x)", &F_func2, -1.0 / 3.0, 1.0, 0);
-  test_f_evals ("(x - 1)^7 [0.9995, 1.0002]", &F_func6, 0.9995, 1.0002, 0);
-
-  for (S = fdfsolver ; *S != 0 ; S++)
-    {
-      test_fdf (*S,"sin(x) {3.4}", &FDF_sin, 3.4, M_PI);
-      test_fdf (*S,"sin(x) {-3.3}", &FDF_sin, -3.3, -M_PI);
-      test_fdf (*S,"sin(x) {0.5}", &FDF_sin, 0.5, 0.0);
-      test_fdf (*S,"cos(x) {0.6}", &FDF_cos, 0.6, M_PI / 2.0);
-      test_fdf (*S,"cos(x) {-2.5}", &FDF_cos, -2.5, -M_PI / 2.0);
-      test_fdf (*S,"x^{20} - 1 {0.9}", &FDF_func1, 0.9, 1.0);
-      test_fdf (*S,"x^{20} - 1 {1.1}", &FDF_func1, 1.1, 1.0);
-      test_fdf (*S,"sqrt(|x|)*sgn(x) {1.001}", &FDF_func2, 0.001, 0.0);
-      test_fdf (*S,"x^2 - 1e-8 {1}", &FDF_func3, 1.0, sqrt (1e-8));
-      test_fdf (*S,"x exp(-x) {-2}", &FDF_func4, -2.0, 0.0);
-      test_fdf_e (*S,"max iterations x -> +Inf, x exp(-x) {2}", &FDF_func4, 2.0, 0.0);
-      test_fdf_e (*S,"max iterations x -> -Inf, 1/(1 + exp(-x)) {0}", &FDF_func5, 0.0, 0.0);
-	  test_fdf(*S, "-pi * x + e {1.5}", &FDF_func7, 1.5, M_E / M_PI);
-      test_fdf_set_calls (*S);
-  }
-
-  test_fdf (gsl_root_fdfsolver_steffenson,
-            "(x - 1)^7 {0.9}", &FDF_func6, 0.9, 1.0);    
-
-  /* now summarize the results */
-
-  exit (gsl_test_summary ());
+static gsl_function
+make_function (const root_test_function * tf)
+{
+  gsl_function F;
+  F.function = tf->test_t->f;
+  F.params = (void *) &tf->params;
+  return F;
 }
 
+/* gsl_function_fdf for a test function, with fdf calling f and df */
 
-/* Using gsl_root_bisection, find the root of the function pointed to by f,
-   using the interval [lower_bound, upper_bound]. Check if f succeeded and
-   that it was accurate enough. */
-
-void
-test_f (const gsl_root_fsolver_type * T, const char * description, gsl_function *f,
-        double lower_bound, double upper_bound, double correct_root)
+static double
+fdf_f (double x, void * params)
 {
+  const root_test_function * tf = (const root_test_function *) params;
+  return tf->test_t->f (x, (void *) &tf->params);
+}
+
+static double
+fdf_df (double x, void * params)
+{
+  const root_test_function * tf = (const root_test_function *) params;
+  return tf->test_t->df (x, (void *) &tf->params);
+}
+
+static void
+fdf_fdf (double x, void * params, double * y, double * dy)
+{
+  *y = fdf_f (x, params);
+  *dy = fdf_df (x, params);
+}
+
+static gsl_function_fdf
+make_function_fdf (const root_test_function * tf)
+{
+  gsl_function_fdf FDF;
+  FDF.f = &fdf_f;
+  FDF.df = &fdf_df;
+  FDF.fdf = &fdf_fdf;
+  FDF.params = (void *) tf;
+  return FDF;
+}
+
+/* A computed root r is correct if it agrees with the reference root,
+   or if f(r) is exactly zero: such an r is a root of the function as
+   computed in floating point */
+
+static int
+root_ok (gsl_function * F, double r, double root)
+{
+  return WITHIN_TOL (r, root, EPSREL, EPSABS) || GSL_FN_EVAL (F, r) == 0.0;
+}
+
+/* Solve with the fsolver T on the bracket of tf: the root estimate
+   must stay within the bracket, the final bracket must contain a sign
+   change, and the root must be correct */
+
+static void
+test_fsolver (const gsl_root_fsolver_type * T, const root_test_function * tf)
+{
+  gsl_function F = make_function (tf);
+  gsl_root_fsolver * s = gsl_root_fsolver_alloc (T);
   int status;
   size_t iterations = 0;
   double r, a, b;
-  double x_lower, x_upper;
-  gsl_root_fsolver * s;
 
-  x_lower = lower_bound;
-  x_upper = upper_bound;
+  gsl_root_fsolver_set (s, &F, tf->xmin, tf->xmax);
 
-  s = gsl_root_fsolver_alloc(T);
-  gsl_root_fsolver_set(s, f, x_lower, x_upper) ;
-  
-  do 
+  do
     {
       iterations++ ;
 
       gsl_root_fsolver_iterate (s);
 
-      r = gsl_root_fsolver_root(s);
+      r = gsl_root_fsolver_root (s);
+      a = gsl_root_fsolver_x_lower (s);
+      b = gsl_root_fsolver_x_upper (s);
 
-      a = gsl_root_fsolver_x_lower(s);
-      b = gsl_root_fsolver_x_upper(s);
-      
       if (a > b)
-        gsl_test (GSL_FAILURE, "interval is invalid (%g,%g)", a, b);
+        gsl_test (GSL_FAILURE, "%s, %s [%g, %g], interval is invalid (%g,%g)",
+                  T->name, tf->desc, tf->xmin, tf->xmax, a, b);
 
       if (r < a || r > b)
-        gsl_test (GSL_FAILURE, "r lies outside interval %g (%g,%g)", r, a, b);
+        gsl_test (GSL_FAILURE, "%s, %s [%g, %g], r lies outside interval %g (%g,%g)",
+                  T->name, tf->desc, tf->xmin, tf->xmax, r, a, b);
 
-      status = gsl_root_test_interval (a,b, EPSABS, EPSREL);
+      status = gsl_root_test_interval (a, b, EPSABS, EPSREL);
     }
   while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
 
+  gsl_test (status, "%s, %s [%g, %g] (%g obs vs %g expected)",
+            T->name, tf->desc, tf->xmin, tf->xmax, r, tf->root);
 
-  gsl_test (status, "%s, %s (%g obs vs %g expected) ", 
-            gsl_root_fsolver_name(s), description, 
-            gsl_root_fsolver_root(s), correct_root);
+  {
+    const double fa = GSL_FN_EVAL (&F, a);
+    const double fb = GSL_FN_EVAL (&F, b);
 
-  if (iterations == MAX_ITERATIONS)
+    gsl_test ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0),
+              "%s, %s [%g, %g], final bracket contains a sign change",
+              T->name, tf->desc, tf->xmin, tf->xmax);
+  }
+
+  if (!root_ok (&F, r, tf->root))
     {
-      gsl_test (GSL_FAILURE, "exceeded maximum number of iterations");
+      gsl_test (GSL_FAILURE, "%s, %s [%g, %g], incorrect precision (%g obs vs %g expected)",
+                T->name, tf->desc, tf->xmin, tf->xmax, r, tf->root);
     }
 
-  /* check the validity of the returned result */
-
-  if (!WITHIN_TOL (r, correct_root, EPSREL, EPSABS))
-    {
-      gsl_test (GSL_FAILURE, "incorrect precision (%g obs vs %g expected)", 
-                r, correct_root);
-
-    }
-
-  gsl_root_fsolver_free(s);  
+  gsl_root_fsolver_free (s);
 }
 
 /* count the function evaluations needed by the solver T to reduce the
@@ -254,138 +210,223 @@ count_evals (const gsl_root_fsolver_type * T, gsl_function *f,
   return (status == GSL_SUCCESS) ? evals : (size_t) -1;
 }
 
+/* the solver T must need at most about twice as many function
+   evaluations as bisection, and no more than bisection for a smooth
+   function with a simple root (bug #40092) */
+
 static void
-test_f_evals (const char * description, gsl_function *f,
-              double lower_bound, double upper_bound, int faster)
+test_fsolver_evals (const gsl_root_fsolver_type * T, const root_test_function * tf)
 {
-  size_t n_bisect = count_evals (gsl_root_fsolver_bisection, f,
-                                 lower_bound, upper_bound);
-  size_t n_falsepos = count_evals (gsl_root_fsolver_falsepos, f,
-                                   lower_bound, upper_bound);
+  gsl_function F = make_function (tf);
+  size_t n_bisect = count_evals (gsl_root_fsolver_bisection, &F,
+                                 tf->xmin, tf->xmax);
+  size_t n = count_evals (T, &F, tf->xmin, tf->xmax);
 
-  gsl_test (n_falsepos > 2 * n_bisect + 4,
-            "falsepos, %s, %u evaluations vs %u for bisection",
-            description, (unsigned int) n_falsepos, (unsigned int) n_bisect);
+  gsl_test (n > 2 * n_bisect + 4,
+            "%s, %s [%g, %g], %u evaluations vs %u for bisection",
+            T->name, tf->desc, tf->xmin, tf->xmax,
+            (unsigned int) n, (unsigned int) n_bisect);
 
-  if (faster)
+  if (!(tf->flags & (ROOT_TEST_MULTIPLE | ROOT_TEST_NONSMOOTH)))
     {
-      gsl_test (n_falsepos >= n_bisect,
-                "falsepos, %s, %u evaluations fewer than %u for bisection",
-                description, (unsigned int) n_falsepos,
-                (unsigned int) n_bisect);
+      gsl_test (n > n_bisect,
+                "%s, %s [%g, %g], %u evaluations no more than %u for bisection",
+                T->name, tf->desc, tf->xmin, tf->xmax,
+                (unsigned int) n, (unsigned int) n_bisect);
     }
 }
 
-void
-test_f_e (const gsl_root_fsolver_type * T, 
-          const char * description, gsl_function *f,
-          double lower_bound, double upper_bound, double correct_root)
+/* the solver T must be invariant under scaling of the function:
+   scaling by a power of two is exact, so the number of evaluations
+   must not change */
+
+static double scale_factor;
+
+static double
+scaled_f (double x, void * params)
 {
+  gsl_function * f = (gsl_function *) params;
+  return scale_factor * GSL_FN_EVAL (f, x);
+}
+
+static void
+test_fsolver_scale (const gsl_root_fsolver_type * T, const root_test_function * tf)
+{
+  const int exponents[2] = { -70, 70 };
+  gsl_function F = make_function (tf);
+  size_t n = count_evals (T, &F, tf->xmin, tf->xmax);
+  gsl_function G;
+  int i;
+
+  G.function = &scaled_f;
+  G.params = &F;
+
+  for (i = 0; i < 2; i++)
+    {
+      size_t n_scaled;
+
+      scale_factor = ldexp (1.0, exponents[i]);
+      n_scaled = count_evals (T, &G, tf->xmin, tf->xmax);
+
+      gsl_test (n_scaled != n,
+                "%s, %s [%g, %g], scaled by %g, %u evaluations vs %u unscaled",
+                T->name, tf->desc, tf->xmin, tf->xmax, scale_factor,
+                (unsigned int) n_scaled, (unsigned int) n);
+    }
+}
+
+/* the fsolver T must reject invalid brackets */
+
+static void
+test_fsolver_invalid (const gsl_root_fsolver_type * T, double lower_bound,
+                      double upper_bound)
+{
+  gsl_function F = make_function (&test_basic_functions[0]);   /* sin(x) */
   int status;
   size_t iterations = 0;
   double x_lower, x_upper;
-  gsl_root_fsolver * s;
+  gsl_root_fsolver * s = gsl_root_fsolver_alloc (T);
 
-  x_lower = lower_bound;
-  x_upper = upper_bound;
+  status = gsl_root_fsolver_set (s, &F, lower_bound, upper_bound);
 
-  s = gsl_root_fsolver_alloc(T);
-  status = gsl_root_fsolver_set(s, f, x_lower, x_upper) ;
+  gsl_test (status != GSL_EINVAL, "%s (set), invalid range check [%g, %g]",
+            T->name, lower_bound, upper_bound);
 
-  gsl_test (status != GSL_EINVAL, "%s (set), %s", T->name, description);
-
-  if (status == GSL_EINVAL) 
+  if (status == GSL_EINVAL)
     {
-      gsl_root_fsolver_free(s);
+      gsl_root_fsolver_free (s);
       return ;
     }
 
-  do 
+  do
     {
       iterations++ ;
       gsl_root_fsolver_iterate (s);
-      x_lower = gsl_root_fsolver_x_lower(s);
-      x_upper = gsl_root_fsolver_x_lower(s);
-      status = gsl_root_test_interval (x_lower, x_upper, 
-                                      EPSABS, EPSREL);
+      x_lower = gsl_root_fsolver_x_lower (s);
+      x_upper = gsl_root_fsolver_x_upper (s);
+      status = gsl_root_test_interval (x_lower, x_upper, EPSABS, EPSREL);
     }
   while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
 
-  gsl_test (!status, "%s, %s", gsl_root_fsolver_name(s), description, 
-            gsl_root_fsolver_root(s) - correct_root);
+  gsl_test (!status, "%s, invalid range check [%g, %g]", T->name,
+            lower_bound, upper_bound);
 
-  gsl_root_fsolver_free(s);
+  gsl_root_fsolver_free (s);
 }
 
-void
-test_fdf (const gsl_root_fdfsolver_type * T, const char * description, 
-        gsl_function_fdf *fdf, double root, double correct_root)
+/* Solve with the fdfsolver T from the starting point of tf: it must
+   converge to the reference root, or not converge if tf is flagged
+   ROOT_TEST_DIVERGES */
+
+static void
+test_fdfsolver (const gsl_root_fdfsolver_type * T, const root_test_function * tf)
 {
+  gsl_function_fdf FDF = make_function_fdf (tf);
+  gsl_function F = make_function (tf);
+  gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc (T);
+  const int diverges = (tf->flags & ROOT_TEST_DIVERGES);
   int status;
   size_t iterations = 0;
-  double prev = 0 ;
+  double prev, r;
 
-  gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc(T);
-  gsl_root_fdfsolver_set (s, fdf, root) ;
+  status = gsl_root_fdfsolver_set (s, &FDF, tf->x0);
 
-  do 
+  gsl_test (status, "%s (set), %s {%g}", T->name, tf->desc, tf->x0);
+
+  do
     {
       iterations++ ;
-      prev = gsl_root_fdfsolver_root(s);
+      prev = gsl_root_fdfsolver_root (s);
       gsl_root_fdfsolver_iterate (s);
-      status = gsl_root_test_delta(gsl_root_fdfsolver_root(s), prev, 
-                                   EPSABS, EPSREL);
+      status = gsl_root_test_delta (gsl_root_fdfsolver_root (s), prev,
+                                    EPSABS, EPSREL);
     }
   while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
 
-  gsl_test (status, "%s, %s (%g obs vs %g expected) ", 
-            gsl_root_fdfsolver_name(s), description, 
-            gsl_root_fdfsolver_root(s), correct_root);
+  r = gsl_root_fdfsolver_root (s);
 
-  if (iterations == MAX_ITERATIONS)
+  if (diverges)
     {
-      gsl_test (GSL_FAILURE, "exceeded maximum number of iterations");
+      gsl_test (!status, "%s, %s {%g}, does not converge", T->name,
+                tf->desc, tf->x0);
+    }
+  else
+    {
+      gsl_test (status, "%s, %s {%g} (%g obs vs %g expected)",
+                T->name, tf->desc, tf->x0, r, tf->root);
+
+      if (!root_ok (&F, r, tf->root))
+        {
+          gsl_test (GSL_FAILURE, "%s, %s {%g}, incorrect precision (%g obs vs %g expected)",
+                    T->name, tf->desc, tf->x0, r, tf->root);
+        }
     }
 
-  /* check the validity of the returned result */
-
-  if (!WITHIN_TOL (gsl_root_fdfsolver_root(s), correct_root, 
-                   EPSREL, EPSABS))
-    {
-      gsl_test (GSL_FAILURE, "incorrect precision (%g obs vs %g expected)", 
-                gsl_root_fdfsolver_root(s), correct_root);
-
-    }
-  gsl_root_fdfsolver_free(s);
+  gsl_root_fdfsolver_free (s);
 }
 
-void
-test_fdf_e (const gsl_root_fdfsolver_type * T, 
-            const char * description, gsl_function_fdf *fdf,
-            double root, double correct_root)
+/* Check the derivative df of tf against a numerical derivative at the
+   points used by the fdfsolvers: x0, the midpoint between x0 and the
+   root, and the root itself unless f is not differentiable there. The
+   variable is scaled by L = |x|/10, so that the stencil stays well
+   within the region where f is smooth, and a single fourth order
+   central difference with step h = eps^(1/5) is used. Its error is
+   deterministic, and at most 8e-7 (near the poles of the second APS
+   problem), while a wrong derivative typically differs by 1% or more. */
+
+static const double DF_TOL = 1.0e-5;
+
+typedef struct
 {
-  int status;
-  size_t iterations = 0;
-  double prev = 0 ;
+  gsl_function * F;
+  double x;
+  double L;
+} scaled_point;
 
-  gsl_root_fdfsolver * s = gsl_root_fdfsolver_alloc(T);
-  status = gsl_root_fdfsolver_set (s, fdf, root) ;
+static double
+df_scaled_f (double t, void * params)
+{
+  const scaled_point * sp = (const scaled_point *) params;
+  return GSL_FN_EVAL (sp->F, sp->x + t * sp->L);
+}
 
-  gsl_test (status, "%s (set), %s", T->name, description);
+static void
+test_df_point (const root_test_function * tf, double x)
+{
+  gsl_function F = make_function (tf);
+  gsl_deriv_parameters params = gsl_deriv_default_parameters (1, 4);
+  scaled_point sp;
+  gsl_function G;
+  double result, esterr;
+  unsigned int neval;
 
-  do 
+  sp.F = &F;
+  sp.x = x;
+  sp.L = (x != 0.0) ? 0.1 * fabs (x) : 0.1;
+
+  G.function = &df_scaled_f;
+  G.params = &sp;
+
+  gsl_deriv_fixed (&params, &G, 0.0, pow (GSL_DBL_EPSILON, 0.2), &result,
+                   &esterr, &neval);
+
+  gsl_test_rel (result / sp.L, tf->test_t->df (x, (void *) &tf->params), DF_TOL,
+                "%s, df at x = %g", tf->desc, x);
+}
+
+static void
+test_df (const root_test_function * tf)
+{
+  if (!(tf->flags & ROOT_TEST_NO_X0))
     {
-      iterations++ ;
-      prev = gsl_root_fdfsolver_root(s);
-      gsl_root_fdfsolver_iterate (s);
-      status = gsl_root_test_delta(gsl_root_fdfsolver_root(s), prev, 
-                                   EPSABS, EPSREL);
-    }
-  while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
+      test_df_point (tf, tf->x0);
 
-  gsl_test (!status, "%s, %s", gsl_root_fdfsolver_name(s),
-            description, gsl_root_fdfsolver_root(s) - correct_root);
-  gsl_root_fdfsolver_free(s);
+      if (!(tf->flags & ROOT_TEST_DIVERGES))
+        test_df_point (tf, 0.5 * (tf->x0 + tf->root));
+    }
+
+  if (!(tf->flags & (ROOT_TEST_NONSMOOTH | ROOT_TEST_DIVERGES)))
+    test_df_point (tf, tf->root);
 }
 
 /* count calls to f, df and fdf of f(x) = x^2 - 2 */
@@ -416,7 +457,8 @@ count_fdf (double x, void * params, double * y, double * dy)
 
 /* setting a solver needs f and f' at the starting point and should get
    both from a single fdf call (bugs #50734, #49465) */
-void
+
+static void
 test_fdf_set_calls (const gsl_root_fdfsolver_type * T)
 {
   call_counts c = { 0, 0, 0 };
@@ -437,12 +479,106 @@ test_fdf_set_calls (const gsl_root_fdfsolver_type * T)
   gsl_root_fdfsolver_free (s);
 }
 
-void
+/* run all fsolvers and fdfsolvers on the rows of a table */
+
+static void
+test_table (const fsolver_info fsolvers[], const fdfsolver_info fdfsolvers[],
+            const root_test_function * table)
+{
+  const root_test_function * tf;
+  size_t i;
+
+  for (i = 0; fsolvers[i].T != NULL; i++)
+    {
+      for (tf = table; tf->test_t != NULL; ++tf)
+        {
+          if (tf->flags & ROOT_TEST_NO_BRACKET)
+            continue;
+
+          test_fsolver (fsolvers[i].T, tf);
+
+          if (fsolvers[i].bounded)
+            {
+              test_fsolver_evals (fsolvers[i].T, tf);
+              test_fsolver_scale (fsolvers[i].T, tf);
+            }
+        }
+    }
+
+  for (tf = table; tf->test_t != NULL; ++tf)
+    {
+      if (tf->test_t->df != NULL)
+        test_df (tf);
+    }
+
+  for (i = 0; fdfsolvers[i].T != NULL; i++)
+    {
+      for (tf = table; tf->test_t != NULL; ++tf)
+        {
+          if (tf->flags & ROOT_TEST_NO_X0)
+            continue;
+
+          /* newton and secant converge only linearly at a multiple
+             root and exceed the iteration limit */
+          if ((tf->flags & ROOT_TEST_MULTIPLE) && !fdfsolvers[i].multiple)
+            continue;
+
+          /* newton oscillates, x -> -x, on sqrt(|x|) sgn(x) */
+          if ((tf->flags & ROOT_TEST_NONSMOOTH) && !fdfsolvers[i].nonsmooth)
+            continue;
+
+          test_fdfsolver (fdfsolvers[i].T, tf);
+        }
+    }
+}
+
+static void
 my_error_handler (const char *reason, const char *file, int line, int err)
 {
   if (0)
     printf ("(caught [%s:%d: %s (%d)])\n", file, line, reason, err);
 }
 
+int
+main (void)
+{
+  fsolver_info fsolvers[5];
+  fdfsolver_info fdfsolvers[4];
+  size_t i;
 
+  gsl_ieee_env_setup();
 
+  fsolvers[0].T = gsl_root_fsolver_bisection; fsolvers[0].bounded = 0;
+  fsolvers[1].T = gsl_root_fsolver_brent;     fsolvers[1].bounded = 0;
+  fsolvers[2].T = gsl_root_fsolver_falsepos;  fsolvers[2].bounded = 1;
+  fsolvers[3].T = gsl_root_fsolver_aps;       fsolvers[3].bounded = 1;
+  fsolvers[4].T = NULL;                       fsolvers[4].bounded = 0;
+
+  fdfsolvers[0].T = gsl_root_fdfsolver_newton;
+  fdfsolvers[0].multiple = 0; fdfsolvers[0].nonsmooth = 0;
+  fdfsolvers[1].T = gsl_root_fdfsolver_secant;
+  fdfsolvers[1].multiple = 0; fdfsolvers[1].nonsmooth = 1;
+  fdfsolvers[2].T = gsl_root_fdfsolver_steffenson;
+  fdfsolvers[2].multiple = 1; fdfsolvers[2].nonsmooth = 1;
+  fdfsolvers[3].T = NULL;
+  fdfsolvers[3].multiple = 0; fdfsolvers[3].nonsmooth = 0;
+
+  gsl_set_error_handler (&my_error_handler);
+
+  test_table (fsolvers, fdfsolvers, test_basic_functions);
+  test_table (fsolvers, fdfsolvers, test_aps_functions);
+
+  for (i = 0; fsolvers[i].T != NULL; i++)
+    {
+      test_fsolver_invalid (fsolvers[i].T, 4.0, 0.0);
+      test_fsolver_invalid (fsolvers[i].T, 1.0, 1.0);
+      test_fsolver_invalid (fsolvers[i].T, 0.1, 0.2);
+    }
+
+  for (i = 0; fdfsolvers[i].T != NULL; i++)
+    {
+      test_fdf_set_calls (fdfsolvers[i].T);
+    }
+
+  exit (gsl_test_summary ());
+}

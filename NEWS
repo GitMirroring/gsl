@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** new root bracketing solver gsl_root_fsolver_aps, based on the
+   Alefeld-Potra-Shi algorithm (ACM TOMS Algorithm 748)
+
 ** fix for bug #40092 (gsl_root_fsolver_falsepos now uses the
    Anderson-Bjorck modification of false position with a bisection
    safeguard)

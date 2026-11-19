@@ -462,6 +462,15 @@ then these algorithm cannot fail, provided the function is well-behaved.
 Note that a bracketing algorithm cannot find roots of even degree, since
 these do not cross the :math:`x`-axis.
 
+For a smooth function with a simple root, Brent's method, the
+Alefeld-Potra-Shi method and the false position method usually need a
+similar number of function evaluations, and many fewer than bisection.
+The Alefeld-Potra-Shi method needs fewer evaluations near a root of odd
+multiplicity greater than one.  The Alefeld-Potra-Shi and false position
+methods never need more than about twice as many function evaluations
+as bisection, whereas the guaranteed bound for Brent's method is much
+weaker.
+
 .. type:: gsl_root_fsolver_type
 
    .. index::
@@ -565,6 +574,38 @@ these do not cross the :math:`x`-axis.
 
       The best estimate of the root is taken from the most recent
       interpolation or bisection.
+
+   .. index::
+      single: TOMS 748 algorithm for finding roots
+      single: Alefeld-Potra-Shi algorithm for finding roots
+      single: root finding, TOMS 748 algorithm
+
+   .. var:: gsl_root_fsolver_type * gsl_root_fsolver_aps
+
+      This is the algorithm of Alefeld, Potra and Shi (ACM TOMS
+      Algorithm 748), which combines inverse cubic interpolation, Newton
+      steps on an interpolating quadratic and a double-length secant step.
+      For a simple root it needs a similar number of function evaluations
+      to Brent's method, and fewer near multiple roots.
+
+      Each iteration consists of two interpolation steps and a
+      double-length secant step, each of which evaluates the function once
+      and replaces one endpoint of the interval.  The interpolation steps
+      use inverse cubic interpolation through the endpoints and the two
+      most recently discarded points when their function values are
+      distinct, and otherwise Newton steps on the quadratic through three
+      of these points.  The double-length secant step is taken from the
+      endpoint with the smaller function value and usually moves past the
+      root, so that both endpoints converge.
+
+      This implementation differs from the original algorithm in its
+      safeguard: if the interval shrinks less than half as fast as with
+      bisection, a bisection step is taken.  This limits the number of
+      function evaluations to about twice that of bisection in the worst
+      case.  The algorithm is invariant under scaling of the function.
+
+      The best estimate of the root is the endpoint of the interval with
+      the smaller absolute function value.
 
 Root Finding Algorithms using Derivatives
 =========================================
@@ -813,6 +854,12 @@ papers,
 * J. C. P. Bus and T. J. Dekker, "Two Efficient Algorithms with Guaranteed
   Convergence for Finding a Zero of a Function", *ACM Transactions of
   Mathematical Software*, Vol.: 1 No.: 4 (1975) 330--345
+
+For the TOMS 748 algorithm see,
+
+* G. E. Alefeld, F. A. Potra and Y. Shi, "Algorithm 748: Enclosing zeros
+  of continuous functions", *ACM Transactions on Mathematical Software*,
+  21 (1995) 327--344
 
 For the modified false position methods see,
 

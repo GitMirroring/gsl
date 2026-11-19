@@ -22,6 +22,9 @@
 #ifndef __ROOTS_H__
 #define __ROOTS_H__
 
+#include <math.h>
+#include <gsl/gsl_math.h>
+
 /* Call the pointed-to function with argument x, put its result in y, and 
    return an error if the function value is Inf/Nan. */
 
@@ -31,6 +34,34 @@ do { \
   if (!gsl_finite(*yp)) \
     GSL_ERROR("function value is not finite", GSL_EBADFUNC); \
 } while (0)
+
+/* Return the trial point c moved, if necessary, to lie at least
+   delta = 2 GSL_DBL_EPSILON max(|a|,|b|) inside the bracket (a,b), as
+   in Brent's method, or the midpoint if the bracket is narrower than
+   2 delta or c is not a number. This keeps every new point distinct
+   from the endpoints, so that the bracket collapses once one endpoint
+   has converged to the root. */
+
+static inline double
+interior_point (const double c, const double a, const double b)
+{
+  const double delta = 2.0 * GSL_DBL_EPSILON * GSL_MAX (fabs (a), fabs (b));
+
+  if (b - a <= 2.0 * delta || gsl_isnan (c))
+    {
+      return 0.5 * (a + b);
+    }
+  else if (c < a + delta)
+    {
+      return a + delta;
+    }
+  else if (c > b - delta)
+    {
+      return b - delta;
+    }
+
+  return c;
+}
 
 #endif /* __ROOTS_H__ */
 

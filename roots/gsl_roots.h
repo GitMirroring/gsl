@@ -118,6 +118,7 @@ gsl_root_test_delta (double x1, double x0, double epsabs, double epsrel);
 GSL_VAR const gsl_root_fsolver_type  * gsl_root_fsolver_bisection;
 GSL_VAR const gsl_root_fsolver_type  * gsl_root_fsolver_brent;
 GSL_VAR const gsl_root_fsolver_type  * gsl_root_fsolver_falsepos;
+GSL_VAR const gsl_root_fsolver_type  * gsl_root_fsolver_aps;
 GSL_VAR const gsl_root_fdfsolver_type  * gsl_root_fdfsolver_newton;
 GSL_VAR const gsl_root_fdfsolver_type  * gsl_root_fdfsolver_secant;
 GSL_VAR const gsl_root_fdfsolver_type  * gsl_root_fdfsolver_steffenson;

@@ -50,11 +50,10 @@
 
    As in Brent's method, a new point is placed at least a distance
    delta = 2 GSL_DBL_EPSILON max(|x_lower|,|x_upper|) inside the
-   bracket. When an endpoint has already converged to the root the
-   interpolated point falls on (or next to) it, and a step of delta
-   then collapses the bracket instead of reducing it by bisection.
-   A bisection step is taken if the bracket is narrower than 2 delta
-   or the interpolated point is not a number.
+   bracket (see interior_point in roots.h). When an endpoint has
+   already converged to the root the interpolated point falls on (or
+   next to) it, and a step of delta then collapses the bracket instead
+   of reducing it by bisection.
 
    The root estimate is the endpoint of the bracket with the smaller
    absolute function value.
@@ -169,22 +168,8 @@ falsepos_iterate (void * vstate, gsl_function * f, double * root, double * x_low
     }
   else
     {
-      const double delta = 2.0 * GSL_DBL_EPSILON * GSL_MAX (fabs (x_left), fabs (x_right));
-
       x_linear = x_right + (g_upper / (g_upper - g_lower)) * (x_left - x_right);
-
-      if (x_right - x_left <= 2.0 * delta || gsl_isnan (x_linear))
-        {
-          x_linear = 0.5 * (x_left + x_right);
-        }
-      else if (x_linear < x_left + delta)
-        {
-          x_linear = x_left + delta;
-        }
-      else if (x_linear > x_right - delta)
-        {
-          x_linear = x_right - delta;
-        }
+      x_linear = interior_point (x_linear, x_left, x_right);
     }
 
   SAFE_FUNC_CALL (f, x_linear, &f_linear);
