@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** fix for bug #40092 (gsl_root_fsolver_falsepos now uses the
+   Anderson-Bjorck modification of false position with a bisection
+   safeguard)
+
 ** fix for bug #35032 (the testing functions in gsl_test.h are now
    documented in the manual; reported by S. Kirpichev)
 

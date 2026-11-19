@@ -36,6 +36,10 @@ const unsigned int MAX_ITERATIONS = 150;
 void my_error_handler (const char *reason, const char *file,
                        int line, int err);
 
+static void test_f_evals (const char * description, gsl_function *f,
+                          double lower_bound, double upper_bound,
+                          int faster);
+
 #define WITHIN_TOL(a, b, epsrel, epsabs) \
  ((fabs((a) - (b)) < (epsrel) * GSL_MIN(fabs(a), fabs(b)) + (epsabs)))
 
@@ -104,6 +108,18 @@ main (void)
       test_f_e (*T, "invalid range check [1, 1]", &F_sin, 1.0, 1.0, M_PI);
       test_f_e (*T, "invalid range check [0.1, 0.2]", &F_sin, 0.1, 0.2, M_PI);
     }
+
+  /* false position must need at most about twice as many function
+     evaluations as bisection, and fewer for smooth functions with a
+     simple root (bug #40092) */
+
+  test_f_evals ("sin(x) [3, 4]", &F_sin, 3.0, 4.0, 1);
+  test_f_evals ("cos(x) [0, 3]", &F_cos, 0.0, 3.0, 1);
+  test_f_evals ("x^20 - 1 [0.1, 2]", &F_func1, 0.1, 2.0, 1);
+  test_f_evals ("x^2 - 1e-8 [0, 1]", &F_func3, 0.0, 1.0, 1);
+  test_f_evals ("x exp(-x) [-1/3, 2]", &F_func4, -1.0 / 3.0, 2.0, 1);
+  test_f_evals ("sqrt(|x|)*sgn(x)", &F_func2, -1.0 / 3.0, 1.0, 0);
+  test_f_evals ("(x - 1)^7 [0.9995, 1.0002]", &F_func6, 0.9995, 1.0002, 0);
 
   for (S = fdfsolver ; *S != 0 ; S++)
     {
@@ -193,6 +209,71 @@ test_f (const gsl_root_fsolver_type * T, const char * description, gsl_function 
     }
 
   gsl_root_fsolver_free(s);  
+}
+
+/* count the function evaluations needed by the solver T to reduce the
+   bracket [lower_bound, upper_bound] to the test tolerances */
+
+static size_t evals;
+
+static double
+count_evals_f (double x, void * params)
+{
+  gsl_function * f = (gsl_function *) params;
+  evals++;
+  return GSL_FN_EVAL (f, x);
+}
+
+static size_t
+count_evals (const gsl_root_fsolver_type * T, gsl_function *f,
+             double lower_bound, double upper_bound)
+{
+  int status;
+  size_t iterations = 0;
+  gsl_function F;
+  gsl_root_fsolver * s = gsl_root_fsolver_alloc (T);
+
+  F.function = &count_evals_f;
+  F.params = f;
+  evals = 0;
+
+  gsl_root_fsolver_set (s, &F, lower_bound, upper_bound);
+
+  do
+    {
+      iterations++;
+      gsl_root_fsolver_iterate (s);
+      status = gsl_root_test_interval (gsl_root_fsolver_x_lower (s),
+                                       gsl_root_fsolver_x_upper (s),
+                                       EPSABS, EPSREL);
+    }
+  while (status == GSL_CONTINUE && iterations < MAX_ITERATIONS);
+
+  gsl_root_fsolver_free (s);
+
+  return (status == GSL_SUCCESS) ? evals : (size_t) -1;
+}
+
+static void
+test_f_evals (const char * description, gsl_function *f,
+              double lower_bound, double upper_bound, int faster)
+{
+  size_t n_bisect = count_evals (gsl_root_fsolver_bisection, f,
+                                 lower_bound, upper_bound);
+  size_t n_falsepos = count_evals (gsl_root_fsolver_falsepos, f,
+                                   lower_bound, upper_bound);
+
+  gsl_test (n_falsepos > 2 * n_bisect + 4,
+            "falsepos, %s, %u evaluations vs %u for bisection",
+            description, (unsigned int) n_falsepos, (unsigned int) n_bisect);
+
+  if (faster)
+    {
+      gsl_test (n_falsepos >= n_bisect,
+                "falsepos, %s, %u evaluations fewer than %u for bisection",
+                description, (unsigned int) n_falsepos,
+                (unsigned int) n_bisect);
+    }
 }
 
 void

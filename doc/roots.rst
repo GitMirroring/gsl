@@ -503,8 +503,10 @@ these do not cross the :math:`x`-axis.
    .. var:: gsl_root_fsolver_type * gsl_root_fsolver_falsepos
 
       The *false position algorithm* is a method of finding roots based on
-      linear interpolation.  Its convergence is linear, but it is usually
-      faster than bisection.
+      linear interpolation.  This implementation uses the Anderson-Björck
+      modification, which converges superlinearly for a simple root, with a
+      bisection safeguard which limits the number of function evaluations to
+      about twice that of bisection in the worst case.
 
       On each iteration a line is drawn between the endpoints :math:`(a,f(a))`
       and :math:`(b,f(b))` and the point where this line crosses the
@@ -514,8 +516,21 @@ these do not cross the :math:`x`-axis.
       new, smaller interval containing the root.  This procedure can be
       continued indefinitely until the interval is sufficiently small.
 
-      The best estimate of the root is taken from the linear interpolation of
-      the interval on the current iteration.
+      For a convex or concave function the unmodified method retains the
+      same endpoint on every iteration, so that the interval does not shrink
+      to zero and convergence is only linear.  To avoid this, when the same
+      endpoint is retained twice in a row the function value used for it in
+      the interpolation is scaled by :math:`m = 1 - f(c)/f(b)`, where
+      :math:`c` is the new point and :math:`b` the endpoint it replaces, or
+      by :math:`m = 1/2` if this is not positive (the Illinois method).  If
+      the interval shrinks less than half as fast as with bisection, a
+      bisection step is taken instead.  Each iteration requires one function
+      evaluation.  New points are placed at least a few units of machine
+      precision inside the interval, so that the interval collapses once
+      one endpoint has converged to the root.
+
+      The best estimate of the root is the endpoint of the interval with the
+      smaller absolute function value.
 
       .. eps file "roots-false-position.eps"
       .. @iftex
@@ -798,6 +813,14 @@ papers,
 * J. C. P. Bus and T. J. Dekker, "Two Efficient Algorithms with Guaranteed
   Convergence for Finding a Zero of a Function", *ACM Transactions of
   Mathematical Software*, Vol.: 1 No.: 4 (1975) 330--345
+
+For the modified false position methods see,
+
+* M. Dowell and P. Jarratt, "A modified regula falsi method for
+  computing the root of an equation", *BIT*, 11 (1971) 168--174
+
+* N. Anderson and Å. Björck, "A new high order method of regula falsi
+  type for computing a root of an equation", *BIT*, 13 (1973) 253--264
 
 .. rubric:: Footnotes
 
