@@ -119,7 +119,13 @@ double
 gsl_histogram2d_ymean (const gsl_histogram2d * h);
 
 double
+gsl_histogram2d_xvariance (const gsl_histogram2d * h);
+
+double
 gsl_histogram2d_xsigma (const gsl_histogram2d * h);
+
+double
+gsl_histogram2d_yvariance (const gsl_histogram2d * h);
 
 double
 gsl_histogram2d_ysigma (const gsl_histogram2d * h);

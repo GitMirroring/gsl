@@ -22,6 +22,7 @@
  * Need GSL library and header.
  * Contains the routines:
  * gsl_histogram_mean    compute histogram mean
+ * gsl_histogram_variance compute histogram variance
  * gsl_histogram_sigma   compute histogram sigma
  *
  * Author: S. Piccardi
@@ -70,20 +71,22 @@ gsl_histogram_mean (const gsl_histogram * h)
 }
 
 double
-gsl_histogram_sigma (const gsl_histogram * h)
+gsl_histogram_variance (const gsl_histogram * h)
 {
+  const double wmean = gsl_histogram_mean (h);
   const size_t n = h->n;
   size_t i;
 
-  long double wvariance = 0 ;
-  long double wmean = 0;
+  /* Compute the bin-weighted variance V of a histogram in a second
+     pass, using the recurrence relation
+
+     V(n) = V(n-1) + ((x[n] - M)^2 - V(n-1)) (w(n)/(W(n-1) + w(n)))
+     W(n) = W(n-1) + w(n)
+
+   */
+
+  long double wvariance = 0;
   long double W = 0;
-
-  /* Use a two-pass algorithm for stability.  Could also use a single
-     pass formula, as given in N.J.Higham 'Accuracy and Stability of
-     Numerical Methods', p.12 */
-
-  /* Compute the mean */
 
   for (i = 0; i < n; i++)
     {
@@ -92,31 +95,19 @@ gsl_histogram_sigma (const gsl_histogram * h)
 
       if (wi > 0)
         {
+          const long double delta = (xi - wmean);
           W += wi;
-          wmean += (xi - wmean) * (wi / W);
+          wvariance += (delta * delta - wvariance) * (wi / W);
         }
     }
 
-  /* Compute the variance */
+  return wvariance;
+}
 
-  W = 0.0;
-
-  for (i = 0; i < n; i++)
-    {
-      double xi = ((h->range[i + 1]) + (h->range[i])) / 2;
-      double wi = h->bin[i];
-
-      if (wi > 0) {
-        const long double delta = (xi - wmean);
-        W += wi ;
-        wvariance += (delta * delta - wvariance) * (wi / W);
-      }
-    }
-
-  {
-    double sigma = sqrt (wvariance) ;
-    return sigma;
-  }
+double
+gsl_histogram_sigma (const gsl_histogram * h)
+{
+  return sqrt (gsl_histogram_variance (h));
 }
 
 

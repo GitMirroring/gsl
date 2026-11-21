@@ -28,6 +28,40 @@
 #define N 397
 #define NR 10
 
+/* mean, variance and standard deviation on a small histogram with
+   exactly representable results; the negative bin is ignored */
+
+static void
+test1d_stat (void)
+{
+  const double bins[4] = { 1.0, 0.0, 3.0, -2.0 };
+  gsl_histogram *h = gsl_histogram_alloc (4);
+  size_t i;
+
+  /* bin midpoints 0.5, 1.5, 2.5, 3.5 */
+  gsl_histogram_set_ranges_uniform (h, 0.0, 4.0);
+
+  for (i = 0; i < 4; i++)
+    h->bin[i] = bins[i];
+
+  /* mean = (0.5 + 3 * 2.5) / 4,
+     variance = (1.5^2 + 3 * 0.5^2) / 4 */
+  gsl_test_rel (gsl_histogram_mean (h), 2.0, 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram_mean");
+  gsl_test_rel (gsl_histogram_variance (h), 0.75, 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram_variance");
+  gsl_test_rel (gsl_histogram_sigma (h), sqrt (0.75), 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram_sigma");
+
+  /* a single nonzero bin has zero variance */
+  gsl_histogram_reset (h);
+  h->bin[2] = 5.0;
+  gsl_test_abs (gsl_histogram_variance (h), 0.0, 0.0,
+                "gsl_histogram_variance single bin");
+
+  gsl_histogram_free (h);
+}
+
 /* uniform bin edges at integers must be exact, so that integer data
    fall into the expected bins (bug #38548) */
 
@@ -578,4 +612,5 @@ test1d (void)
   gsl_histogram_free (hr);
 
   test1d_uniform ();
+  test1d_stat ();
 }

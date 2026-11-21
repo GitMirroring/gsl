@@ -1,5 +1,9 @@
 * What is new in gsl-2.9:
 
+** close bug #68704 (added gsl_histogram_variance,
+   gsl_histogram2d_xvariance and gsl_histogram2d_yvariance;
+   requested by Fermé le Lundi)
+
 ** close bug #66573 (added gsl_vector_complex_conjugate;
    requested by C. Krueger)
 
@@ -356,6 +360,7 @@
    - gsl_vector_complex_conjugate
    - gsl_rstat_{alloc2,quantile,mad0,mad,cdf,merge}
    - gsl_wrstat_{alloc2,median,quantile,mad0,mad,cdf,merge,skew,kurtosis,norm,sd_mean,neff}
+   - gsl_histogram2d_{xvariance,yvariance}, gsl_histogram_variance
 
 ** new interface (gsl_sf_alf) for associated Legendre functions;
    previous gsl_sf_legendre functions are deprecated

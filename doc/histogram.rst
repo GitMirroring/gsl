@@ -339,12 +339,22 @@ Histogram Statistics
    single: standard deviation, from histogram
    single: variance, from histogram
 
+.. function:: double gsl_histogram_variance (const gsl_histogram * h)
+
+   This function returns the variance of the histogrammed variable, where
+   the histogram is regarded as a probability distribution. It is computed
+   as :math:`\sum_i w_i (x_i - \mu)^2 / \sum_i w_i`, where :math:`w_i` is
+   the value of bin :math:`i`, :math:`x_i` is the midpoint of its range and
+   :math:`\mu` is the mean returned by :func:`gsl_histogram_mean`.  No
+   correction for sample size is applied.  Negative bin values are ignored
+   for the purposes of this calculation. The accuracy of the result is
+   limited by the bin width.
+
 .. function:: double gsl_histogram_sigma (const gsl_histogram * h)
 
    This function returns the standard deviation of the histogrammed
-   variable, where the histogram is regarded as a probability
-   distribution. Negative bin values are ignored for the purposes of this
-   calculation. The accuracy of the result is limited by the bin width.
+   variable, the square root of the variance returned by
+   :func:`gsl_histogram_variance`.
 
 .. function:: double gsl_histogram_sum (const gsl_histogram * h)
 
@@ -873,19 +883,31 @@ locate the bin which corresponds to a given :math:`(x,y)` coordinate.
    histogram is regarded as a probability distribution. Negative bin values
    are ignored for the purposes of this calculation.
 
+.. function:: double gsl_histogram2d_xvariance (const gsl_histogram2d * h)
+
+   This function returns the variance of the histogrammed x variable,
+   where the histogram is regarded as a probability distribution, computed
+   as for :func:`gsl_histogram_variance`. Negative bin values are ignored
+   for the purposes of this calculation.
+
 .. function:: double gsl_histogram2d_xsigma (const gsl_histogram2d * h)
 
    This function returns the standard deviation of the histogrammed
-   x variable, where the histogram is regarded as a probability
-   distribution. Negative bin values are ignored for the purposes of this
-   calculation.
+   x variable, the square root of the variance returned by
+   :func:`gsl_histogram2d_xvariance`.
+
+.. function:: double gsl_histogram2d_yvariance (const gsl_histogram2d * h)
+
+   This function returns the variance of the histogrammed y variable,
+   where the histogram is regarded as a probability distribution, computed
+   as for :func:`gsl_histogram_variance`. Negative bin values are ignored
+   for the purposes of this calculation.
 
 .. function:: double gsl_histogram2d_ysigma (const gsl_histogram2d * h)
 
    This function returns the standard deviation of the histogrammed
-   y variable, where the histogram is regarded as a probability
-   distribution. Negative bin values are ignored for the purposes of this
-   calculation.
+   y variable, the square root of the variance returned by
+   :func:`gsl_histogram2d_yvariance`.
 
 .. function:: double gsl_histogram2d_cov (const gsl_histogram2d * h)
 

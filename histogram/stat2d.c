@@ -25,6 +25,9 @@
  * gsl_histogram2d_sum sum up all bin values
  * gsl_histogram2d_xmean determine mean of x values
  * gsl_histogram2d_ymean determine mean of y values
+ * gsl_histogram2d_xvariance, gsl_histogram2d_yvariance determine variances
+ * gsl_histogram2d_xsigma, gsl_histogram2d_ysigma determine standard deviations
+ * gsl_histogram2d_cov determine covariance
  *
  * Author: Achim Gaedke Achim.Gaedke@zpr.uni-koeln.de
  * Jan. 2002
@@ -135,7 +138,7 @@ gsl_histogram2d_ymean (const gsl_histogram2d * h)
 }
 
 double
-gsl_histogram2d_xsigma (const gsl_histogram2d * h)
+gsl_histogram2d_xvariance (const gsl_histogram2d * h)
 {
   const double xmean = gsl_histogram2d_xmean (h);
   const size_t nx = h->nx;
@@ -143,10 +146,10 @@ gsl_histogram2d_xsigma (const gsl_histogram2d * h)
   size_t i;
   size_t j;
 
-  /* Compute the bin-weighted arithmetic mean M of a histogram using the
-     recurrence relation
+  /* Compute the bin-weighted variance V of the x values in a second
+     pass, using the recurrence relation
 
-     M(n) = M(n-1) + (x[n] - M(n-1)) (w(n)/(W(n-1) + w(n))) 
+     V(n) = V(n-1) + ((x[n] - M)^2 - V(n-1)) (w(n)/(W(n-1) + w(n)))
      W(n) = W(n-1) + w(n)
 
    */
@@ -173,14 +176,17 @@ gsl_histogram2d_xsigma (const gsl_histogram2d * h)
         }
     }
 
-  {
-    double xsigma = sqrt (wvariance);
-    return xsigma;
-  }
+  return wvariance;
 }
 
 double
-gsl_histogram2d_ysigma (const gsl_histogram2d * h)
+gsl_histogram2d_xsigma (const gsl_histogram2d * h)
+{
+  return sqrt (gsl_histogram2d_xvariance (h));
+}
+
+double
+gsl_histogram2d_yvariance (const gsl_histogram2d * h)
 {
   const double ymean = gsl_histogram2d_ymean (h);
   const size_t nx = h->nx;
@@ -188,10 +194,10 @@ gsl_histogram2d_ysigma (const gsl_histogram2d * h)
   size_t i;
   size_t j;
 
-  /* Compute the bin-weighted arithmetic mean M of a histogram using the
-     recurrence relation
+  /* Compute the bin-weighted variance V of the y values in a second
+     pass, using the recurrence relation
 
-     M(n) = M(n-1) + (x[n] - M(n-1)) (w(n)/(W(n-1) + w(n))) 
+     V(n) = V(n-1) + ((y[n] - M)^2 - V(n-1)) (w(n)/(W(n-1) + w(n)))
      W(n) = W(n-1) + w(n)
 
    */
@@ -217,10 +223,13 @@ gsl_histogram2d_ysigma (const gsl_histogram2d * h)
         }
     }
 
-  {
-    double ysigma = sqrt (wvariance);
-    return ysigma;
-  }
+  return wvariance;
+}
+
+double
+gsl_histogram2d_ysigma (const gsl_histogram2d * h)
+{
+  return sqrt (gsl_histogram2d_yvariance (h));
 }
 
 double

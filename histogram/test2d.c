@@ -34,6 +34,36 @@
 #define MR 10
 #define NR 5
 
+/* x and y variances on a small histogram with exactly representable
+   results; the negative bin is ignored */
+
+static void
+test2d_stat (void)
+{
+  gsl_histogram2d *h = gsl_histogram2d_alloc (2, 3);
+
+  /* x midpoints 0.5, 1.5; y midpoints 0.5, 1.5, 2.5 */
+  gsl_histogram2d_set_ranges_uniform (h, 0.0, 2.0, 0.0, 3.0);
+
+  h->bin[0 * 3 + 0] = 1.0;
+  h->bin[0 * 3 + 1] = -5.0;
+  h->bin[1 * 3 + 0] = 1.0;
+  h->bin[1 * 3 + 2] = 2.0;
+
+  /* x marginal weights {1, 3}: mean 1.25, variance (0.75^2 + 3 * 0.25^2) / 4;
+     y marginal weights {2, 0, 2}: mean 1.5, variance 1 */
+  gsl_test_rel (gsl_histogram2d_xvariance (h), 0.1875, 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram2d_xvariance");
+  gsl_test_rel (gsl_histogram2d_yvariance (h), 1.0, 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram2d_yvariance");
+  gsl_test_rel (gsl_histogram2d_xsigma (h), sqrt (0.1875),
+                4.0 * GSL_DBL_EPSILON, "gsl_histogram2d_xsigma");
+  gsl_test_rel (gsl_histogram2d_ysigma (h), 1.0, 4.0 * GSL_DBL_EPSILON,
+                "gsl_histogram2d_ysigma");
+
+  gsl_histogram2d_free (h);
+}
+
 /* uniform bin edges at integers must be exact (bug #38548) */
 
 static void
@@ -807,4 +837,5 @@ test2d (void)
   gsl_histogram2d_free (hr);
 
   test2d_uniform ();
+  test2d_stat ();
 }
