@@ -288,7 +288,7 @@ The Multivariate Gaussian Distribution
    distribution with mean :math:`\mu` and variance-covariance matrix
    :math:`\Sigma`. On input, the :math:`k`-vector :math:`\mu` is given in :data:`mu`, and
    the Cholesky factor of the :math:`k`-by-:math:`k` matrix :math:`\Sigma = L L^T` is
-   given in the lower triangle of :data:`L`, as output from :func:`gsl_linalg_cholesky_decomp`.
+   given in the lower triangle of :data:`L`, as output from :func:`gsl_linalg_cholesky_decomp1`.
    The random vector is stored in :data:`result` on output. The probability distribution
    for multivariate Gaussian random variates is
 

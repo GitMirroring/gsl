@@ -1409,7 +1409,7 @@ gsl_multifit_linear_Lsobolev(const size_t p, const size_t kmax,
           gsl_blas_dsyrk(CblasLower, CblasTrans, 1.0, &Lk.matrix, 1.0, L);
         }
 
-      s = gsl_linalg_cholesky_decomp(L);
+      s = gsl_linalg_cholesky_decomp1(L);
       if (s)
         return s;
 
