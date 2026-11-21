@@ -40,12 +40,6 @@ check_SCRIPTS = test_gsl_histogram.sh pkgconfig.test
 TESTS = test_gsl_histogram.sh pkgconfig.test
 AM_TESTS_ENVIRONMENT = GSL_CBLAS_LIB_CONFIGURED='$(GSL_CBLAS_LIB)'; export GSL_CBLAS_LIB_CONFIGURED;
 
-#bin_PROGRAMS = main dummy
-#dummy_SOURCES = version.c
-#dummy_LDADD = $(SUBLIBS)
-#main_SOURCES = version.c env.c
-#main_LDADD = libgsl.la
-
 edit = $(SED) \
 	-e 's|@prefix[@]|$(prefix)|g' \
 	-e 's|@exec_prefix[@]|$(exec_prefix)|g' \

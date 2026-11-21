@@ -8,14 +8,11 @@ AM_CPPFLAGS = -I$(top_srcdir)
 
 TESTS = $(check_PROGRAMS)
 
-check_PROGRAMS = test #demo
+check_PROGRAMS = test
 
 test_SOURCES = test.c 
 test_LDADD = libgslmonte.la ../rng/libgslrng.la  ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
 
 noinst_HEADERS = test_main.c
-
-#demo_SOURCES= demo.c
-#demo_LDADD = libgslmonte.la ../rng/libgslrng.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la ../utils/libutils.la
 
 

@@ -16,6 +16,3 @@ test_SOURCES = test.c signals.c
 
 test_LDADD = libgslfft.la ../ieee-utils/libgslieeeutils.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la ../utils/libutils.la
 
-#errs_LDADD = libgslfft.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la
-#benchmark_LDADD = libgslfft.la ../err/libgslerr.la ../test/libgsltest.la ../sys/libgslsys.la
-
