@@ -712,8 +712,9 @@ FUNCTION (test, ops) (size_t stride1, size_t stride2, size_t N)
   }
 
   {
-    FUNCTION (gsl_vector, conj_memcpy) (v, a);
     int status = 0;
+
+    FUNCTION (gsl_vector, conj_memcpy) (v, a);
 
     for (i = 0; i < N; i++)
       {
@@ -726,6 +727,25 @@ FUNCTION (test, ops) (size_t stride1, size_t stride2, size_t N)
       }
 
     gsl_test (status, NAME (gsl_vector) "_conj_memcpy");
+  }
+
+  {
+    int status = 0;
+
+    FUNCTION (gsl_vector, memcpy) (v, a);
+    FUNCTION (gsl_vector, conjugate) (v);
+
+    for (i = 0; i < N; i++)
+      {
+        BASE x = FUNCTION (gsl_vector, get) (a, i);
+        BASE y = FUNCTION (gsl_vector, get) (v, i);
+        if (GSL_REAL (x) != GSL_REAL (y) || GSL_IMAG (x) != -GSL_IMAG (y))
+          {
+            status = 1;
+          }
+      }
+
+    TEST2 (status, "_conjugate");
   }
 
   FUNCTION(gsl_vector, free) (a);

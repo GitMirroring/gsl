@@ -222,6 +222,22 @@ FUNCTION(gsl_vector, add_constant) (TYPE(gsl_vector) * a, const BASE x)
 }
 
 int
+FUNCTION (gsl_vector, conjugate) (TYPE (gsl_vector) * a)
+{
+  const size_t N = a->size;
+  const size_t stride = a->stride;
+
+  size_t i;
+
+  for (i = 0; i < N; i++)
+    {
+      a->data[2 * i * stride + 1] = -(a->data[2 * i * stride + 1]);
+    }
+
+  return GSL_SUCCESS;
+}
+
+int
 FUNCTION (gsl_vector, axpby) (const BASE alpha,
                               const TYPE (gsl_vector) * x,
                               const BASE beta,

@@ -706,6 +706,12 @@ The following additional functions are available for complex vector operations.
    stored in :data:`a` and :data:`b` remains unchanged. The two vectors must
    have the same length.
 
+.. function:: int gsl_vector_complex_conjugate (gsl_vector_complex * a)
+
+   This function replaces each element of the vector :data:`a` with its
+   complex conjugate value. The result :math:`a_i \leftarrow a_i^{*}`
+   is stored in :data:`a`.
+
 Finding maximum and minimum elements of vectors
 -----------------------------------------------
 
@@ -1523,7 +1529,7 @@ complex vector.
    This function performs the operation :math:`y \leftarrow \alpha x + \beta y`. The
    matrices :data:`x` and :data:`y` must have the same size.
 
-.. function:: int gsl_matrix_complex_conjugate (gsl_matrix * a)
+.. function:: int gsl_matrix_complex_conjugate (gsl_matrix_complex * a)
 
    This function replaces each element of the matrix :data:`a` with its
    complex conjugate value. The result :math:`a(i,j) \leftarrow a(i,j)^{*}`

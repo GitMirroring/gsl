@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** close bug #66573 (added gsl_vector_complex_conjugate;
+   requested by C. Krueger)
+
 ** various root finding robustness fixes
 
 ** new root bracketing solver gsl_root_fsolver_aps, based on the
@@ -350,6 +353,7 @@
 
 ** add functions:
    - gsl_matrix_axpby
+   - gsl_vector_complex_conjugate
    - gsl_rstat_{alloc2,quantile,mad0,mad,cdf,merge}
    - gsl_wrstat_{alloc2,median,quantile,mad0,mad,cdf,merge,skew,kurtosis,norm,sd_mean,neff}
 
