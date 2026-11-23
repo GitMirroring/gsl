@@ -29,36 +29,35 @@ double
 gsl_cdf_fdist_Pinv (const double P, const double nu1, const double nu2)
 {
   double result;
-  double y;
+  double y, w;
 
-  if (P < 0.0)
+  if (!(P >= 0.0 && P <= 1.0))
     {
-      CDF_ERROR ("P < 0.0", GSL_EDOM);
+      CDF_ERROR ("P must be in range 0 <= P <= 1", GSL_EDOM);
     }
-  if (P > 1.0)
+  if (!(nu1 > 0.0))
     {
-      CDF_ERROR ("P > 1.0", GSL_EDOM);
+      CDF_ERROR ("nu1 must be positive", GSL_EDOM);
     }
-  if (nu1 < 1.0)
+  if (!(nu2 > 0.0))
     {
-      CDF_ERROR ("nu1 < 1", GSL_EDOM);
-    }
-  if (nu2 < 1.0)
-    {
-      CDF_ERROR ("nu2 < 1", GSL_EDOM);
+      CDF_ERROR ("nu2 must be positive", GSL_EDOM);
     }
 
-  if (P < 0.5)
-    {
-      y = gsl_cdf_beta_Pinv (P, nu1 / 2.0, nu2 / 2.0);
+  /* x = (nu2/nu1) y/(1-y) with y the inverse of the beta distribution
+     B(nu1/2, nu2/2) at P; for y > 1/2, 1 - y is computed directly as the
+     inverse of B(nu2/2, nu1/2) at Q = 1 - P, to avoid cancellation */
+  y = gsl_cdf_beta_Pinv (P, nu1 / 2.0, nu2 / 2.0);
 
+  if (y <= 0.5)
+    {
       result = nu2 * y / (nu1 * (1.0 - y));
     }
   else
     {
-      y = gsl_cdf_beta_Qinv (P, nu2 / 2.0, nu1 / 2.0);
+      w = gsl_cdf_beta_Qinv (P, nu2 / 2.0, nu1 / 2.0);
 
-      result = nu2 * (1 - y) / (nu1 * y);
+      result = nu2 * (1.0 - w) / (nu1 * w);
     }
 
   return result;
@@ -68,36 +67,33 @@ double
 gsl_cdf_fdist_Qinv (const double Q, const double nu1, const double nu2)
 {
   double result;
-  double y;
+  double y, w;
 
-  if (Q < 0.0)
+  if (!(Q >= 0.0 && Q <= 1.0))
     {
-      CDF_ERROR ("Q < 0.0", GSL_EDOM);
+      CDF_ERROR ("Q must be in range 0 <= Q <= 1", GSL_EDOM);
     }
-  if (Q > 1.0)
+  if (!(nu1 > 0.0))
     {
-      CDF_ERROR ("Q > 1.0", GSL_EDOM);
+      CDF_ERROR ("nu1 must be positive", GSL_EDOM);
     }
-  if (nu1 < 1.0)
+  if (!(nu2 > 0.0))
     {
-      CDF_ERROR ("nu1 < 1", GSL_EDOM);
-    }
-  if (nu2 < 1.0)
-    {
-      CDF_ERROR ("nu2 < 1", GSL_EDOM);
+      CDF_ERROR ("nu2 must be positive", GSL_EDOM);
     }
 
-  if (Q > 0.5)
-    {
-      y = gsl_cdf_beta_Qinv (Q, nu1 / 2.0, nu2 / 2.0);
+  /* as for gsl_cdf_fdist_Pinv, with Q in place of P */
+  y = gsl_cdf_beta_Qinv (Q, nu1 / 2.0, nu2 / 2.0);
 
+  if (y <= 0.5)
+    {
       result = nu2 * y / (nu1 * (1.0 - y));
     }
   else
     {
-      y = gsl_cdf_beta_Pinv (Q, nu2 / 2.0, nu1 / 2.0);
+      w = gsl_cdf_beta_Pinv (Q, nu2 / 2.0, nu1 / 2.0);
 
-      result = nu2 * (1 - y) / (nu1 * y);
+      result = nu2 * (1.0 - w) / (nu1 * w);
     }
 
   return result;

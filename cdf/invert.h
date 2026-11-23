@@ -23,8 +23,9 @@
    The caller supplies fn(x, params, &g, &u, &d) which returns, for the
    current x,
 
-     g  a residual which is an increasing function of x and is zero at
-        the solution (used only for its sign, to maintain a bracket),
+     g  the relative residual T(x)/t - 1 of the equation T(x) = t being
+        solved, with its sign chosen so that g increases with x (the
+        sign maintains a bracket),
      u  the Newton correction f/f' of the equation f(x) = 0 being solved,
      d  the ratio f''/f'.
 
@@ -35,8 +36,12 @@
    the bracket by a bisection: geometric when the bracket spans more than
    a factor of 4, otherwise arithmetic; when lo = 0 the upper end is
    divided by 1024, and when hi is infinite the current point is
-   multiplied by 4.  The iteration stops when the step is below a few
-   ulps of x.  The support [lo, hi] must satisfy 0 <= lo < hi. */
+   multiplied by 4.  The iteration stops when the relative residual is
+   at the rounding level (|g| <= 2 eps), when the step or the width of
+   the bracket is below a few ulps of x, or when a small residual
+   (|g| <= sqrt(eps)) takes the same value at three successive points,
+   so that the distribution function is flat at working precision.  The support [lo, hi] must
+   satisfy 0 <= lo < hi. */
 
 #ifndef __GSL_CDF_INVERT_H__
 #define __GSL_CDF_INVERT_H__
@@ -55,7 +60,8 @@ cdf_invert (cdf_invert_fn fn, void *params, const double x0,
             double lo, double hi, double *result)
 {
   double x = x0;
-  int iter;
+  double gprev = 0.0;
+  int iter, nflat = 0;
 
   if (!(x > lo && x < hi))
     {
@@ -76,7 +82,14 @@ cdf_invert (cdf_invert_fn fn, void *params, const double x0,
       if (status)
         return status;
 
-      if (g == 0.0)
+      /* converged: T(x) = t to rounding level, or T is flat at working
+         precision near the solution (further steps cannot reduce the
+         residual); far from the solution T may be flat because it
+         underflows, so the flatness test needs a small residual */
+      nflat = (g == gprev && fabs (g) <= GSL_SQRT_DBL_EPSILON) ? nflat + 1 : 0;
+      gprev = g;
+
+      if (fabs (g) <= 2.0 * GSL_DBL_EPSILON || nflat >= 2)
         {
           *result = x;
           return GSL_SUCCESS;
@@ -94,8 +107,10 @@ cdf_invert (cdf_invert_fn fn, void *params, const double x0,
         h = u / (1.0 - 0.5 * u * d);
 
       /* converged: the step is below a few ulps of x (x - h may round
-         to x itself, which is now an end of the bracket) */
-      if (fabs (h) <= 4.0 * GSL_DBL_EPSILON * fabs (x))
+         to x itself, which is now an end of the bracket); a zero step
+         with a nonzero residual means the step underflowed, and is
+         replaced by a bisection below */
+      if (h != 0.0 && fabs (h) <= 4.0 * GSL_DBL_EPSILON * fabs (x))
         {
           *result = x - h;
           return GSL_SUCCESS;
@@ -121,7 +136,11 @@ cdf_invert (cdf_invert_fn fn, void *params, const double x0,
             }
         }
 
-      if (fabs (xn - x) <= 4.0 * GSL_DBL_EPSILON * fabs (xn))
+      /* converged: the step, or the bracket, is below a few ulps; the
+         bracket test ends the iteration when rounding errors in the
+         distribution function exceed an ulp of x */
+      if (fabs (xn - x) <= 4.0 * GSL_DBL_EPSILON * fabs (xn) ||
+          (gsl_finite (hi) && hi - lo <= 4.0 * GSL_DBL_EPSILON * hi))
         {
           *result = xn;
           return GSL_SUCCESS;

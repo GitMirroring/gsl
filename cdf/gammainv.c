@@ -86,9 +86,10 @@ gammainv_fn (const double x, void *vparams, double *g, double *u, double *d)
 
   r = T / p->t - 1.0;
 
-  /* f = T - t, f' = +pdf (P) or -pdf (Q); (T - t)/pdf = r * t/pdf */
-  *u = r * exp (p->logt - logpdf);
-  if (p->upper)
+  /* f = T - t, f' = +pdf (P) or -pdf (Q); (T - t)/pdf = r * t/pdf,
+     computed in logarithms since r and t/pdf may be very large or small */
+  *u = (r == 0.0) ? 0.0 : exp (log (fabs (r)) + p->logt - logpdf);
+  if ((r < 0.0) != (p->upper != 0))
     *u = -*u;
 
   *g = p->upper ? -r : r;
@@ -128,7 +129,9 @@ gammainv_lambda (const double eta)
       if (ln <= 0.0)
         ln = 0.5 * lambda;
 
-      if (fabs (ln - lambda) <= 1.0e-14 * lambda)
+      /* Newton converges quadratically, so after a step below sqrt(eps)
+         the error is at the eps level */
+      if (fabs (ln - lambda) <= GSL_SQRT_DBL_EPSILON * lambda)
         return ln;
 
       lambda = ln;

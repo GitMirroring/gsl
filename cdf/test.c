@@ -1009,6 +1009,13 @@ void test_finv (void) {
   TEST (gsl_cdf_fdist_Qinv, ( 0.0, 200.0, 500.0), GSL_POSINF, 0.0);
 
   TEST (gsl_cdf_fdist_Pinv, (0.95,1.0,261.0), 3.8773340322508720313e+00, TEST_TOL3);
+
+  /* degrees of freedom below 1, and a case where 1 - y lost accuracy */
+  TEST (gsl_cdf_fdist_Pinv, (0.5, 0.1, 1e4), 1.1148816001097342813e-5, TEST_TOL2);
+  TEST (gsl_cdf_fdist_Pinv, (0.49, 1e5, 0.1), 60367.72899157284695, TEST_TOL2);
+  TEST (gsl_cdf_fdist_Pinv, (0.25, 0.5, 0.3), 0.10304281527901865685, TEST_TOL2);
+  TEST (gsl_cdf_fdist_Qinv, (1e-10, 0.2, 5.0), 72435.377329206332148, TEST_TOL2);
+  TEST (gsl_cdf_fdist_Qinv, (0.9, 0.7, 0.4), 0.011370974229808063577, TEST_TOL2);
 }
 
   /* Tests for gamma distribution */
@@ -1200,6 +1207,26 @@ void test_betainv (void) {
   TEST (gsl_cdf_beta_Qinv, ( 0.0, 1.2, 1.3), 1.0, TEST_TOL6);
 
   TEST (gsl_cdf_beta_Pinv, ( 0.025, 2133.0, 7868.0),  0.20530562929915865457928654, TEST_TOL6);
+
+  /* Test cases for bug #45924: large parameters, tail probabilities */
+  TEST (gsl_cdf_beta_Pinv, (0.995, 8000.0, 2000.0), 0.81018915721922528313, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.005, 8000.0, 2000.0), 0.78958547226231186015, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.99995, 8000.0, 2000.0), 0.81527503848433002116, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (5e-05, 8000.0, 2000.0), 0.78415971702826959913, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.995, 630.0, 9370.0), 0.069421474360167926672, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.99995, 630.0, 9370.0), 0.072863721986715073216, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.995, 5000.0, 5000.0), 0.51287733232257255733, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.005, 5000.0, 5000.0), 0.48712266767742744117, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (0.99995, 5000.0, 5000.0), 0.51944608612705602972, TEST_TOL2);
+  TEST (gsl_cdf_beta_Pinv, (5e-05, 5000.0, 5000.0), 0.4805539138729441038, TEST_TOL2);
+
+  /* small parameters and tails; solutions which round to 0 or 1 */
+  TEST (gsl_cdf_beta_Pinv, (1e-100, 2.0, 3.0), 4.0824829046386302045e-51, TEST_TOL2);
+  TEST (gsl_cdf_beta_Qinv, (0.01, 1.0912530798041016e-4, 0.0405617104471084), 4.6385197396321224358e-30, TEST_TOL5);
+  TEST (gsl_cdf_beta_Pinv, (1e-300, 0.5, 0.5), 0.0, 0.0);
+  TEST (gsl_cdf_beta_Qinv, (1e-100, 2.0, 3.0), 1.0, 0.0);
+  TEST (gsl_cdf_beta_Pinv, (0.5, 1e-300, 1.0), 0.0, 0.0);
+  TEST (gsl_cdf_beta_Pinv, (0.5, 1.0, 1e-300), 1.0, 0.0);
 }
 
 void test_gammainv (void) {
