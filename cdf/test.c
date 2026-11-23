@@ -1106,6 +1106,11 @@ void test_gamma (void)
   TEST (gsl_cdf_gamma_Q, (100.0, 17.0, 10.0), 9.72958390215198872e-1, TEST_TOL6);
   TEST (gsl_cdf_gamma_Q, (1000.0, 17.0, 10.0), 2.11200951633948570e-25, TEST_TOL6);
   TEST (gsl_cdf_gamma_Q, (10000.0, 17.0, 10.0), 0.0, 0.0);
+
+  /* Q for x < a with tiny a, where 1 - P lost about 3 digits */
+  TEST (gsl_cdf_gamma_Q, (2.01979108068376e-205, 2.125333817377709e-06, 1.0), 9.999999999996622455517763050685e-4, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Q, (2.8204100417065137e-114, 3.835088969038115e-06, 1.0), 9.999999999997775018093293455261e-4, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Q, (5.23127872743944e-97, 4.524716771997153e-06, 1.0), 1.000000000000039652811762805e-3, TEST_TOL1);
 }
 
 void test_chisq (void) {
@@ -1226,6 +1231,19 @@ void test_gammainv (void) {
   TEST (gsl_cdf_gamma_Qinv, (9.90049833749168054e-1, 1.0, 1.0), 0.01, TEST_TOL6);
   TEST (gsl_cdf_gamma_Qinv, (9.99000499833374992e-1, 1.0, 1.0), 0.001, TEST_TOL6);
   TEST (gsl_cdf_gamma_Qinv, (1.0, 1.0, 1.0), 0.0, 0.0);
+
+  /* tails and large or small shape parameters; the tolerance allows for
+     the condition number p / (x pdf(x)) of the inverse */
+  TEST (gsl_cdf_gamma_Pinv, (1e-300, 1e5, 1.0), 88737.327911421701301, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Qinv, (1e-300, 1e5, 1.0), 112176.85724295325586, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Pinv, (1e-300, 1000.0, 1.0), 233.92836429052842874, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Qinv, (1e-300, 100.0, 1.0), 1017.3104288547139137, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Qinv, (1e-200, 0.01, 1.0), 449.86748181550008949, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Pinv, (0.995, 8000.0, 1.0), 8232.2671587191345264, TEST_TOL1);
+  TEST (gsl_cdf_gamma_Pinv, (1e-30, 0.1, 1.0), 6.0730483624081204935e-301, TEST_TOL2);
+  TEST (gsl_cdf_gamma_Pinv, (0.5, 0.005, 2.0), 7.0166677652356112728e-61, TEST_TOL3);
+  TEST (gsl_cdf_gamma_Qinv, (0.5, 0.001, 1.0), 5.2442064082779784205e-302, TEST_TOL4);
+  TEST (gsl_cdf_gamma_Pinv, (0.5, 1e-6, 1.0), 0.0, 0.0);
 }
 
 void test_chisqinv (void) {
@@ -1249,10 +1267,10 @@ void test_chisqinv (void) {
   TEST (gsl_cdf_chisq_Pinv, (0.05, 1263131.0), 1260517.771133388726131469059, TEST_TOL6);
   TEST (gsl_cdf_chisq_Pinv, (0.05, 2526262.0), 2522565.864973351096735720202, TEST_TOL6);
 
-#if 0 /* XXX - bug #39057 */
-  /* Test case reported by Yan Zhou <zhouyan@me.com> */
-  TEST (gsl_cdf_chisq_Pinv, (0.5, 0.01), 0.99477710813146, TEST_TOL6);
-#endif
+  /* Test case for bug #39057 (reported by Yan Zhou); the median of
+     chi^2 with 0.01 degrees of freedom */
+  TEST (gsl_cdf_chisq_Pinv, (0.5, 0.01), 7.0166677652356112728e-61, TEST_TOL3);
+  TEST (gsl_cdf_chisq_Qinv, (0.5, 0.01), 7.0166677652356112728e-61, TEST_TOL3);
 
   TEST (gsl_cdf_chisq_Qinv, (0.0, 13.0), GSL_POSINF, TEST_TOL6);
   TEST (gsl_cdf_chisq_Qinv, (1.65902608070858809e-15, 13.0), 100.0, TEST_TOL6);

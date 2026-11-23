@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bug #39057 (new implementation of gsl_cdf_gamma_Pinv and
+   gsl_cdf_gamma_Qinv; reported by Y. Zhou)
+
 ** fix for bug #68518 (reported by Fermé le Lundi)
 
 ** fix for bugs #67058 and #68415 (statistics functions now return NaN

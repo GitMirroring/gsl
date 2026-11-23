@@ -30,7 +30,6 @@
 double
 gsl_cdf_gamma_P (const double x, const double a, const double b)
 {
-  double P;
   double y = x / b;
 
   if (x <= 0.0)
@@ -38,22 +37,12 @@ gsl_cdf_gamma_P (const double x, const double a, const double b)
       return 0.0;
     }
 
-  if (y > a)
-    {
-      P = 1 - gsl_sf_gamma_inc_Q (a, y);
-    }
-  else
-    {
-      P = gsl_sf_gamma_inc_P (a, y);
-    }
-
-  return P;
+  return gsl_sf_gamma_inc_P (a, y);
 }
 
 double
 gsl_cdf_gamma_Q (const double x, const double a, const double b)
 {
-  double Q;
   double y = x / b;
 
   if (x <= 0.0)
@@ -61,14 +50,5 @@ gsl_cdf_gamma_Q (const double x, const double a, const double b)
       return 1.0;
     }
 
-  if (y < a)
-    {
-      Q = 1 - gsl_sf_gamma_inc_P (a, y);
-    }
-  else
-    {
-      Q = gsl_sf_gamma_inc_Q (a, y);
-    }
-
-  return Q;
+  return gsl_sf_gamma_inc_Q (a, y);
 }
