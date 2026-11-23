@@ -1,5 +1,7 @@
 * What is new in gsl-2.9:
 
+** fix for bug #68518 (reported by Fermé le Lundi)
+
 ** fix for bugs #67058 and #68415 (statistics functions now return NaN
    for an empty dataset; reported by Z. Yuan and Fermé le Lundi)
 
