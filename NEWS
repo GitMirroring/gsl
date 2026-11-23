@@ -1,5 +1,7 @@
 * What is new in gsl-2.9:
 
+** new implementation of gsl_cdf_tdist_Pinv and gsl_cdf_tdist_Qinv
+
 ** fix for bug #45924 (new implementation of gsl_cdf_beta_Pinv and
    gsl_cdf_beta_Qinv)
 

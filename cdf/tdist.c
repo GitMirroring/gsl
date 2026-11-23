@@ -18,25 +18,24 @@
  */
 
 /*
- * Computes the Student's t cumulative distribution function using
- * the method detailed in 
- * 
- * W.J. Kennedy and J.E. Gentle, "Statistical Computing." 1980. 
- * Marcel Dekker. ISBN 0-8247-6898-1.
+ * Computes the Student's t cumulative distribution function from the
+ * incomplete beta function (Abramowitz & Stegun 26.7.1):
+ *
+ *   P(T < -|x|) = 1/2 I_e(nu/2, 1/2),       e = nu / (nu + x^2),
+ *   P(|T| < |x|) = I_f(1/2, nu/2),          f = x^2 / (nu + x^2),
+ *
+ * using the first form for |x| >= sqrt(nu) and the second for
+ * |x| < sqrt(nu).  For large nu the Cornish-Fisher expansion of
  *
  * G.W. Hill and A.W. Davis. "Generalized asymptotic expansions
- * of Cornish-Fisher type." Annals of Mathematical Statistics, 
+ * of Cornish-Fisher type." Annals of Mathematical Statistics,
  * vol. 39, 1264-1273. 1968.
  *
- * G.W. Hill. "Algorithm 395: Student's t-distribution," Communications
- * of the ACM, volume 13, number 10, page 617. October 1970.
- *
- * G.W. Hill, "Remark on algorithm 395: Student's t-distribution,"
- * Transactions on Mathematical Software, volume 7, number 2, page
- * 247. June 1982.
+ * is used instead (see TDIST_NU_CF below).
  */
 
 #include <config.h>
+#include <math.h>
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_log.h>
@@ -133,140 +132,82 @@ cornish_fisher (double t, double n)
   return y;
 }
 
-#if 0
-/*
- * Series approximation for t > 4.0. This needs to be fixed;
- * it shouldn't subtract the result from 1.0. A better way is
- * to use two different series expansions. Figuring this out
- * means rummaging through Fisher's paper in Metron, v5, 1926, 
- * "Expansion of Student's integral in powers of n^{-1}."
- */
+/* For nu >= TDIST_NU_CF the Cornish-Fisher expansion is used for
+   |x| < sqrt(10 nu).  Its terms are powers of z^2/nu with |z| < 38 for
+   P >= GSL_DBL_MIN, and compared with high precision values it is
+   accurate to about 1e3 ulps there for nu >= 5000, better than the
+   incomplete beta function in beta_inc.c, which loses accuracy for large
+   parameters (up to 2e4 ulps near nu = 1e5).  Below 5000 the expansion
+   loses accuracy rapidly in the tails (1.8e6 ulps at nu = 1000) and the
+   incomplete beta function is used.  tdistinv.c uses the same value. */
+#define TDIST_NU_CF 5e3
 
-#define MAXI 40
-
-static double
-normal_approx (const double x, const double nu)
-{
-  double y;
-  double num;
-  double diff;
-  double q;
-  int i;
-  double lg1, lg2;
-
-  y = 1 / sqrt (1 + x * x / nu);
-  num = 1.0;
-  q = 0.0;
-  diff = 2 * GSL_DBL_EPSILON;
-  for (i = 2; (i < MAXI) && (diff > GSL_DBL_EPSILON); i += 2)
-    {
-      diff = q;
-      num *= y * y * (i - 1) / i;
-      q += num / (nu + i);
-      diff = q - diff;
-    }
-  q += 1 / nu;
-  lg1 = gsl_sf_lngamma (nu / 2.0);
-  lg2 = gsl_sf_lngamma ((nu + 1.0) / 2.0);
-
-  diff = lg2 - lg1;
-  q *= pow (y, nu) * exp (diff) / sqrt (M_PI);
-
-  return q;
-}
-#endif
+/* below this ln(sqrt(nu)/|x|), e = nu/(nu + x^2) may underflow and the
+   tail is given by the leading term of the series for I_e(nu/2, 1/2),
+   whose relative error is O(e) */
+#define TDIST_LOG_R_SMALL (-333.0)
 
 double
 gsl_cdf_tdist_P (const double x, const double nu)
 {
   double P;
 
-  double x2 = x * x;
-
-  if (nu > 30 && x2 < 10 * nu)
+  if (nu >= TDIST_NU_CF && fabs (x) < sqrt (10.0 * nu))
     {
-      double u = cornish_fisher (x, nu);
-      P = gsl_cdf_ugaussian_P (u);
-
-      return P;
+      return gsl_cdf_ugaussian_P (cornish_fisher (x, nu));
     }
 
-  if (x2 < nu)
+  if (fabs (x) < sqrt (nu))
     {
-      double u = x2 / nu;
-      double eps = u / (1 + u);
+      double u = x * x / nu;
+      double f = u / (1 + u);
 
       if (x >= 0)
         {
-          P = beta_inc_AXPY (0.5, 0.5, 0.5, nu / 2.0, eps);
+          P = beta_inc_AXPY (0.5, 0.5, 0.5, nu / 2.0, f);
         }
       else
         {
-          P = beta_inc_AXPY (-0.5, 0.5, 0.5, nu / 2.0, eps);
+          P = beta_inc_AXPY (-0.5, 0.5, 0.5, nu / 2.0, f);
         }
     }
   else
     {
-      double v = nu / (x * x);
-      double eps = v / (1 + v);
+      /* r = sqrt(nu)/|x| <= 1, e = r^2 / (1 + r^2), computed without
+         forming x^2, which can overflow */
+      const double logr = 0.5 * log (nu) - log (fabs (x));
 
-      if (x >= 0)
+      if (logr < TDIST_LOG_R_SMALL)
         {
-          P = beta_inc_AXPY (-0.5, 1.0, nu / 2.0, 0.5, eps);
+          /* I_e(a,b) ~ e^a / (a B(a,b)) with a = nu/2, b = 1/2, e = r^2 */
+          const double a = nu / 2.0;
+          const double tail = 0.5 * exp (2.0 * a * logr - log (a) - gsl_sf_lnbeta (a, 0.5));
+
+          P = (x < 0) ? tail : 1.0 - tail;
         }
       else
         {
-          P = beta_inc_AXPY (0.5, 0.0, nu / 2.0, 0.5, eps);
+          const double r = sqrt (nu) / fabs (x);
+          const double v = r * r;
+          const double e = v / (1 + v);
+
+          if (x >= 0)
+            {
+              P = beta_inc_AXPY (-0.5, 1.0, nu / 2.0, 0.5, e);
+            }
+          else
+            {
+              P = beta_inc_AXPY (0.5, 0.0, nu / 2.0, 0.5, e);
+            }
         }
     }
 
   return P;
 }
 
-
 double
 gsl_cdf_tdist_Q (const double x, const double nu)
 {
-  double Q;
-
-  double x2 = x * x;
-
-  if (nu > 30 && x2 < 10 * nu)
-    {
-      double u = cornish_fisher (x, nu);
-      Q = gsl_cdf_ugaussian_Q (u);
-
-      return Q;
-    }
-
-  if (x2 < nu)
-    {
-      double u = x2 / nu;
-      double eps = u / (1 + u);
-
-      if (x >= 0)
-        {
-          Q = beta_inc_AXPY (-0.5, 0.5, 0.5, nu / 2.0, eps);
-        }
-      else
-        {
-          Q = beta_inc_AXPY (0.5, 0.5, 0.5, nu / 2.0, eps);
-        }
-    }
-  else
-    {
-      double v = nu / (x * x);
-      double eps = v / (1 + v);
-
-      if (x >= 0)
-        {
-          Q = beta_inc_AXPY (0.5, 0.0, nu / 2.0, 0.5, eps);
-        }
-      else
-        {
-          Q = beta_inc_AXPY (-0.5, 1.0, nu / 2.0, 0.5, eps);
-        }
-    }
-
-  return Q;
+  /* the distribution is symmetric */
+  return gsl_cdf_tdist_P (-x, nu);
 }

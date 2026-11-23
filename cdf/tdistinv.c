@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2007, 2010 Brian Gough
  * Copyright (C) 2002 Jason H. Stover.
+ * Copyright (C) 2026 Patrick Alken
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +19,38 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Inverse of the Student's t distribution.  By symmetry the tail
+   equation Q(y) = p, y = |x| >= 0, p = min(P, 1 - P) is solved.  For
+   nu = 1 and nu = 2 closed forms are used.  Otherwise the starting value
+   is the inverse Cornish-Fisher expansion in the body of the
+   distribution, or the leading term of the tail,
+
+     Q(y) = 1/2 I_e(nu/2, 1/2) ~ e^(nu/2) / (nu B(nu/2, 1/2)),
+     e = nu / (nu + y^2),
+
+   and is refined by the safeguarded Halley iteration in invert.h
+   applied to gsl_cdf_tdist_Q. */
+
 #include <config.h>
 #include <math.h>
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_math.h>
-#include <gsl/gsl_randist.h>
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
-#include <stdio.h>
+#include "error.h"
+#include "invert.h"
+
+/* nu above which the inverse Cornish-Fisher expansion gives the
+   starting value (gsl_cdf_tdist_P uses the expansion there, see
+   tdist.c) */
+#define TDISTINV_NU_CF 5e3
+
+/* below this ln(e), the leading term of the series for I_e(nu/2, 1/2)
+   is exact to rounding (as in tdist.c) */
+#define TDISTINV_LOG_E_SMALL (-666.0)
 
 static double
 inv_cornish_fisher (double z, double nu)
@@ -44,112 +68,160 @@ inv_cornish_fisher (double z, double nu)
   return t;
 }
 
+typedef struct
+{
+  double nu;
+  double lognorm;               /* ln of the pdf normalisation */
+  double t;                     /* target value of Q */
+  double logt;
+} tdistinv_params;
+
+/* residual for cdf_invert: solve Q(y) = t for y >= 0 */
+static int
+tdistinv_fn (const double y, void *vparams, double *g, double *u, double *d)
+{
+  const tdistinv_params *p = (const tdistinv_params *) vparams;
+  const double nu = p->nu;
+  double log1pyy, logpdf, r;
+
+  /* ln(1 + y^2/nu) without forming y^2 */
+  if (y > sqrt (nu))
+    {
+      const double s = sqrt (nu) / y;
+      log1pyy = 2.0 * log (y / sqrt (nu)) + gsl_sf_log1p (s * s);
+    }
+  else
+    {
+      log1pyy = gsl_sf_log1p (y * y / nu);
+    }
+
+  logpdf = p->lognorm - 0.5 * (nu + 1.0) * log1pyy;
+  r = gsl_cdf_tdist_Q (y, nu) / p->t - 1.0;
+
+  /* f = Q - t, f' = -pdf: u = (Q - t)/(-pdf) = -r t/pdf */
+  *u = (r == 0.0) ? 0.0 : exp (log (fabs (r)) + p->logt - logpdf);
+  if (r > 0.0)
+    *u = -*u;
+
+  *g = -r;
+  *d = -(nu + 1.0) / (y + nu / y);     /* pdf'/pdf */
+
+  return GSL_SUCCESS;
+}
+
+/* tail inverse: y >= 0 with Q(y) = p, 0 < p <= 1/2 */
+static int
+tdistinv_tail (const double p, const double nu, double *y)
+{
+  const double a = 0.5 * nu;
+  const double lnbeta = gsl_sf_lnbeta (a, 0.5);
+  const double loge0 = (log (2.0 * p) + log (a) + lnbeta) / a;
+  tdistinv_params params;
+  double y0;
+
+  if (p == 0.5)
+    {
+      *y = 0.0;
+      return GSL_SUCCESS;
+    }
+  else if (nu == 1.0)
+    {
+      /* Cauchy: y = cot(pi p), written to keep the argument <= pi/4 */
+      *y = (p < 0.25) ? 1.0 / tan (M_PI * p) : tan (M_PI * (0.5 - p));
+      return GSL_SUCCESS;
+    }
+  else if (nu == 2.0)
+    {
+      *y = (1.0 - 2.0 * p) / sqrt (2.0 * p * (1.0 - p));
+      return GSL_SUCCESS;
+    }
+  else if (loge0 < TDISTINV_LOG_E_SMALL)
+    {
+      /* 2p = e^a / (a B(a, 1/2)) to rounding, and y = sqrt(nu/e); may
+         overflow to +Inf */
+      *y = exp (0.5 * (log (nu) - loge0));
+      return GSL_SUCCESS;
+    }
+
+  if (nu > 1.0 && sqrt (M_PI * nu / 2.0) * p > pow (0.05, nu / 2.0))
+    {
+      /* body of the distribution: inverse Cornish-Fisher expansion */
+      y0 = inv_cornish_fisher (gsl_cdf_ugaussian_Qinv (p), nu);
+
+      /* for large nu gsl_cdf_tdist_Q uses gsl_cdf_ugaussian_Q, which is 0
+         below GSL_DBL_MIN, so the expansion is the result */
+      if (nu >= TDISTINV_NU_CF && p < GSL_DBL_MIN)
+        {
+          *y = y0;
+          return GSL_SUCCESS;
+        }
+    }
+  else
+    {
+      /* tail: y = sqrt(nu/e) from the leading term, with nu replaced by
+         nu/(1 + nu/y^2) to account for the next terms */
+      y0 = exp (0.5 * (log (nu) - loge0));
+      y0 /= sqrt (1.0 + nu / (y0 * y0));
+    }
+
+  params.nu = nu;
+  params.lognorm = gsl_sf_lngamma (0.5 * (nu + 1.0)) - gsl_sf_lngamma (a)
+    - 0.5 * log (nu * M_PI);
+  params.t = p;
+  params.logt = log (p);
+
+  return cdf_invert (&tdistinv_fn, &params, y0, 0.0, GSL_POSINF, y);
+}
 
 double
 gsl_cdf_tdist_Pinv (const double P, const double nu)
 {
-  double x, ptail;
+  double y;
+  int status;
 
-  if (P == 1.0)
+  if (!(P >= 0.0 && P <= 1.0))
     {
-      return GSL_POSINF;
+      CDF_ERROR ("P must be in range 0 <= P <= 1", GSL_EDOM);
+    }
+  else if (!(nu > 0.0))
+    {
+      CDF_ERROR ("nu must be positive", GSL_EDOM);
     }
   else if (P == 0.0)
     {
       return GSL_NEGINF;
     }
-
-  if (nu == 1.0)
+  else if (P == 1.0)
     {
-      x = tan (M_PI * (P - 0.5));
-      return x;
-    }
-  else if (nu == 2.0)
-    {
-      x = (2 * P - 1) / sqrt (2 * P * (1 - P));
-      return x;
+      return GSL_POSINF;
     }
 
-  ptail = (P < 0.5) ? P : 1 - P;
+  /* for P > 1/2, 1 - P is exact */
+  status = tdistinv_tail ((P <= 0.5) ? P : 1.0 - P, nu, &y);
 
-  if (sqrt (M_PI * nu / 2) * ptail > pow (0.05, nu / 2))
+  if (status)
     {
-      double xg = gsl_cdf_ugaussian_Pinv (P);
-      x = inv_cornish_fisher (xg, nu);
-    }
-  else
-    {
-      /* Use an asymptotic expansion of the tail of integral */
-
-      double beta = gsl_sf_beta (0.5, nu / 2);
-
-      if (P < 0.5)
-        {
-          x = -sqrt (nu) * pow (beta * nu * P, -1.0 / nu);
-        }
-      else
-        {
-          x = sqrt (nu) * pow (beta * nu * (1 - P), -1.0 / nu);
-        }
-
-      /* Correct nu -> nu/(1+nu/x^2) in the leading term to account
-         for higher order terms. This avoids overestimating x, which
-         makes the iteration unstable due to the rapidly decreasing
-         tails of the distribution. */
-
-      x /= sqrt (1 + nu / (x * x));
+      CDF_ERROR ("inverse failed to converge", GSL_EFAILED);
     }
 
-  {
-    double dP, phi;
-    unsigned int n = 0;
-
-  start:
-    dP = P - gsl_cdf_tdist_P (x, nu);
-    phi = gsl_ran_tdist_pdf (x, nu);
-
-    if (dP == 0.0 || n++ > 32)
-      goto end;
-
-    {
-      double lambda = dP / phi;
-      double step0 = lambda;
-      double step1 = ((nu + 1) * x / (x * x + nu)) * (lambda * lambda / 4.0);
-
-      double step = step0;
-
-      if (fabs (step1) < fabs (step0))
-        {
-          step += step1;
-        }
-
-      if (P > 0.5 && x + step < 0)
-        x /= 2;
-      else if (P < 0.5 && x + step > 0)
-        x /= 2;
-      else
-        x += step;
-
-      if (fabs (step) > 1e-10 * fabs (x))
-        goto start;
-    }
-    
-  end:
-    if (fabs(dP) > GSL_SQRT_DBL_EPSILON * P)
-      {
-        GSL_ERROR_VAL("inverse failed to converge", GSL_EFAILED, GSL_NAN);
-      }
-    
-    return x;
-  }
+  return (P < 0.5) ? -y : y;
 }
 
 double
 gsl_cdf_tdist_Qinv (const double Q, const double nu)
 {
-  double x, qtail;
+  double y;
+  int status;
 
-  if (Q == 0.0)
+  if (!(Q >= 0.0 && Q <= 1.0))
+    {
+      CDF_ERROR ("Q must be in range 0 <= Q <= 1", GSL_EDOM);
+    }
+  else if (!(nu > 0.0))
+    {
+      CDF_ERROR ("nu must be positive", GSL_EDOM);
+    }
+  else if (Q == 0.0)
     {
       return GSL_POSINF;
     }
@@ -158,83 +230,13 @@ gsl_cdf_tdist_Qinv (const double Q, const double nu)
       return GSL_NEGINF;
     }
 
-  if (nu == 1.0)
+  /* for Q > 1/2, 1 - Q is exact */
+  status = tdistinv_tail ((Q <= 0.5) ? Q : 1.0 - Q, nu, &y);
+
+  if (status)
     {
-      x = tan (M_PI * (0.5 - Q));
-      return x;
-    }
-  else if (nu == 2.0)
-    {
-      x = (1 - 2 * Q) / sqrt (2 * Q * (1 - Q));
-      return x;
+      CDF_ERROR ("inverse failed to converge", GSL_EFAILED);
     }
 
-  qtail = (Q < 0.5) ? Q : 1 - Q;
-
-  if (sqrt (M_PI * nu / 2) * qtail > pow (0.05, nu / 2))
-    {
-      double xg = gsl_cdf_ugaussian_Qinv (Q);
-      x = inv_cornish_fisher (xg, nu);
-    }
-  else
-    {
-      /* Use an asymptotic expansion of the tail of integral */
-
-      double beta = gsl_sf_beta (0.5, nu / 2);
-
-      if (Q < 0.5)
-        {
-          x = sqrt (nu) * pow (beta * nu * Q, -1.0 / nu);
-        }
-      else
-        {
-          x = -sqrt (nu) * pow (beta * nu * (1 - Q), -1.0 / nu);
-        }
-
-      /* Correct nu -> nu/(1+nu/x^2) in the leading term to account
-         for higher order terms. This avoids overestimating x, which
-         makes the iteration unstable due to the rapidly decreasing
-         tails of the distribution. */
-
-      x /= sqrt (1 + nu / (x * x));
-    }
-
-  {
-    double dQ, phi;
-    unsigned int n = 0;
-
-  start:
-    dQ = Q - gsl_cdf_tdist_Q (x, nu);
-    phi = gsl_ran_tdist_pdf (x, nu);
-
-    if (dQ == 0.0 || n++ > 32)
-      goto end;
-
-    {
-      double lambda = - dQ / phi;
-      double step0 = lambda;
-      double step1 = ((nu + 1) * x / (x * x + nu)) * (lambda * lambda / 4.0);
-
-      double step = step0;
-
-      if (fabs (step1) < fabs (step0))
-        {
-          step += step1;
-        }
-
-      if (Q < 0.5 && x + step < 0)
-        x /= 2;
-      else if (Q > 0.5 && x + step > 0)
-        x /= 2;
-      else
-        x += step;
-
-      if (fabs (step) > 1e-10 * fabs (x))
-        goto start;
-    }
-  }
-
-end:
-
-  return x;
+  return (Q <= 0.5) ? y : -y;
 }

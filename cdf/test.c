@@ -758,6 +758,18 @@ void test_tdist (void) {
   TEST (gsl_cdf_tdist_Q, (-100.0, 300.0), 1.0, TEST_TOL6);
   TEST (gsl_cdf_tdist_Q, (-1000.0, 300.0), 1.0, TEST_TOL6);
   TEST (gsl_cdf_tdist_Q, (-10000.0, 300.0), 1.0, TEST_TOL6);
+
+  /* far tails: x^2 overflows for |x| > 1e154, and the Cornish-Fisher
+     expansion was inaccurate in the tails for moderate nu */
+  TEST (gsl_cdf_tdist_P, (-1e200, 1.0), 3.1830988618379068117e-201, TEST_TOL2);
+  TEST (gsl_cdf_tdist_P, (-3.1830988618379e299, 1.0), 1.0000000000000021266e-300, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Q, (1.0284911564077e199, 0.5), 9.9999999995558543048e-101, TEST_TOL2);
+  TEST (gsl_cdf_tdist_P, (-29.0, 100.0), 8.7949858843779177305e-51, TEST_TOL2);
+  TEST (gsl_cdf_tdist_P, (-54.0, 1000.0), 5.5378220645327611567e-299, TEST_TOL3);
+  TEST (gsl_cdf_tdist_P, (-30.0, 1e6), 6.0100471168317189413e-198, TEST_TOL3);
+  TEST (gsl_cdf_tdist_Q, (7.0, 1e8), 1.2798205367885652316e-12, TEST_TOL2);
+  TEST (gsl_cdf_tdist_P, (GSL_NEGINF, 3.0), 0.0, 0.0);
+  TEST (gsl_cdf_tdist_P, (GSL_POSINF, 3.0), 1.0, 0.0);
 }
 
   /* Tests for F distribution */
@@ -1435,6 +1447,18 @@ void test_tdistinv (void) {
   TEST (gsl_cdf_tdist_Qinv, (9.32666983425369137e-1, 300.0), -1.5, TEST_TOL6);
   TEST (gsl_cdf_tdist_Qinv, (9.76799239508425455e-1, 300.0), -2.0, TEST_TOL6);
   TEST (gsl_cdf_tdist_Qinv, (1.000000000000000000e0, 300.0), GSL_NEGINF, TEST_TOL6);
+
+  /* tails, which returned NaN, +-Inf or wrong values */
+  TEST (gsl_cdf_tdist_Pinv, (1e-300, 1.0), -3.1830988618379066356e+299, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Qinv, (1e-12, 1.0), 318309886183.79067794, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Qinv, (1e-30, 0.1), 1.604425705666506782e+296, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Pinv, (1e-100, 0.5), -1.0284911563163399707e+199, TEST_TOL3);
+  TEST (gsl_cdf_tdist_Pinv, (1e-300, 3.0), -1.0331108360446529009e+100, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Qinv, (1e-300, 5.0), 1.5683925590993378011e+60, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Pinv, (1e-300, 10.0), -2.5645257189481978216e+30, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Pinv, (1e-20, 4.0), -131607.40128258531979, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Pinv, (1e-100, 1000.0), -23.930617087826443057, TEST_TOL2);
+  TEST (gsl_cdf_tdist_Pinv, (0.5, 3.0), 0.0, 0.0);
 }
 
 
