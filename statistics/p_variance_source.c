@@ -26,14 +26,21 @@ FUNCTION(gsl_stats,pvariance) (const BASE data1[],
 {
   /* Find the pooled variance of two datasets */
 
-  const double var1 = FUNCTION(gsl_stats,variance) (data1, stride1, n1);
-  const double var2 = FUNCTION(gsl_stats,variance) (data2, stride2, n2);
+  if (n1 == 0 || n2 == 0 || n1 + n2 <= 2)
+    {
+      return GSL_NAN;
+    }
+  else
+    {
+      /* a sample of size 1 contributes nothing to the sum of squares */
+      const double ss1 = (n1 > 1) ? (n1 - 1) * FUNCTION(gsl_stats,variance) (data1, stride1, n1) : 0.0;
+      const double ss2 = (n2 > 1) ? (n2 - 1) * FUNCTION(gsl_stats,variance) (data2, stride2, n2) : 0.0;
 
-  /* calculate the pooled variance */
+      /* calculate the pooled variance */
 
-  const double pooled_variance = 
-    (((n1 - 1) * var1) + ((n2 - 1) * var2)) / (n1 + n2 - 2);
+      const double pooled_variance = (ss1 + ss2) / (n1 + n2 - 2);
 
-  return pooled_variance;
+      return pooled_variance;
+    }
 }
 

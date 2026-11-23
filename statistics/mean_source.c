@@ -26,6 +26,9 @@ FUNCTION (gsl_stats, mean) (const BASE data[], const size_t stride, const size_t
   long double mean = 0;
   size_t i;
 
+  if (size == 0)
+    return GSL_NAN;
+
   for (i = 0; i < size; i++)
     {
       mean += (data[i * stride] - mean) / (i + 1);

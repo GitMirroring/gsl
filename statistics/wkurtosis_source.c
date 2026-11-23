@@ -55,6 +55,9 @@ FUNCTION(gsl_stats,wkurtosis_m_sd) (const BASE w[], const size_t wstride,
       }
     }
 
+  if (W == 0)
+    return GSL_NAN;
+
   kurtosis = wavg - 3.0;  /* makes kurtosis zero for a Gaussian */
 
   return kurtosis;

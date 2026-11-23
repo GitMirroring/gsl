@@ -35,7 +35,12 @@ FUNCTION(gsl_stats,lag1_autocorrelation_m) (const BASE data[], const size_t stri
 
   long double r1 ;
   long double q = 0 ;
-  long double v = (data[0 * stride] - mean) * (data[0 * stride] - mean) ;
+  long double v ;
+
+  if (size == 0)
+    return GSL_NAN;
+
+  v = (data[0 * stride] - mean) * (data[0 * stride] - mean) ;
 
   for (i = 1; i < size ; i++)
     {

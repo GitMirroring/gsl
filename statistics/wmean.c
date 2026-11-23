@@ -1,4 +1,5 @@
 #include <config.h>
+#include <gsl/gsl_math.h>
 #include <gsl/gsl_statistics.h>
 
 #define BASE_LONG_DOUBLE

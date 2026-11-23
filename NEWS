@@ -1,5 +1,8 @@
 * What is new in gsl-2.9:
 
+** fix for bugs #67058 and #68415 (statistics functions now return NaN
+   for an empty dataset; reported by Z. Yuan and Fermé le Lundi)
+
 ** close bug #68704 (added gsl_histogram_variance,
    gsl_histogram2d_xvariance and gsl_histogram2d_yvariance;
    requested by Fermé le Lundi)

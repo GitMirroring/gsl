@@ -35,6 +35,9 @@ FUNCTION(compute,covariance) (const BASE data1[], const size_t stride1,
 
   size_t i;
 
+  if (n == 0)
+    return GSL_NAN;
+
   /* find the sum of the squares */
   for (i = 0; i < n; i++)
     {
@@ -115,6 +118,9 @@ FUNCTION(gsl_stats,correlation) (const BASE data1[], const size_t stride1,
    * using the above relation from Welford's paper
    */
 
+  if (n == 0)
+    return GSL_NAN;
+
   mean_x = data1[0 * stride1];
   mean_y = data2[0 * stride2];
 
@@ -155,9 +161,15 @@ FUNCTION(gsl_stats,spearman) (const BASE data1[], const size_t stride1,
                               const size_t n, double work[])
 {
   size_t i;
-  gsl_vector_view ranks1 = gsl_vector_view_array(&work[0], n);
-  gsl_vector_view ranks2 = gsl_vector_view_array(&work[n], n);
+  gsl_vector_view ranks1;
+  gsl_vector_view ranks2;
   double r;
+
+  if (n == 0)
+    return GSL_NAN;
+
+  ranks1 = gsl_vector_view_array(&work[0], n);
+  ranks2 = gsl_vector_view_array(&work[n], n);
 
   for (i = 0; i < n; ++i)
     {

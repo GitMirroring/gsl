@@ -25,6 +25,10 @@ FUNCTION (gsl_stats, trmean_from_sorted_data) (const double trim, const BASE sor
     {
       return FUNCTION(gsl_stats, median_from_sorted_data)(sorted_data, stride, size);
     }
+  else if (size == 0)
+    {
+      return GSL_NAN;
+    }
   else
     {
       size_t ilow = (size_t) floor(trim * size);

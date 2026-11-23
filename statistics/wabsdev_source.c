@@ -46,6 +46,9 @@ FUNCTION(gsl_stats,wabsdev_m) (const BASE w[], const size_t wstride, const BASE 
       }
     }
 
+  if (W == 0)
+    return GSL_NAN;
+
   return wabsdev;
 }
 

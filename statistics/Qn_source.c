@@ -243,9 +243,14 @@ FUNCTION(gsl_stats,Qn_from_sorted_data) (const BASE sorted_data[],
                                          int work_int[])
 {
   const double scale = 2.21914; /* asymptotic consistency for sigma^2 */
-  double Qn0 = (double) FUNCTION(gsl_stats,Qn0_from_sorted_data)(sorted_data, stride, n, work, work_int);
+  double Qn0;
   double dn = 1.0;
   double Qn;
+
+  if (n == 0)
+    return GSL_NAN;
+
+  Qn0 = (double) FUNCTION(gsl_stats,Qn0_from_sorted_data)(sorted_data, stride, n, work, work_int);
 
   /* this correction factor deviates from the original paper Croux and Rousseeuw, 1992, and
    * comes from the 'robustbase' R package */

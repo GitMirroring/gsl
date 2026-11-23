@@ -37,6 +37,9 @@ FUNCTION(gsl_stats,kurtosis_m_sd) (const BASE data[],
   long double avg = 0, kurtosis;
   size_t i;
 
+  if (n == 0)
+    return GSL_NAN;
+
   /* find the fourth moment the deviations, normalized by the sd */
 
   /* we use a recurrence relation to stably update a running value so

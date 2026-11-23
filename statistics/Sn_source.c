@@ -83,6 +83,9 @@ FUNCTION(gsl_stats,Sn0_from_sorted_data) (const BASE sorted_data[],
   int leftA, leftB, nA, nB, tryA, tryB, rightA, rightB;
   int np1_2 = (n + 1) / 2;
 
+  if (n == 0)
+    return ((BASE) 0.0);
+
   work[0] = sorted_data[n / 2 * stride] - sorted_data[0];
 
   /* first half for() loop : */
@@ -242,9 +245,14 @@ FUNCTION(gsl_stats,Sn_from_sorted_data) (const BASE sorted_data[],
                                          BASE work[])
 {
   const double scale = 1.1926; /* asymptotic consistency for sigma^2 */
-  double Sn0 = (double) FUNCTION(gsl_stats,Sn0_from_sorted_data)(sorted_data, stride, n, work);
+  double Sn0;
   double cn = 1.0;
   double Sn;
+
+  if (n == 0)
+    return GSL_NAN;
+
+  Sn0 = (double) FUNCTION(gsl_stats,Sn0_from_sorted_data)(sorted_data, stride, n, work);
 
   /* determine correction factor for finite sample bias */
   if (n <= 9)

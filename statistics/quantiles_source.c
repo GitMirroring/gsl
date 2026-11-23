@@ -36,7 +36,7 @@ FUNCTION(gsl_stats,quantile_from_sorted_data) (const BASE sorted_data[],
       double result;
 
       if (n == 0)
-        return 0.0 ;
+        return GSL_NAN ;
 
       if (lhs == n - 1)
         {

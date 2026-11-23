@@ -28,8 +28,25 @@ floating-point data have the prefix :code:`gsl_stats` and are declared in
 the header file :file:`gsl_statistics_double.h`.  The versions for integer
 data have the prefix :code:`gsl_stats_int` and are declared in the header
 file :file:`gsl_statistics_int.h`.   All the functions operate on C 
-arrays with a :code:`stride` parameter specifying the spacing between 
-elements.  
+arrays with a :code:`stride` parameter specifying the spacing between
+elements.
+
+.. index::
+   single: empty dataset, statistics of
+   single: NaN, statistics of small datasets
+
+For an empty dataset (:math:`n = 0`) the functions return a NaN, since
+the statistics are undefined, without calling the error handler and
+without reading any elements of the array.  The exceptions are the
+total sums of squares (:func:`gsl_stats_tss`, :func:`gsl_stats_wtss`),
+which are 0, and :func:`gsl_stats_select`, which calls the error
+handler.  For the integer types, which have no NaN,
+:func:`gsl_stats_max`, :func:`gsl_stats_min` and :func:`gsl_stats_minmax`
+return 0, and the index functions such as :func:`gsl_stats_max_index`
+return 0 for all types.  Statistics which need at least two values,
+such as the estimated variance, standard deviation, skewness,
+kurtosis, covariance and correlation, return a NaN for :math:`n = 1`.
+The weighted functions return a NaN when no weight is positive.
 
 Mean, Standard Deviation and Variance
 =====================================

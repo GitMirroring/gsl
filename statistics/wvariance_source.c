@@ -49,6 +49,9 @@ FUNCTION(compute,wvariance) (const BASE w[], const size_t wstride, const BASE da
       }
     }
 
+  if (W == 0)
+    return GSL_NAN;
+
   return wvariance ;
 }
 

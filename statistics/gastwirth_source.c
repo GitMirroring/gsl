@@ -25,7 +25,7 @@ FUNCTION(gsl_stats,gastwirth_from_sorted_data) (const BASE sorted_data[],
 {
   if (n == 0)
     {
-      return 0.0;
+      return GSL_NAN;
     }
   else
     {

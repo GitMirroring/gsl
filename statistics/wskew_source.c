@@ -54,6 +54,9 @@ FUNCTION(gsl_stats,wskew_m_sd) (const BASE w[], const size_t wstride,
       }
     }
 
+  if (W == 0)
+    return GSL_NAN;
+
   return wskew;
 }
 

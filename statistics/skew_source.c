@@ -35,6 +35,9 @@ FUNCTION(gsl_stats,skew_m_sd) (const BASE data[],
   long double skew = 0;
   size_t i;
 
+  if (n == 0)
+    return GSL_NAN;
+
   /* find the sum of the cubed deviations, normalized by the sd. */
 
   /* we use a recurrence relation to stably update a running value so

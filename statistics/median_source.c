@@ -28,7 +28,7 @@ FUNCTION(gsl_stats,median_from_sorted_data) (const BASE sorted_data[],
   const size_t rhs = n / 2 ;
   
   if (n == 0)
-    return 0.0 ;
+    return GSL_NAN ;
 
   if (lhs == rhs)
     {
@@ -50,7 +50,7 @@ FUNCTION(gsl_stats,median) (BASE data[], const size_t stride, const size_t n)
   const size_t rhs = n / 2 ;
   
   if (n == 0)
-    return 0.0;
+    return GSL_NAN;
 
   if (lhs == rhs)
     {
