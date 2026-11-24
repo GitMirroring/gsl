@@ -357,6 +357,7 @@
    - gsl_sf_taylorcoeff
    - gsl_sf_beta, gsl_sf_lnbeta, gsl_sf_lnbeta_sgn (all now
      handle negative arguments)
+   - gsl_sf_beta_inc
    - gsl_sf_psi, gsl_sf_psi_int, gsl_sf_psi_1, gsl_sf_psi_1_int,
      gsl_sf_psi_1piy
    - gsl_sf_hyperg_1F1, gsl_sf_hyperg_1F1_int

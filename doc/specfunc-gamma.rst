@@ -313,9 +313,11 @@ Incomplete Beta Function
    .. math:: B_x(a,b) = \int_0^x t^{a-1} (1-t)^{b-1} dt
 
    for :math:`0 \le x \le 1`.
-   For :math:`a > 0`, :math:`b > 0` the value is computed using
-   a continued fraction expansion.  For all other values it is computed using 
-   the relation
+   For :math:`a > 0`, :math:`b > 0` the smaller of :math:`I_x(a,b)` and
+   :math:`1 - I_x(a,b)` is computed directly, using a power series, a continued
+   fraction or, for large :math:`a` and small :math:`b`, an expansion in
+   incomplete Gamma functions, so that both are accurate to near machine
+   precision.  For all other values it is computed using the relation
    
    .. only:: not texinfo
 
@@ -326,3 +328,15 @@ Incomplete Beta Function
       ::
 
          I_x(a,b,x) = (1/a) x^a 2F1(a,1-b,a+1,x) / B(a,b)
+
+.. index::
+   single: complementary incomplete Beta function
+
+.. function:: double gsl_sf_beta_inc_Q (double a, double b, double x)
+              int gsl_sf_beta_inc_Q_e (double a, double b, double x, gsl_sf_result * result)
+
+   These routines compute the complementary normalized incomplete Beta
+   function :math:`1 - I_x(a,b) = I_{1-x}(b,a)` for :math:`0 \le x \le 1`,
+   with the same domain as :func:`gsl_sf_beta_inc`.  For :math:`a > 0`,
+   :math:`b > 0` it is accurate to near machine precision even when it is
+   small, where computing :math:`1 - I_x(a,b)` would lose accuracy.

@@ -43,11 +43,6 @@
 #include "error.h"
 #include "invert.h"
 
-/* nu above which the inverse Cornish-Fisher expansion gives the
-   starting value (gsl_cdf_tdist_P uses the expansion there, see
-   tdist.c) */
-#define TDISTINV_NU_CF 5e3
-
 /* below this ln(e), the leading term of the series for I_e(nu/2, 1/2)
    is exact to rounding (as in tdist.c) */
 #define TDISTINV_LOG_E_SMALL (-666.0)
@@ -147,14 +142,6 @@ tdistinv_tail (const double p, const double nu, double *y)
     {
       /* body of the distribution: inverse Cornish-Fisher expansion */
       y0 = inv_cornish_fisher (gsl_cdf_ugaussian_Qinv (p), nu);
-
-      /* for large nu gsl_cdf_tdist_Q uses gsl_cdf_ugaussian_Q, which is 0
-         below GSL_DBL_MIN, so the expansion is the result */
-      if (nu >= TDISTINV_NU_CF && p < GSL_DBL_MIN)
-        {
-          *y = y0;
-          return GSL_SUCCESS;
-        }
     }
   else
     {

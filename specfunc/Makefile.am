@@ -63,7 +63,6 @@ libgslspecfunc_la_SOURCES = \
   bessel_y.c                \
   bessel_zero.c             \
   bessel_sequence.c         \
-  beta_inc.c                \
   clausen.c                 \
   coulomb.c                 \
   coupling.c                \

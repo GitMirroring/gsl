@@ -134,9 +134,9 @@ int test_gamma_misc(void)
   TEST_SF(s,  gsl_sf_beta_inc_e, (50.0, 60.0, 0.5, &r), 0.8309072939016694143, TEST_TOL2, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_beta_inc_e, (90.0, 90.0, 0.5, &r), 0.5, TEST_TOL2, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_beta_inc_e, ( 500.0,  500.0, 0.6, &r), 0.9999999999157549630, TEST_TOL2, GSL_SUCCESS);
-  TEST_SF(s,  gsl_sf_beta_inc_e, (5000.0, 5000.0, 0.4, &r), 4.518543727260666383e-91, TEST_TOL5, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_beta_inc_e, (5000.0, 5000.0, 0.4, &r), 4.5185437272610854309e-91, TEST_TOL2, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_beta_inc_e, (5000.0, 5000.0, 0.6, &r), 1.0, TEST_TOL2, GSL_SUCCESS);
-  TEST_SF(s,  gsl_sf_beta_inc_e, (5000.0, 2000.0, 0.6, &r), 8.445388773903332659e-89, TEST_TOL5, GSL_SUCCESS);
+  TEST_SF(s,  gsl_sf_beta_inc_e, (5000.0, 2000.0, 0.6, &r), 8.4453887739027059415e-89, TEST_TOL2, GSL_SUCCESS);
 
   TEST_SF(s,  gsl_sf_beta_inc_e, (-0.1, -0.1, 1.0, &r), 1.0, TEST_TOL2, GSL_SUCCESS);
   TEST_SF(s,  gsl_sf_beta_inc_e, (-0.1, -0.2, 1.0, &r), 1.0, TEST_TOL2, GSL_SUCCESS);

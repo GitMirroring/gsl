@@ -26,7 +26,6 @@
 #include <gsl/gsl_errno.h>
 
 #include "error.h"
-#include "beta_inc.c"
 
 /*
  * Lower tail.
@@ -42,13 +41,13 @@ gsl_cdf_fdist_P (const double x, const double nu1, const double nu2)
     {
       double u = x / (r + x);
 
-      P = beta_inc_AXPY (1.0, 0.0, nu1 / 2.0, nu2 / 2.0, u);
+      P = gsl_sf_beta_inc (nu1 / 2.0, nu2 / 2.0, u);
     }
   else
     {
       double u = r / (r + x);
 
-      P = beta_inc_AXPY (-1.0, 1.0, nu2 / 2.0, nu1 / 2.0, u);
+      P = gsl_sf_beta_inc_Q (nu2 / 2.0, nu1 / 2.0, u);
     }
 
   return P;
@@ -68,13 +67,13 @@ gsl_cdf_fdist_Q (const double x, const double nu1, const double nu2)
     {
       double u = x / (r + x);
 
-      Q = beta_inc_AXPY (-1.0, 1.0, nu1 / 2.0, nu2 / 2.0, u);
+      Q = gsl_sf_beta_inc_Q (nu1 / 2.0, nu2 / 2.0, u);
     }
   else
     {
       double u = r / (r + x);
 
-      Q = beta_inc_AXPY (1.0, 0.0, nu2 / 2.0, nu1 / 2.0, u);
+      Q = gsl_sf_beta_inc (nu2 / 2.0, nu1 / 2.0, u);
     }
 
   return Q;

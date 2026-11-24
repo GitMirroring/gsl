@@ -39,6 +39,7 @@ int test_gamma_inc_P(void);
 int test_gamma_inc_Q(void);
 
 int test_beta(void);
+int test_beta_inc(void);
 int test_lnbeta(void);
 int test_psi(void);
 

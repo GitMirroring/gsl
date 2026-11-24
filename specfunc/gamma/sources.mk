@@ -1,5 +1,6 @@
 GAMMA_SOURCES =          \
   gamma/beta.c           \
+  gamma/beta_inc.c       \
   gamma/gamma.c          \
   gamma/gamma_inc.c      \
   gamma/lnbeta.c         \

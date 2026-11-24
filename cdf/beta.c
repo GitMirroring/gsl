@@ -23,8 +23,6 @@
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_math.h>
 
-#include "beta_inc.c"
-
 double
 gsl_cdf_beta_P (const double x, const double a, const double b)
 {
@@ -40,7 +38,7 @@ gsl_cdf_beta_P (const double x, const double a, const double b)
       return 1.0;
     }
 
-  P = beta_inc_AXPY (1.0, 0.0, a, b, x);
+  P = gsl_sf_beta_inc (a, b, x);
 
   return P;
 }
@@ -60,7 +58,7 @@ gsl_cdf_beta_Q (const double x, const double a, const double b)
       return 1.0;
     }
 
-  Q = beta_inc_AXPY (-1.0, 1.0, a, b, x);
+  Q = gsl_sf_beta_inc_Q (a, b, x);
 
   return Q;
 }
