@@ -2,7 +2,7 @@
 
 # stop at the first failing command (options on the #! line are lost
 # when the script is run as "sh script")
-set -e -x
+set -e
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <tarfile>"
