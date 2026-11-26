@@ -43,5 +43,25 @@
 #define LNGAMMA_M_LNGAMMA_3_2             -0.1207822376352452223455184457816472122518527279025994683638684737573247 /* log(Gamma(3/2)) */
 #define LNGAMMA_M_ABS_LNGAMMA_3_2          0.1207822376352452223455184457816472122518527279025994683638684737573247 /* |log(Gamma(3/2))| */
 
+/* The system lgamma, lgamma_r and tgamma are used only from glibc 2.22
+   on.  Other C libraries (the BSDs, musl) use the fdlibm lgamma, which
+   loses relative accuracy near the zeros on the negative axis, and their
+   tgamma can be inaccurate for subnormal results; they use the local
+   implementations, which are as accurate as glibc. */
+#include <math.h>               /* defines __GLIBC__ on glibc */
+
+#if defined(__GLIBC__) && !defined(__UCLIBC__) \
+  && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 22))
+#ifdef HAVE_LGAMMA
+#define USE_SYSTEM_LGAMMA 1
+#endif
+#ifdef HAVE_LGAMMA_R
+#define USE_SYSTEM_LGAMMA_R 1
+#endif
+#ifdef HAVE_TGAMMA
+#define USE_SYSTEM_TGAMMA 1
+#endif
+#endif
+
 
 #endif /* __LNGAMMA_H__ */

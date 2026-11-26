@@ -27,6 +27,7 @@
 #include "constants.h"
 #include "error.h"
 #include "eval.h"
+#include "lngamma.h"
 #include "stirling.c"
 #include "pow_exp.c"
 
@@ -37,7 +38,7 @@
 #include "gamma_fallback.c"
 #include "gammastar_kernels.c"
 
-#ifdef HAVE_TGAMMA
+#ifdef USE_SYSTEM_TGAMMA
 static int gamma_system_e(const double x, gsl_sf_result * result);
 #endif
 
@@ -259,7 +260,7 @@ static const double doublefact_odd[150] = {
  * GSL_EDOM.  Results which overflow or underflow the double-precision
  * range return GSL_EOVRFLW or GSL_EUNDRFLW, respectively.
  *
- * If the system tgamma() function is available, it is used directly.
+ * With glibc the system tgamma() is used directly (see lngamma.h).
  * Otherwise gamma_fallback_e() provides a portable implementation using
  * the Gamma kernels in gamma_kernels.c.
  */
@@ -267,7 +268,7 @@ static const double doublefact_odd[150] = {
 int
 gsl_sf_gamma_e(const double x, gsl_sf_result * result)
 {
-#ifdef HAVE_TGAMMA
+#ifdef USE_SYSTEM_TGAMMA
 
   /* use system tgamma() */
   return gamma_system_e(x, result);
@@ -854,7 +855,7 @@ double gsl_sf_lndoublefact(const unsigned int n) { EVAL_RESULT(gsl_sf_lndoublefa
  * INTERNAL ROUTINES FOR GAMMA              *
  ********************************************/
 
-#ifdef HAVE_TGAMMA
+#ifdef USE_SYSTEM_TGAMMA
 
 /*
  * Evaluate Gamma(x) using the system tgamma() function.
@@ -900,4 +901,4 @@ gamma_system_e(const double x, gsl_sf_result * result)
     }
 }
 
-#endif /* HAVE_TGAMMA */
+#endif /* USE_SYSTEM_TGAMMA */

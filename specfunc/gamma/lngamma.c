@@ -27,17 +27,18 @@
 #include "error.h"
 #include "eval.h"
 
+#include "lngamma.h"
 #include "lngamma1p_kernels.c"
 
-#ifdef HAVE_LGAMMA
+#ifdef USE_SYSTEM_LGAMMA
 static int lngamma_system_e(const double x, gsl_sf_result * result);
 #endif
 
-#if !defined(HAVE_LGAMMA) || !defined(HAVE_LGAMMA_R)
+#if !defined(USE_SYSTEM_LGAMMA) || !defined(USE_SYSTEM_LGAMMA_R)
 #include "lngamma_fallback.c"
 #endif
 
-#ifdef HAVE_LGAMMA_R
+#ifdef USE_SYSTEM_LGAMMA_R
 static int lngamma_system_sgn_e(const double x, gsl_sf_result * result, double * sgn);
 #else
 #include "lngamma_sgn_fallback.c"
@@ -46,7 +47,7 @@ static int lngamma_system_sgn_e(const double x, gsl_sf_result * result, double *
 int
 gsl_sf_lngamma_e(const double x, gsl_sf_result * result)
 {
-#ifdef HAVE_LGAMMA
+#ifdef USE_SYSTEM_LGAMMA
 
   /* use system lgamma() */
   return lngamma_system_e(x, result);
@@ -62,7 +63,7 @@ gsl_sf_lngamma_e(const double x, gsl_sf_result * result)
 int
 gsl_sf_lngamma_sgn_e(const double x, gsl_sf_result * result, double * sgn)
 {
-#ifdef HAVE_LGAMMA_R
+#ifdef USE_SYSTEM_LGAMMA_R
 
   /* use system lgamma_r() */
   return lngamma_system_sgn_e(x, result, sgn);
@@ -139,7 +140,7 @@ double gsl_sf_lngamma1p(const double x) { EVAL_RESULT(gsl_sf_lngamma1p_e(x, &res
  * INTERNAL ROUTINES FOR LNGAMMA            *
  ********************************************/
 
-#ifdef HAVE_LGAMMA
+#ifdef USE_SYSTEM_LGAMMA
 
 static int
 lngamma_system_e(const double x, gsl_sf_result * result)
@@ -155,9 +156,9 @@ lngamma_system_e(const double x, gsl_sf_result * result)
   return GSL_SUCCESS;
 }
 
-#endif /* HAVE_LGAMMA */
+#endif /* USE_SYSTEM_LGAMMA */
 
-#ifdef HAVE_LGAMMA_R
+#ifdef USE_SYSTEM_LGAMMA_R
 
 static int
 lngamma_system_sgn_e(const double x, gsl_sf_result * result, double * sgn)
@@ -178,4 +179,4 @@ lngamma_system_sgn_e(const double x, gsl_sf_result * result, double * sgn)
   return GSL_SUCCESS;
 }
 
-#endif /* HAVE_LGAMMA_R */
+#endif /* USE_SYSTEM_LGAMMA_R */

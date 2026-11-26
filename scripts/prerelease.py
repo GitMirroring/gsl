@@ -262,6 +262,10 @@ BUILDS = {
                         "CFLAGS=-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined",
                         "LDFLAGS=-fsanitize=address,undefined"], None, True),
     "clang":          ("CC=clang", ["CC=clang"], None, True),
+    # a C library other than glibc: musl's libm is largely fdlibm, like the
+    # BSDs', so this catches dependence on glibc's accuracy (e.g. lgamma)
+    "musl":           ("musl libc: CC=\"musl-gcc -static\", run natively",
+                       ["--disable-shared", "CC=musl-gcc -static"], None, True),
     "icc":            ("CC=icc -fp-model precise", ["CC=icc", "CFLAGS=-g -O2 -Wall -fp-model precise"], None, True),
 }
 
@@ -290,7 +294,7 @@ def build_available(name):
         return "not an x86 machine"
     if name == "x86-32" and not i686_works():
         return "i686-linux-gnu-gcc not found, or a static 32-bit program does not run"
-    need = {"c99": "c99", "clang": "clang", "icc": "icc"}
+    need = {"c99": "c99", "clang": "clang", "icc": "icc", "musl": "musl-gcc"}
     if name in need and not which(need[name]):
         return "%s not found" % need[name]
     return None
