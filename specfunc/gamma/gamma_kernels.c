@@ -341,7 +341,7 @@ gamma_high_scaled_eps(const double x, const double x_eps_in,
   xi = floor(x_adj + 0.5);
   xf = x_adj - xi;
 
-  mant0 = frexp(x_adj, &e2);
+  mant0 = gsl_frexp(x_adj, &e2);
   if (mant0 < M_SQRT1_2)
     {
       --e2;
@@ -381,7 +381,7 @@ gamma_high_scaled_eps(const double x, const double x_eps_in,
   c.lo += c.hi * rexpm1.val;
 
   /* Return normalized mantissa. */
-  mant->val = frexp(c.hi + c.lo, exp2);
+  mant->val = gsl_frexp(c.hi + c.lo, exp2);
 
   /* Relative error estimate. */
   relerr = 3.0 * GSL_DBL_EPSILON
@@ -406,7 +406,7 @@ gamma_high_scaled_eps(const double x, const double x_eps_in,
  * with 0.5 <= |mant| < 1.
  *
  * For x <= 10, Gamma(x) is evaluated by gamma_low() and then
- * normalized with frexp().  For larger arguments,
+ * normalized with gsl_frexp().  For larger arguments,
  * gamma_high_scaled() is used directly.
  *
  * The absolute error estimate is expressed in the same scale as the
@@ -425,8 +425,8 @@ gamma_2_inf_scaled(const double x, gsl_sf_result * mant, int * exp2)
       if (status)
         return status;
 
-      mant->val = frexp(r.val, exp2);
-      mant->err = ldexp(r.err, -(*exp2));
+      mant->val = gsl_frexp(r.val, exp2);
+      mant->err = gsl_ldexp(r.err, -(*exp2));
 
       return GSL_SUCCESS;
     }
@@ -607,7 +607,7 @@ gamma_neg_reflection(const double x, gsl_sf_result * result)
          + fabs(num) * gm.err / (gm.val * gm.val)
          + 2.0 * GSL_DBL_EPSILON * fabs(qmant);
 
-  result->val = ldexp(qmant, -ge);
+  result->val = gsl_ldexp(qmant, -ge);
 
   if (gsl_isinf(result->val))
     {
@@ -629,7 +629,7 @@ gamma_neg_reflection(const double x, gsl_sf_result * result)
     }
   else
     {
-      result->err = ldexp(eqmant, -ge);
+      result->err = gsl_ldexp(eqmant, -ge);
       return GSL_SUCCESS;
     }
 }

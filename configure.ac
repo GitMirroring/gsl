@@ -549,6 +549,44 @@ if test "$ac_cv_c_ieee_denormals" != no ; then
   AC_DEFINE(HAVE_IEEE_DENORMALS,1,[Define this if IEEE denormalized numbers are available])
 fi
 
+dnl Check whether ldexp rounds subnormal results (NetBSD's truncates
+dnl them, e.g. ldexp(0.75, -1074) = 0), and whether frexp handles
+dnl subnormal arguments; if not, gsl_ldexp and gsl_frexp use their
+dnl fallbacks
+dnl
+AC_CACHE_CHECK([whether ldexp rounds subnormal results], gsl_cv_ldexp_subnormal,
+[AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <math.h>
+int main (void)
+{
+   volatile double a = 0.75, b = 1.25, tiny = 4.9406564584124654e-324;
+   volatile int n = -1074;
+   return !(ldexp (a, n) == tiny && ldexp (b, n) == tiny && ldexp (a, n + 1) == 2.0 * tiny);
+}]])],[gsl_cv_ldexp_subnormal="yes"],[gsl_cv_ldexp_subnormal="no"],[gsl_cv_ldexp_subnormal="yes"])
+])
+
+if test "$gsl_cv_ldexp_subnormal" = no ; then
+  AC_DEFINE(HAVE_BROKEN_LDEXP,1,[Define this if ldexp does not round subnormal results correctly])
+fi
+
+AC_CACHE_CHECK([whether frexp handles subnormal arguments], gsl_cv_frexp_subnormal,
+[AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <math.h>
+int main (void)
+{
+   volatile double tiny = 4.9406564584124654e-324, x;
+   int e1 = 0, e2 = 0, e3 = 0;
+   x = 3.0 * tiny;
+   return !(frexp (tiny, &e1) == 0.5 && e1 == -1073
+            && frexp (-x, &e2) == -0.75 && e2 == -1072
+            && frexp (2.2250738585072009e-308, &e3) == 0.99999999999999978 && e3 == -1022);
+}]])],[gsl_cv_frexp_subnormal="yes"],[gsl_cv_frexp_subnormal="no"],[gsl_cv_frexp_subnormal="yes"])
+])
+
+if test "$gsl_cv_frexp_subnormal" = no ; then
+  AC_DEFINE(HAVE_BROKEN_FREXP,1,[Define this if frexp does not handle subnormal arguments correctly])
+fi
+
 AH_TEMPLATE([HIDE_INLINE_STATIC],[Define if you need to hide the static definitions of inline functions])
 
 AH_BOTTOM([/* Use 0 and 1 for EXIT_SUCCESS and EXIT_FAILURE if we don't have them */
@@ -612,14 +650,6 @@ AH_BOTTOM([/* Substitute gsl functions for missing system functions */
 
 #if !HAVE_DECL_ATANH
 #define atanh gsl_atanh
-#endif
-
-#if !HAVE_DECL_LDEXP
-#define ldexp gsl_ldexp
-#endif
-
-#if !HAVE_DECL_FREXP
-#define frexp gsl_frexp
 #endif
 
 #if !HAVE_DECL_ISINF

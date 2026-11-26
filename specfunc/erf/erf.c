@@ -68,7 +68,7 @@ gsl_sf_erf_e(const double x, gsl_sf_result * result)
  * The square x^2 is evaluated as a two-product decomposition to preserve
  * low-order bits in the exponential argument.  In the extreme tail, the
  * exponent is shifted by an integer multiple of log(2) and the result is
- * scaled back with ldexp() to preserve subnormal values.
+ * scaled back with gsl_ldexp() to preserve subnormal values.
  */
 
 int
@@ -105,7 +105,7 @@ gsl_sf_erf_Z_e(const double x, gsl_sf_result * result)
       const double e1 = exp((double) scale_K * GSL_SF_LN2_HI - 0.5 * h);
       const double e2 = exp((double) scale_K * GSL_SF_LN2_LO - 0.5 * r);
 
-      result->val = ldexp(GSL_SF_INV_SQRT_2PI * e1 * e2, -scale_K);
+      result->val = gsl_ldexp(GSL_SF_INV_SQRT_2PI * e1 * e2, -scale_K);
       result->err = 12.0 * GSL_DBL_EPSILON * fabs(result->val);
       if (result->err == 0.0 && result->val != 0.0)
         result->err = GSL_SF_TRUE_MIN;
@@ -273,7 +273,7 @@ exp_half_residual(const double r)
  *   1/2 * exp(-x^2/2) * erfcx
  *
  * from x*x = h + r.  The exponential is shifted by K binary powers before
- * multiplication by erfcx and restored with ldexp() to avoid premature
+ * multiplication by erfcx and restored with gsl_ldexp() to avoid premature
  * underflow in the extreme tail.
  */
 static double
@@ -284,7 +284,7 @@ scaled_exp_half_square(const double h, const double r, const double erfcx)
   const double e1 = exp((double) scale_K * GSL_SF_LN2_HI - 0.5 * h);
   const double e2 = 1.0 + u + 0.5 * u * u;
 
-  return ldexp(0.5 * e1 * e2 * erfcx, -scale_K);
+  return gsl_ldexp(0.5 * e1 * e2 * erfcx, -scale_K);
 }
 
 /*
@@ -298,7 +298,7 @@ scaled_exp_half_square(const double h, const double r, const double erfcx)
  * with a two-product decomposition of x*x to preserve the low-order bits of
  * the exponential argument.  The small residual exponential is evaluated by
  * a short polynomial.  In the extreme tail, the exponential is shifted by
- * an integer multiple of log(2) and restored with ldexp() to preserve
+ * an integer multiple of log(2) and restored with gsl_ldexp() to preserve
  * representable subnormal values.  Once Q(x) is below the binary64 rounding
  * threshold, zero is returned directly.
  */

@@ -57,7 +57,7 @@ static int expm1_fallback(const double x, gsl_sf_result * result);
  *
  * Finally, exp(x) - 1 is reconstructed from the reduced result and
  * 2^k.  Separate formulas are used for k = 0, k = +/-1, moderate k,
- * and large |k| to avoid cancellation.  ldexp() is used for exact
+ * and large |k| to avoid cancellation.  gsl_ldexp() is used for exact
  * power-of-two scaling rather than direct manipulation of the binary64
  * exponent field used by the original fdlibm implementation.
  *
@@ -205,7 +205,7 @@ expm1_fallback(const double x, gsl_sf_result * result)
   if (k <= -2 || k > 56)
     {
       y = 1.0 - (e - z);
-      y = ldexp(y, k);
+      y = gsl_ldexp(y, k);
       result->val = y - 1.0;
       result->err = 3.0 * (GSL_DBL_EPSILON * fabs(y) +
                            GSL_DBL_EPSILON +
@@ -220,9 +220,9 @@ expm1_fallback(const double x, gsl_sf_result * result)
        * preserves the subtraction of 1 in exp(x) - 1 without forming
        * exp(x) and subtracting 1 afterward.
        */
-      t = 1.0 - ldexp(1.0, -k);
+      t = 1.0 - gsl_ldexp(1.0, -k);
       y = t - (e - z);
-      y = ldexp(y, k);
+      y = gsl_ldexp(y, k);
       result->val = y;
       result->err = 3.0 * GSL_DBL_EPSILON * (fabs(t) + fabs(e) + fabs(z) + fabs(y) + fabs(result->val));
     }
@@ -232,10 +232,10 @@ expm1_fallback(const double x, gsl_sf_result * result)
        * For 20 <= k <= 56, 2^-k is small enough that the alternate
        * reconstruction retains the low-order correction more accurately.
        */
-      t = ldexp(1.0, -k);
+      t = gsl_ldexp(1.0, -k);
       y = z - (e + t);
       y += 1.0;
-      y = ldexp(y, k);
+      y = gsl_ldexp(y, k);
       result->val = y;
       result->err = 3.0 * (GSL_DBL_EPSILON * fabs(z) +
                            GSL_DBL_EPSILON * fabs(e) +

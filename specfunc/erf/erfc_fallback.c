@@ -229,8 +229,8 @@ static void
 split_exp_term(const double x, const double rs, gsl_sf_result * result)
 {
   int e;
-  const double f = frexp(x, &e);
-  const double hi = ldexp(floor(ldexp(f, 20.0)), e - 20);
+  const double f = gsl_frexp(x, &e);
+  const double hi = gsl_ldexp(floor(gsl_ldexp(f, 20.0)), e - 20);
   const double e1 = -hi * hi - 0.5625;
   const double e2 = (hi - x) * (hi + x) + rs;
 

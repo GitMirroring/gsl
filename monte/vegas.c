@@ -252,8 +252,8 @@ gsl_monte_vegas_integrate (gsl_monte_function * f,
               if (state->fscale == 0.0 && fval != 0.0 && gsl_finite (fval))
                 {
                   int e;
-                  frexp (fval, &e);
-                  state->fscale = ldexp (1.0, -e);
+                  gsl_frexp (fval, &e);
+                  state->fscale = gsl_ldexp (1.0, -e);
                 }
 
               if (state->fscale != 0.0)

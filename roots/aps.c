@@ -326,8 +326,8 @@ aps_iterate (void * vstate, gsl_function * f, double * root, double * x_lower, d
             const double fv = (u == a) ? fb : fa;
             int exp_u, exp_v;
 
-            frexp (fu, &exp_u);
-            frexp (fv, &exp_v);
+            gsl_frexp (fu, &exp_u);
+            gsl_frexp (fv, &exp_v);
 
             if (exp_u < exp_v - 50)
               {

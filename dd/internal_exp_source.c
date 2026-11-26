@@ -248,7 +248,7 @@ DD_WRAP(dd_exp)(const gsl_dd a)
     {
       gsl_dd z;
       if (s.hi > 1.0 || (s.hi == 1.0 && s.lo > 0.0))
-        z.hi = ldexp(1.0, -1074);
+        z.hi = gsl_ldexp(1.0, -1074);
       else
         z.hi = 0.0;
       z.lo = 0.0;
@@ -265,7 +265,7 @@ DD_WRAP(dd_exp)(const gsl_dd a)
           double d;
           z.hi = GSL_DBL_MAX;
           d = (s.hi - 1.0) + DD_HALF_ULP_ONE + s.lo;
-          z.lo = ldexp(d, 1024);
+          z.lo = gsl_ldexp(d, 1024);
           return z;
         }
       else
@@ -318,7 +318,7 @@ DD_WRAP(dd_expm1)(const gsl_dd x)
   if (DD_WRAP(exp_core)(&sum, x, &m, 1))
     return ex4_to_dd(sum);      /* sum holds E */
 
-  ex4_add_d(&sum, -ldexp(1.0, (int) -m));
+  ex4_add_d(&sum, -gsl_ldexp(1.0, (int) -m));
   s = ex4_to_dd(sum);
 
   return dd_ldexp(s, (int) m);

@@ -218,7 +218,7 @@ DD_WRAP(log1p_sum)(dd_ex4 * sum, const gsl_dd x)
 
   m = log_normalize(dd_add_d(x, 1.0), &e);
   j = log_center_index(m.hi);
-  p = ldexp((double) j / 128.0, e);
+  p = gsl_ldexp((double) j / 128.0, e);
 
   if (p == 1.0)
     r = x;

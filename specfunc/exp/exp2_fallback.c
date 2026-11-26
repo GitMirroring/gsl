@@ -42,12 +42,12 @@ static int exp2_fallback(const double x, gsl_sf_result * result);
  *   2^r = exp(r log(2)),
  *
  * using a high/low split of log(2) to reduce rounding error.  The
- * integer power 2^n is then applied with ldexp(), so the scaling is
+ * integer power 2^n is then applied with gsl_ldexp(), so the scaling is
  * exact except when the final result is subnormal.
  *
  * Near the upper and lower limits of the binary64 range, the reduction
  * is adjusted so that the intermediate scaling remains representable.
- * Exact integer powers of two are returned directly with ldexp().
+ * Exact integer powers of two are returned directly with gsl_ldexp().
  */
 
 static int
@@ -78,13 +78,13 @@ exp2_fallback(const double x, gsl_sf_result * result)
 
   if (r == 0.0)
     {
-      result->val = ldexp(1.0, n);
+      result->val = gsl_ldexp(1.0, n);
       result->err = 0.0;
       return GSL_SUCCESS;
     }
 
   y = exp(r * ln2_hi + r * ln2_lo);
-  result->val = ldexp(y, n);
+  result->val = gsl_ldexp(y, n);
 
   if (fabs(result->val) < GSL_DBL_MIN)
     result->err = GSL_SF_TRUE_MIN;

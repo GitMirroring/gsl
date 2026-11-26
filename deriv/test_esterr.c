@@ -53,8 +53,8 @@ test_noise(const double x)
 {
   const double two26 = 67108864.0;
   int e;
-  double m = frexp(x, &e);
-  double t = ldexp(fabs(m), 53);         /* integer < 2^53 */
+  double m = gsl_frexp(x, &e);
+  double t = gsl_ldexp(fabs(m), 53);         /* integer < 2^53 */
   double thi = floor(t / two26);
   unsigned long hi = (unsigned long) thi;
   unsigned long lo = (unsigned long) (t - thi * two26);

@@ -60,13 +60,13 @@ split_p(const double a, double * ahi, double * alo)
        * significand directly, retaining at most 26 significant bits in
        * the high part.
        */
-      m = frexp(a, &e);
+      m = gsl_frexp(a, &e);
       if (a > 0.0)
-        n = floor(ldexp(m, 26));
+        n = floor(gsl_ldexp(m, 26));
       else
-        n = ceil(ldexp(m, 26));
+        n = ceil(gsl_ldexp(m, 26));
 
-      *ahi = ldexp(n, e - 26);
+      *ahi = gsl_ldexp(n, e - 26);
       *alo = a - *ahi;
     }
   else

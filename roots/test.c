@@ -266,7 +266,7 @@ test_fsolver_scale (const gsl_root_fsolver_type * T, const root_test_function * 
     {
       size_t n_scaled;
 
-      scale_factor = ldexp (1.0, exponents[i]);
+      scale_factor = gsl_ldexp (1.0, exponents[i]);
       n_scaled = count_evals (T, &G, tf->xmin, tf->xmax);
 
       gsl_test (n_scaled != n,

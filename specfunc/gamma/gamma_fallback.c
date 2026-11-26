@@ -67,7 +67,7 @@
  *
  *   10 < x <= GAMMA_SCALED_X_MAX
  *     Use the scaled large-argument Gamma kernel and reconstruct the
- *     final value with ldexp().
+ *     final value with gsl_ldexp().
  *
  *   x > GAMMA_SCALED_X_MAX
  *     Return overflow.
@@ -130,8 +130,8 @@ gamma_fallback_e(const double x, gsl_sf_result * result)
       if (status)
         return status;
 
-      result->val = ldexp(g.val, ge);
-      result->err = ldexp(g.err, ge);
+      result->val = gsl_ldexp(g.val, ge);
+      result->err = gsl_ldexp(g.err, ge);
 
       if (gsl_isinf(result->val))
         {

@@ -51,7 +51,7 @@
  * double range for large m, although P(l,m) is still significant at
  * higher degrees l. Each seed (and its derivative seeds) is therefore
  * carried as a mantissa and a power-of-two exponent: when |P(m,m)| falls
- * below 2^-960, it is renormalized with frexp(). (One seed update
+ * below 2^-960, it is renormalized with gsl_frexp(). (One seed update
  * multiplies by sin(theta) >= 2^-27, so seeds above 2^-960 stay well
  * inside the normal double range.) Columns whose seed never
  * needed renormalizing are computed exactly as before. The others are
@@ -147,22 +147,22 @@ alf_scale_state(const int e, double * f1, double * f2, double * tz, double * tn)
 {
   if (e < -1000)
     {
-      *f1 = ldexp(1.0, -1000);
-      *f2 = ldexp(1.0, e + 1000);
+      *f1 = gsl_ldexp(1.0, -1000);
+      *f2 = gsl_ldexp(1.0, e + 1000);
     }
   else if (e > 1000)
     {
-      *f1 = ldexp(1.0, 1000);
-      *f2 = ldexp(1.0, e - 1000);
+      *f1 = gsl_ldexp(1.0, 1000);
+      *f2 = gsl_ldexp(1.0, e - 1000);
     }
   else
     {
-      *f1 = ldexp(1.0, e);
+      *f1 = gsl_ldexp(1.0, e);
       *f2 = 1.0;
     }
 
-  *tz = ldexp(1.0, -1022 - e);
-  *tn = ldexp(1.0, -1000 - e);
+  *tz = gsl_ldexp(1.0, -1022 - e);
+  *tn = gsl_ldexp(1.0, -1000 - e);
 }
 
 /* true value of a scaled value v (see alf_scale_state) */
@@ -1060,7 +1060,7 @@ gsl_sf_alf_array(const size_t lmax, const size_t mmax, const double x,
             {
               int e;
 
-              pmm = frexp(pmm, &e);
+              pmm = gsl_frexp(pmm, &e);
               pexp += e;
             }
 
@@ -1194,8 +1194,8 @@ gsl_sf_alf_deriv_array(const size_t lmax, const size_t mmax, const double x,
             {
               int e;
 
-              pmm = frexp(pmm, &e);
-              dpmm = ldexp(dpmm, -e);
+              pmm = gsl_frexp(pmm, &e);
+              dpmm = gsl_ldexp(dpmm, -e);
               pexp += e;
             }
 
@@ -1348,9 +1348,9 @@ gsl_sf_alf_deriv2_array(const size_t lmax, const size_t mmax, const double x,
             {
               int e;
 
-              pmm = frexp(pmm, &e);
-              dpmm = ldexp(dpmm, -e);
-              d2pmm = ldexp(d2pmm, -e);
+              pmm = gsl_frexp(pmm, &e);
+              dpmm = gsl_ldexp(dpmm, -e);
+              d2pmm = gsl_ldexp(d2pmm, -e);
               pexp += e;
             }
 
@@ -1489,8 +1489,8 @@ gsl_sf_alf_vsh_array(const size_t lmax, const size_t mmax, const double x,
                 {
                   int e;
 
-                  pmm = frexp(pmm, &e);
-                  dpmm = ldexp(dpmm, -e);
+                  pmm = gsl_frexp(pmm, &e);
+                  dpmm = gsl_ldexp(dpmm, -e);
                   pexp += e;
                 }
             }
@@ -1634,9 +1634,9 @@ gsl_sf_alf_vsh2_array(const size_t lmax, const size_t mmax, const double x,
                 {
                   int e;
 
-                  pmm = frexp(pmm, &e);
-                  dpmm = ldexp(dpmm, -e);
-                  d2pmm = ldexp(d2pmm, -e);
+                  pmm = gsl_frexp(pmm, &e);
+                  dpmm = gsl_ldexp(dpmm, -e);
+                  d2pmm = gsl_ldexp(d2pmm, -e);
                   pexp += e;
                 }
             }

@@ -194,10 +194,10 @@ hyp1f1_series (const double a, const double alo, const double b, const double bl
               return GSL_EOVRFLW;
             }
           /* rescale by 2^-500 */
-          t = ldexp (t, -500);
-          s = ldexp (s, -500);
-          sabs = ldexp (sabs, -500);
-          skabs = ldexp (skabs, -500);
+          t = gsl_ldexp (t, -500);
+          s = gsl_ldexp (s, -500);
+          sabs = gsl_ldexp (sabs, -500);
+          skabs = gsl_ldexp (skabs, -500);
           r->e2 += 500.0;
         }
 
@@ -270,11 +270,11 @@ hyp1f1_series_dd (const gsl_dd a, const gsl_dd b, const gsl_dd x, hyp1f1_scaled 
         {
           if (!gsl_finite (t.hi))
             return GSL_EOVRFLW;
-          t.hi = ldexp (t.hi, -500);
-          t.lo = ldexp (t.lo, -500);
-          s.hi = ldexp (s.hi, -500);
-          s.lo = ldexp (s.lo, -500);
-          sabs = ldexp (sabs, -500);
+          t.hi = gsl_ldexp (t.hi, -500);
+          t.lo = gsl_ldexp (t.lo, -500);
+          s.hi = gsl_ldexp (s.hi, -500);
+          s.lo = gsl_ldexp (s.lo, -500);
+          sabs = gsl_ldexp (sabs, -500);
           r->e2 += 500.0;
         }
 
@@ -432,7 +432,7 @@ hyp1f1_rec_init (hyp1f1_rec * w, const hyp1f1_scaled * m1, const hyp1f1_scaled *
   w->lx = m0->lx;
   w->f0.hi = m0->v;
   w->f0.lo = 0.0;
-  w->f1.hi = ldexp ((dl == 0.0) ? m1->v : m1->v * exp (dl), (int) (m1->e2 - m0->e2));
+  w->f1.hi = gsl_ldexp ((dl == 0.0) ? m1->v : m1->v * exp (dl), (int) (m1->e2 - m0->e2));
   w->f1.lo = 0.0;
   w->g0 = 0.0;
   w->g1 = fabs (w->f1.hi);
@@ -487,15 +487,15 @@ hyp1f1_rec_step (hyp1f1_rec * w, const gsl_dd p, const gsl_dd q, const gsl_dd d)
   if (m > HYP1F1_BIG || (m < 1.0 / HYP1F1_BIG && m > 0.0))
     {
       int e;
-      frexp (m, &e);
-      w->f0.hi = ldexp (w->f0.hi, -e);
-      w->f0.lo = ldexp (w->f0.lo, -e);
-      w->f1.hi = ldexp (w->f1.hi, -e);
-      w->f1.lo = ldexp (w->f1.lo, -e);
-      w->g0 = ldexp (w->g0, -e);
-      w->g1 = ldexp (w->g1, -e);
-      w->h0 = ldexp (w->h0, -e);
-      w->h1 = ldexp (w->h1, -e);
+      gsl_frexp (m, &e);
+      w->f0.hi = gsl_ldexp (w->f0.hi, -e);
+      w->f0.lo = gsl_ldexp (w->f0.lo, -e);
+      w->f1.hi = gsl_ldexp (w->f1.hi, -e);
+      w->f1.lo = gsl_ldexp (w->f1.lo, -e);
+      w->g0 = gsl_ldexp (w->g0, -e);
+      w->g1 = gsl_ldexp (w->g1, -e);
+      w->h0 = gsl_ldexp (w->h0, -e);
+      w->h1 = gsl_ldexp (w->h1, -e);
       w->e2 += e;
     }
 }
@@ -910,7 +910,7 @@ hyp1f1_result (const int stat, const hyp1f1_scaled * r, const double x, gsl_sf_r
      absolute error bound */
   if (r->v == 0.0 && gsl_finite (r->e))
     {
-      double e = ldexp (r->e, (int) GSL_MIN_DBL (r->e2, 1000.0));
+      double e = gsl_ldexp (r->e, (int) GSL_MIN_DBL (r->e2, 1000.0));
       double L = r->l + ((r->lx != 0.0) ? r->lx * x : 0.0);
       result->val = 0.0;
       result->err = (L < GSL_LOG_DBL_MAX) ? e * exp (L) : GSL_POSINF;
@@ -931,7 +931,7 @@ hyp1f1_result (const int stat, const hyp1f1_scaled * r, const double x, gsl_sf_r
        number, otherwise into L */
     double L = r->l + ((r->lx != 0.0) ? r->lx * x : 0.0);
     double dL = GSL_DBL_EPSILON * (fabs (r->l) + ((r->l != 0.0 && r->lx != 0.0) ? fabs (L) : 0.0));
-    double v = ldexp (r->v, (int) r->e2), e = ldexp (r->e, (int) r->e2);
+    double v = gsl_ldexp (r->v, (int) r->e2), e = gsl_ldexp (r->e, (int) r->e2);
 
     if (r->e2 != 0.0 && (!gsl_finite (v) || fabs (v) < GSL_DBL_MIN))
       {
@@ -1104,8 +1104,8 @@ gsl_sf_hyperg_1F1_renorm_e (const double a, const double b, const double x,
           if (!(fabs (p) <= HYP1F1_BIG) || (fabs (p) < 1.0 / HYP1F1_BIG && p != 0.0))
             {
               int e;
-              frexp (p, &e);
-              p = ldexp (p, -e);
+              gsl_frexp (p, &e);
+              p = gsl_ldexp (p, -e);
               r.e2 += e;
             }
         }

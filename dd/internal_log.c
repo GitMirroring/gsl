@@ -183,12 +183,12 @@ log_normalize(const gsl_dd z, int * e)
   gsl_dd m;
   double f;
 
-  f = frexp(z.hi, e);           /* 0.5 <= f < 1 */
+  f = gsl_frexp(z.hi, e);           /* 0.5 <= f < 1 */
   if (f < 0.75)
     --(*e);
 
-  m.hi = ldexp(z.hi, -*e);
-  m.lo = ldexp(z.lo, -*e);
+  m.hi = gsl_ldexp(z.hi, -*e);
+  m.lo = gsl_ldexp(z.lo, -*e);
 
   return m;
 }

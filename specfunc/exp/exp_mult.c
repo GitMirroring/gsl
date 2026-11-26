@@ -68,7 +68,7 @@ static int
 exp_mult_impl(const double x, const double y, double * val)
 {
   int ey;
-  const double m = frexp(y, &ey);   /* 1/2 <= |m| < 1 */
+  const double m = gsl_frexp(y, &ey);   /* 1/2 <= |m| < 1 */
   double kd;
   gsl_dd t, f;
 
@@ -83,7 +83,7 @@ exp_mult_impl(const double x, const double y, double * val)
   kd = floor(x / M_LN2 + 0.5);
   f = exp_mult_reduce(t, kd, M_LN2, GSL_SF_LN2_DD_LO);
 
-  *val = ldexp(m * (exp(f.hi) * (1.0 + f.lo)), ey + (int) kd);
+  *val = gsl_ldexp(m * (exp(f.hi) * (1.0 + f.lo)), ey + (int) kd);
 
   if (!gsl_finite(*val))
     return GSL_EOVRFLW;
@@ -101,7 +101,7 @@ static int
 exp_mult_e10_impl(const double x, const double y, double * val, int * e10)
 {
   int ey;
-  const double m = frexp(y, &ey);
+  const double m = gsl_frexp(y, &ey);
   double nd;
   gsl_dd t, r;
 

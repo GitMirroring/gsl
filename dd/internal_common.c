@@ -125,7 +125,7 @@ dd_sub_d(const gsl_dd a, const double b)
 /*
  * Scale a double-double number by an integral power of two.
  *
- * Apply ldexp() independently to the high and low components.  This
+ * Apply gsl_ldexp() independently to the high and low components.  This
  * preserves the represented value exactly provided the component
  * scalings do not overflow or underflow.
  */
@@ -134,8 +134,8 @@ dd_ldexp(const gsl_dd a, const int e)
 {
   gsl_dd r;
 
-  r.hi = ldexp(a.hi, e);
-  r.lo = ldexp(a.lo, e);
+  r.hi = gsl_ldexp(a.hi, e);
+  r.lo = gsl_ldexp(a.lo, e);
 
   return r;
 }

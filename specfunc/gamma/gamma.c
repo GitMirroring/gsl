@@ -356,10 +356,10 @@ gsl_sf_gammainv_e(const double x, gsl_sf_result * result)
        * factor represented in scaled form.
        */
       qmant = ((-x) * tmp.val / M_PI) * gm.val;
-      qmant = frexp(qmant, &qexp);
+      qmant = gsl_frexp(qmant, &qexp);
       qexp += ge;
 
-      result->val = ldexp(qmant, qexp);
+      result->val = gsl_ldexp(qmant, qexp);
 
       if (gsl_isinf(result->val))
         {
@@ -372,7 +372,7 @@ gsl_sf_gammainv_e(const double x, gsl_sf_result * result)
                fabs(((-x) * tmp.val / M_PI)) * gm.err +
                3.0 * GSL_DBL_EPSILON * fabs(qmant);
 
-      result->err = ldexp(eqmant, qexp);
+      result->err = gsl_ldexp(eqmant, qexp);
 
       return GSL_SUCCESS;
     }
@@ -455,7 +455,7 @@ gsl_sf_gammainv_e(const double x, gsl_sf_result * result)
       if (status)
         return status;
 
-      result->val = ldexp(1.0 / gm.val, -ge);
+      result->val = gsl_ldexp(1.0 / gm.val, -ge);
 
       if (fabs(result->val) < GSL_DBL_MIN)
         result->err = GSL_SF_TRUE_MIN;
@@ -567,11 +567,11 @@ gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
       int e, scale;
       double m, p, y;
 
-      m = frexp(x, &e);
+      m = gsl_frexp(x, &e);
       p = pow(m, (double) n);
       p /= fact_mant[n];
       scale = n * e - (int) fact_exp[n];
-      y = ldexp(p, scale);
+      y = gsl_ldexp(p, scale);
 
       if (gsl_isinf(y))
         OVERFLOW_ERROR(result);
@@ -626,7 +626,7 @@ gsl_sf_taylorcoeff_e(const int n, const double x, gsl_sf_result * result)
                - ds / (2.0 * nd);
 
           w = gsl_dd_two_prod(m, s);
-          y = ldexp(w.hi + (w.lo + w.hi * (dm + ds)), k);
+          y = gsl_ldexp(w.hi + (w.lo + w.hi * (dm + ds)), k);
 
           if (gsl_isinf(y))
             OVERFLOW_ERROR(result);
@@ -701,7 +701,7 @@ gsl_sf_fact_e(const unsigned int n, gsl_sf_result * result)
   if (n > GSL_SF_FACT_NMAX)
     OVERFLOW_ERROR(result);
 
-  result->val = ldexp(fact_mant[n], (int) fact_exp[n]);
+  result->val = gsl_ldexp(fact_mant[n], (int) fact_exp[n]);
 
   if (n <= 22U)
     result->err = 0.0;      /* exact */
@@ -744,7 +744,7 @@ gsl_sf_doublefact_e(const unsigned int n, gsl_sf_result * result)
     {
       /* even: (2k)!! = 2^k k!, exact scaling of the correctly rounded k! */
       const unsigned int k = n / 2U;
-      result->val = ldexp(fact_mant[k], (int) fact_exp[k] + (int) k);
+      result->val = gsl_ldexp(fact_mant[k], (int) fact_exp[k] + (int) k);
     }
 
   result->err = GSL_DBL_EPSILON * fabs(result->val);

@@ -74,7 +74,7 @@ gamma_div_rem(const double x, const double a, const double q)
  * correction dm, for the caller to apply after its own (compensated)
  * product.  A result found to be below exp(GSL_SF_LOG_TRUE_MIN - 50)
  * before the full evaluation is returned as m = 0; otherwise an
- * underflowing result has k so negative that the caller's ldexp() gives 0.
+ * underflowing result has k so negative that the caller's gsl_ldexp() gives 0.
  *
  * Returns 0 when a >= 1e20, |d| > 1e6, or no scaling of q^a is in range;
  * the caller must then use double-double.
@@ -103,7 +103,7 @@ gamma_pow_exp_scaled(const double a, const double x, const double d, const doubl
 
   if (!(m > 1.0e-300 && m < 1.0e280) && a == floor(a) && a <= 1.0e6)
     {
-      base = frexp(q, &e);
+      base = gsl_frexp(q, &e);
       if (base < M_SQRT1_2)
         {
           base *= 2.0;
@@ -121,7 +121,7 @@ gamma_pow_exp_scaled(const double a, const double x, const double d, const doubl
 
       if (h > 1.0e-280 && h < 1.0e280)
         {
-          const double f = frexp(h, &e);
+          const double f = gsl_frexp(h, &e);
           const gsl_dd f2 = gsl_dd_two_prod(f, f);
 
           m = f2.hi;

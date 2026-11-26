@@ -10,7 +10,7 @@ working tree is never configured, modified or built.
 Checks (see --list):
 
   static      exported symbols prefixed with gsl_/GSL_ (cblas_ for CBLAS);
-              config.h use in sources and installed headers; all headers
+              no direct ldexp/frexp calls in the library; config.h use in sources and installed headers; all headers
               compiled together (C, C++) and each header on its own (C89
               -pedantic, C99 with HAVE_INLINE, C11 after <complex.h>, C++);
               version numbers consistent (configure.ac, NEWS, doc/conf.py);
@@ -19,7 +19,7 @@ Checks (see --list):
               math fallbacks), strict C99, C2x, the fallbacks with a C99
               compiler, -O3 with FMA contraction, 32-bit x86, without
               HAVE_INLINE, with GSL_DISABLE_DEPRECATED, ASan+UBSan, and
-              clang/icc if present; implicit declarations are failures
+              clang/icc/musl if present; implicit declarations are failures
   dynamic     GSL_TEST_VERBOSE=1 make check; example programs
               (scripts/test_examples.py); valgrind memcheck of every test
               program (static build, so that the test programs are not
@@ -645,6 +645,34 @@ def check_config_h(ctx):
                   % (len(bad_h), len(missing), len(compiled)), details)
 
 
+LDFREXP_RE = re.compile(r"(?<![A-Za-z0-9_])(ldexp|frexp)\s*\(")
+
+
+def strip_c_comments(text):
+    return re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
+
+
+def check_ldfrexp(ctx):
+    """the library calls gsl_ldexp and gsl_frexp, never ldexp and frexp
+    directly: those select the system function or the fallback, which
+    configure chooses (NetBSD's ldexp truncates subnormal results)"""
+    src = prepare_source(ctx)
+    bad = []
+    for path in sorted(glob.glob(os.path.join(src, "**", "*.[ch]"), recursive=True)):
+        rel = os.path.relpath(path, src)
+        name = os.path.basename(rel)
+        if (rel.startswith(("doc", "sys/ldfrexp.c")) or name.startswith("test")
+                or name in ("demo.c", "conftest.c")):
+            continue
+        text = strip_c_comments(open(path, errors="replace").read())
+        for i, line in enumerate(text.splitlines(), 1):
+            if LDFREXP_RE.search(line):
+                bad.append("%s:%d: %s" % (rel, i, line.strip()))
+    if bad:
+        return Result("FAIL", "%d direct calls of ldexp/frexp (use gsl_ldexp/gsl_frexp)" % len(bad), bad[:40])
+    return Result("PASS", "no direct calls of ldexp/frexp in library sources")
+
+
 def check_headers(ctx):
     """all headers together (C, C++), and each header on its own in several modes"""
     bdir = ensure_default_build(ctx)
@@ -1059,6 +1087,7 @@ def all_checks():
         ("config-h", "static", "config.h use in headers and sources", check_config_h),
         ("build:default", "build", BUILDS["default"][0], lambda c: check_build(c, "default")),
         ("symbols", "static", "exported symbols prefixed with gsl_", check_symbols),
+        ("ldfrexp", "static", "library sources call gsl_ldexp/gsl_frexp, not ldexp/frexp", check_ldfrexp),
         ("headers", "static", "headers compiled together and alone (C89, C99, C11, C++)", check_headers),
         ("examples", "dynamic", "documentation examples (scripts/test_examples.py)", check_examples),
         ("verbose", "dynamic", "make check with GSL_TEST_VERBOSE=1", check_verbose),
@@ -1082,7 +1111,7 @@ def all_checks():
     return checks
 
 
-QUICK = ["version", "config-h", "build:default", "symbols", "headers", "examples", "abi", "docs:html"]
+QUICK = ["version", "config-h", "build:default", "symbols", "ldfrexp", "headers", "examples", "abi", "docs:html"]
 
 
 def select(checks, args):

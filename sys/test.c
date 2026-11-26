@@ -25,6 +25,201 @@
 #include <gsl/gsl_ieee_utils.h>
 
 #include "log1p_fallback.c"
+#include "ldexp_fallback.c"
+#include "frexp_fallback.c"
+
+/* tests of an ldexp implementation f, the production gsl_ldexp (system
+   or fallback) or ldexp_fallback */
+
+static void
+test_ldexp (double (*f) (const double, const int), const char *name)
+{
+  double y, y_expected;
+  
+  y = f (M_PI, -2);
+  y_expected = M_PI_4;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(pi,-2)", name);
+
+  y = f (1.0, 2);
+  y_expected = 4.000000;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(1.0,2)", name);
+
+  y = f (0.0, 2);
+  y_expected = 0.0;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(0.0,2)", name);
+
+  y = f (9.999999999999998890e-01, 1024);
+  y_expected = GSL_DBL_MAX;
+  gsl_test_rel (y, y_expected, 1e-15, "%s DBL_MAX", name);
+
+  y = f (1e308, -2000);
+  y_expected = 8.7098098162172166755761e-295;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(1e308,-2000)", name);
+
+  y = f (GSL_DBL_MIN, 2000);
+  y_expected = 2.554675596204441378334779940e294;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(DBL_MIN,2000)", name);
+
+  /* Test subnormals */
+
+  {
+    int i = 0;
+    volatile double x = GSL_DBL_MIN;
+    y_expected = 2.554675596204441378334779940e294;
+    
+    x /= 2;
+    while (x > 0)
+      {
+        i++ ;
+        y = f (x, 2000 + i);
+        gsl_test_rel (y, y_expected, 1e-15, "%s(DBL_MIN/2**%d,%d)", name,i,2000+i);
+        x /= 2;
+      }
+  }
+
+  /* Test rounding of subnormal results (some system ldexp truncate
+     them; then gsl_ldexp uses the fallback) */
+
+  {
+    /* x * 2^e, expected multiple of 2^-1074; gsl_test_rel rejects
+       subnormal values, so compare exactly */
+    static const struct { double x; int e; double m; } t[] = {
+      { 0.75, -1074, 1.0 }, { 1.25, -1074, 1.0 },     /* round up, down */
+      { 0.75, -1073, 2.0 }, { 1.25, -1073, 2.0 },     /* ties to even */
+      { 0.5, -1074, 0.0 }, { -0.75, -1074, -1.0 }
+    };
+    const double tiny = 4.9406564584124654e-324;   /* 2^-1074 */
+    size_t i;
+
+    for (i = 0; i < sizeof (t) / sizeof (t[0]); i++)
+      {
+        y = f (t[i].x, t[i].e);
+        gsl_test (y != t[i].m * tiny, "%s(%g,%d) = %.17g, expected %.17g", name,
+                  t[i].x, t[i].e, y, t[i].m * tiny);
+      }
+  }
+
+  /* Test that gsl_ldexp(1, n) = 2^n exactly for every representable
+     power, against repeated doubling and halving (this checks the
+     table constants in ldfrexp_table.h) */
+
+  {
+    volatile double p = 1.0;
+    int n, nbad = 0;
+
+    for (n = 0; n <= 1023; n++, p *= 2.0)
+      nbad += (f (1.0, n) != p);
+
+    for (n = 0, p = 1.0; n >= -1074; n--, p /= 2.0)
+      nbad += (f (1.0, n) != p);
+
+    gsl_test (nbad, "%s(1,n) = 2^n for -1074 <= n <= 1023 (%d wrong)", name, nbad);
+  }
+}
+
+/* tests of a frexp implementation f, gsl_frexp or frexp_fallback */
+
+static void
+test_frexp (double (*f) (const double, int *), const char *name)
+{
+  double y, y_expected;
+  int e, e_expected;
+  
+  y = f (0.0, &e);
+  y_expected = 0;
+  e_expected = 0;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(0) fraction", name);
+  gsl_test_int (e, e_expected, "%s(0) exponent", name);
+
+  y = f (M_PI, &e);
+  y_expected = M_PI_4;
+  e_expected = 2;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(pi) fraction", name);
+  gsl_test_int (e, e_expected, "%s(pi) exponent", name);
+
+  y = f (2.0, &e);
+  y_expected = 0.5;
+  e_expected = 2;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(2.0) fraction", name);
+  gsl_test_int (e, e_expected, "%s(2.0) exponent", name);
+
+  y = f (1.0 / 4.0, &e);
+  y_expected = 0.5;
+  e_expected = -1;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(0.25) fraction", name);
+  gsl_test_int (e, e_expected, "%s(0.25) exponent", name);
+
+  y = f (1.0 / 4.0 - 4.0 * GSL_DBL_EPSILON, &e);
+  y_expected = 0.999999999999996447;
+  e_expected = -2;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(0.25-eps) fraction", name);
+  gsl_test_int (e, e_expected, "%s(0.25-eps) exponent", name);
+
+  y = f (GSL_DBL_MAX, &e);
+  y_expected = 9.999999999999998890e-01;
+  e_expected = 1024;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(DBL_MAX) fraction", name);
+  gsl_test_int (e, e_expected, "%s(DBL_MAX) exponent", name);
+
+  y = f (-GSL_DBL_MAX, &e);
+  y_expected = -9.999999999999998890e-01;
+  e_expected = 1024;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(-DBL_MAX) fraction", name);
+  gsl_test_int (e, e_expected, "%s(-DBL_MAX) exponent", name);
+
+  y = f (GSL_DBL_MIN, &e);
+  y_expected = 0.5;
+  e_expected = -1021;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(DBL_MIN) fraction", name);
+  gsl_test_int (e, e_expected, "%s(DBL_MIN) exponent", name);
+
+  y = f (-GSL_DBL_MIN, &e);
+  y_expected = -0.5;
+  e_expected = -1021;
+  gsl_test_rel (y, y_expected, 1e-15, "%s(-DBL_MIN) fraction", name);
+  gsl_test_int (e, e_expected, "%s(-DBL_MIN) exponent", name);
+
+  /* Test subnormals */
+
+  {
+    int i = 0;
+    volatile double x = GSL_DBL_MIN;
+    y_expected = 0.5;
+    e_expected = -1021;
+    
+    x /= 2;
+
+    while (x > 0)
+      {
+        e_expected--;
+        i++ ;
+        
+        y = f (x, &e);
+        gsl_test_rel (y, y_expected, 1e-15, "%s(DBL_MIN/2**%d) fraction", name,i);
+        gsl_test_int (e, e_expected, "%s(DBL_MIN/2**%d) exponent", name, i);
+        x /= 2;
+      }
+  }
+
+  /* Test subnormals which are not powers of two, exactly */
+
+  {
+    const double tiny = 4.9406564584124654e-324;   /* 2^-1074 */
+    static const struct { double m; double f; int e; } t[] = {
+      { 3.0, 0.75, -1072 },                         /* 3 * 2^-1074 */
+      { -3.0, -0.75, -1072 },
+      { 4503599627370495.0, 0.99999999999999978, -1022 }  /* largest subnormal */
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof (t) / sizeof (t[0]); i++)
+      {
+        y = f (t[i].m * tiny, &e);
+        gsl_test (y != t[i].f || e != t[i].e, "%s(%g * 2^-1074) = %.17g * 2^%d, expected %.17g * 2^%d",
+                  name, t[i].m, y, e, t[i].f, t[i].e);
+      }
+  }
+}
 
 int
 main (void)
@@ -435,127 +630,12 @@ main (void)
     gsl_test_rel (gsl_pow_int (2.0, INT_MIN), 0.0, 0.0, "gsl_pow_int(2,INT_MIN)");
   }
 
-  /* Test for ldexp */
+  /* Test for ldexp and frexp: the production functions and the fallbacks */
 
-  y = gsl_ldexp (M_PI, -2);
-  y_expected = M_PI_4;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(pi,-2)");
-
-  y = gsl_ldexp (1.0, 2);
-  y_expected = 4.000000;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(1.0,2)");
-
-  y = gsl_ldexp (0.0, 2);
-  y_expected = 0.0;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(0.0,2)");
-
-  y = gsl_ldexp (9.999999999999998890e-01, 1024);
-  y_expected = GSL_DBL_MAX;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp DBL_MAX");
-
-  y = gsl_ldexp (1e308, -2000);
-  y_expected = 8.7098098162172166755761e-295;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(1e308,-2000)");
-
-  y = gsl_ldexp (GSL_DBL_MIN, 2000);
-  y_expected = 2.554675596204441378334779940e294;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(DBL_MIN,2000)");
-
-  /* Test subnormals */
-
-  {
-    int i = 0;
-    volatile double x = GSL_DBL_MIN;
-    y_expected = 2.554675596204441378334779940e294;
-    
-    x /= 2;
-    while (x > 0)
-      {
-        i++ ;
-        y = gsl_ldexp (x, 2000 + i);
-        gsl_test_rel (y, y_expected, 1e-15, "gsl_ldexp(DBL_MIN/2**%d,%d)",i,2000+i);
-        x /= 2;
-      }
-  }
-
-
-  /* Test for frexp */
-
-  y = gsl_frexp (0.0, &e);
-  y_expected = 0;
-  e_expected = 0;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(0) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(0) exponent");
-
-  y = gsl_frexp (M_PI, &e);
-  y_expected = M_PI_4;
-  e_expected = 2;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(pi) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(pi) exponent");
-
-  y = gsl_frexp (2.0, &e);
-  y_expected = 0.5;
-  e_expected = 2;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(2.0) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(2.0) exponent");
-
-  y = gsl_frexp (1.0 / 4.0, &e);
-  y_expected = 0.5;
-  e_expected = -1;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(0.25) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(0.25) exponent");
-
-  y = gsl_frexp (1.0 / 4.0 - 4.0 * GSL_DBL_EPSILON, &e);
-  y_expected = 0.999999999999996447;
-  e_expected = -2;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(0.25-eps) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(0.25-eps) exponent");
-
-  y = gsl_frexp (GSL_DBL_MAX, &e);
-  y_expected = 9.999999999999998890e-01;
-  e_expected = 1024;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(DBL_MAX) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(DBL_MAX) exponent");
-
-  y = gsl_frexp (-GSL_DBL_MAX, &e);
-  y_expected = -9.999999999999998890e-01;
-  e_expected = 1024;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(-DBL_MAX) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(-DBL_MAX) exponent");
-
-  y = gsl_frexp (GSL_DBL_MIN, &e);
-  y_expected = 0.5;
-  e_expected = -1021;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(DBL_MIN) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(DBL_MIN) exponent");
-
-  y = gsl_frexp (-GSL_DBL_MIN, &e);
-  y_expected = -0.5;
-  e_expected = -1021;
-  gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(-DBL_MIN) fraction");
-  gsl_test_int (e, e_expected, "gsl_frexp(-DBL_MIN) exponent");
-
-  /* Test subnormals */
-
-  {
-    int i = 0;
-    volatile double x = GSL_DBL_MIN;
-    y_expected = 0.5;
-    e_expected = -1021;
-    
-    x /= 2;
-
-    while (x > 0)
-      {
-        e_expected--;
-        i++ ;
-        
-        y = gsl_frexp (x, &e);
-        gsl_test_rel (y, y_expected, 1e-15, "gsl_frexp(DBL_MIN/2**%d) fraction",i);
-        gsl_test_int (e, e_expected, "gsl_frexp(DBL_MIN/2**%d) exponent", i);
-        x /= 2;
-      }
-  }
+  test_ldexp (gsl_ldexp, "gsl_ldexp");
+  test_ldexp (ldexp_fallback, "ldexp_fallback");
+  test_frexp (gsl_frexp, "gsl_frexp");
+  test_frexp (frexp_fallback, "frexp_fallback");
 
 
   /* Test for approximate floating point comparison */

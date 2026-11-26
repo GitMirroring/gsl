@@ -37,12 +37,12 @@ gsl_fcmp (const double x1, const double x2, const double epsilon)
   {
     double max = (fabs (x1) > fabs (x2)) ? x1 : x2;
 
-    frexp (max, &exponent);
+    gsl_frexp (max, &exponent);
   }
 
   /* Form a neighborhood of size  2 * delta */
 
-  delta = ldexp (epsilon, exponent);
+  delta = gsl_ldexp (epsilon, exponent);
 
   difference = x1 - x2;
 

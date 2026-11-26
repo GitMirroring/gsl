@@ -104,9 +104,9 @@ rand48_get_double (void * vstate)
 
   rand48_advance (state) ;  
 
-  return (ldexp((double) state->x2, -16)
-          + ldexp((double) state->x1, -32) 
-          + ldexp((double) state->x0, -48)) ;
+  return (gsl_ldexp((double) state->x2, -16)
+          + gsl_ldexp((double) state->x1, -32) 
+          + gsl_ldexp((double) state->x0, -48)) ;
 }
 
 static void

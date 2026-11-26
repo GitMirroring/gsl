@@ -600,8 +600,8 @@ test_dd_normalized(const gsl_dd x, const char *name, const size_t i)
   else
     {
       ah = fabs(x.hi);
-      (void) frexp(ah, &e);
-      half_ulp = ldexp(1.0, e - 54);
+      (void) gsl_frexp(ah, &e);
+      half_ulp = gsl_ldexp(1.0, e - 54);
       status = fabs(x.lo) > half_ulp;
     }
 

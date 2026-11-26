@@ -2,6 +2,7 @@
  * 
  * Copyright (C) 2002, Gert Van den Eynde
  * Copyright (C) 2007, Brian Gough
+ * Copyright (C) 2026 Patrick Alken
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,89 +23,39 @@
 #include <math.h>
 #include <gsl/gsl_math.h>
 
+/* gsl_ldexp and gsl_frexp use the system ldexp and frexp, unless
+   configure found them missing or inaccurate for subnormal values (as
+   NetBSD's ldexp, which truncates subnormal results); then the exact
+   fallbacks are used.  GSL calls these instead of ldexp and frexp. */
+
+#if HAVE_DECL_LDEXP && !defined(HAVE_BROKEN_LDEXP)
+#define USE_SYSTEM_LDEXP 1
+#else
+#include "ldexp_fallback.c"
+#endif
+
+#if HAVE_DECL_FREXP && !defined(HAVE_BROKEN_FREXP)
+#define USE_SYSTEM_FREXP 1
+#else
+#include "frexp_fallback.c"
+#endif
+
 double
 gsl_ldexp (const double x, const int e)
 {
-  int ex;
-  
-  if (x == 0.0)
-    {
-      return x;
-    }
-
-  {
-    double y = gsl_frexp (x, &ex);
-    double e2 = e + ex, p2;
-    
-    if (e2 >= DBL_MAX_EXP)
-      {
-	y *= pow (2.0, e2 - DBL_MAX_EXP + 1);
-	e2 = DBL_MAX_EXP - 1;
-      }
-    else if (e2 <= DBL_MIN_EXP)
-      {
-	y *= pow (2.0, e2 - DBL_MIN_EXP - 1);
-	e2 = DBL_MIN_EXP + 1;
-      }
-    
-    p2 = pow (2.0, e2);
-    return y * p2;
-  }
+#ifdef USE_SYSTEM_LDEXP
+  return ldexp (x, e);
+#else
+  return ldexp_fallback (x, e);
+#endif
 }
 
 double
 gsl_frexp (const double x, int *e)
 {
-  if (x == 0.0)
-    {
-      *e = 0;
-      return 0.0;
-    }
-  else if (!gsl_finite (x))
-    {
-      *e = 0;
-      return x;
-    }
-  else if (fabs (x) >= 0.5 && fabs (x) < 1)     /* Handle the common case */
-    {
-      *e = 0;
-      return x;
-    }
-  else
-    {
-      double ex = ceil (log (fabs (x)) / M_LN2);
-      int ei = (int) ex;
-      double f;
-
-      /* Prevent underflow and overflow of 2**(-ei) */
-      if (ei < DBL_MIN_EXP)
-        ei = DBL_MIN_EXP;
-
-      if (ei > -DBL_MIN_EXP)
-        ei = -DBL_MIN_EXP;
-
-      f = x * pow (2.0, -ei);
-
-      if (!gsl_finite (f))
-        {
-          /* This should not happen */
-          *e = 0;
-          return f;
-        }
-
-      while (fabs (f) >= 1.0)
-        {
-          ei++;
-          f /= 2.0;
-        }
-
-      while (fabs (f) > 0 && fabs (f) < 0.5)
-        {
-          ei--;
-          f *= 2.0;
-        }
-
-      *e = ei;
-      return f;
-    }
+#ifdef USE_SYSTEM_FREXP
+  return frexp (x, e);
+#else
+  return frexp_fallback (x, e);
+#endif
 }

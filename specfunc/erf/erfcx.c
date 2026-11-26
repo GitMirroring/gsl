@@ -224,7 +224,7 @@ exp_x2(const double x, gsl_sf_result * result)
  *
  *   0.125 <= x < 0.5.
  *
- * The interval is divided into 64 subintervals.  frexp() is used to select
+ * The interval is divided into 64 subintervals.  gsl_frexp() is used to select
  * the appropriate coefficient set and to map x to a local variable
  * t in [-1,1].  The corresponding degree-9 polynomial is then evaluated
  * by Horner's method.
@@ -234,7 +234,7 @@ static int
 kernel_cheb(const double x, gsl_sf_result * result)
 {
   int je;
-  const double xm = frexp(x, &je);
+  const double xm = gsl_frexp(x, &je);
   const int ip = (int)(64 * xm);
   const int i = je * 32 + ip + 32;
   const double t = 128 * xm - (1 + 2 * ip);

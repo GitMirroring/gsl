@@ -1,7 +1,7 @@
 noinst_LTLIBRARIES = libgslsys.la 
 
 pkginclude_HEADERS = gsl_sys.h
-noinst_HEADERS = log1p_fallback.c
+noinst_HEADERS = log1p_fallback.c ldexp_fallback.c frexp_fallback.c ldfrexp_table.h
 
 libgslsys_la_SOURCES = minmax.c prec.c hypot.c coerce.c invhyp.c log1p.c pow_int.c infnan.c fdiv.c fcmp.c ldfrexp.c
 

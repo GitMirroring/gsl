@@ -877,9 +877,9 @@ gamma_inc_xpow_exp_scaled(const double a, const double x, const double S,
 
     k = floor(lr.hi / M_LN2 + 0.5);
     er = gsl_dd_exp(gsl_dd_sub(lr, gsl_dd_mul_d(ln2, k)));
-    m = frexp(S, &j);
+    m = gsl_frexp(S, &j);
 
-    result->val = ldexp((er.hi + er.lo) * m, (int) k + j);
+    result->val = gsl_ldexp((er.hi + er.lo) * m, (int) k + j);
 
     if (!gsl_finite(result->val))
       {
@@ -1152,8 +1152,8 @@ gamma_inc_temme_eval(const double a, const double x, const int target, gsl_sf_re
       if (gamma_inc_exp_aphi(a, x, 0.0, &m, &dm, &k))
         {
           const gsl_dd v = gsl_dd_two_prod(m, bracket);
-          value = ldexp(v.hi + (v.lo + v.hi * dm), k);
-          err = ldexp(m * errfac, k);
+          value = gsl_ldexp(v.hi + (v.lo + v.hi * dm), k);
+          err = gsl_ldexp(m * errfac, k);
         }
       else
         {
@@ -1262,7 +1262,7 @@ gamma_inc_rgammax_large(const double a, const double x)
   if (gamma_inc_exp_aphi(a, x, -E, &m, &dm, &k))
     {
       const gsl_dd v = gsl_dd_two_prod(m, sqrt(a * (0.5 / M_PI)));
-      return ldexp(v.hi + (v.lo + v.hi * dm), k);
+      return gsl_ldexp(v.hi + (v.lo + v.hi * dm), k);
     }
 
   {
@@ -1323,7 +1323,7 @@ gamma_inc_rgammax(const double a, const double x)
       /*
        * exp(-x) alone would underflow before the product does: apply
        * exp(-x) = 2^(-k) exp(-r), with the Cody-Waite reduction
-       * r = x - k log(2), at the end with ldexp().  For x >= 2000 the result
+       * r = x - k log(2), at the end with gsl_ldexp().  For x >= 2000 the result
        * is below 2000^20 exp(-2000), far below the smallest subnormal.
        */
       double k, r, v;
@@ -1340,7 +1340,7 @@ gamma_inc_rgammax(const double a, const double x)
       else
         v /= gsl_sf_gamma(a);
 
-      return ldexp(v, -(int) k);
+      return gsl_ldexp(v, -(int) k);
     }
 
   if (a < 0.25)

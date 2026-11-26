@@ -36,7 +36,7 @@ sqrt_prepare(const gsl_dd a, int * e)
   gsl_dd m;
   int k;
 
-  (void) frexp(a.hi, &k);
+  (void) gsl_frexp(a.hi, &k);
 
   if (k & 1)
     --k;

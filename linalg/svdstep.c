@@ -133,10 +133,10 @@ create_schur (double d0, double f0, double d1, double * c, double * s)
     {
       double scale;
       int d0_exp, f0_exp;
-      frexp(d0, &d0_exp);
-      frexp(f0, &f0_exp);
+      gsl_frexp(d0, &d0_exp);
+      gsl_frexp(f0, &f0_exp);
       /* Bring |d0*f0| into the range GSL_DBL_MIN to GSL_DBL_MAX */
-      scale = ldexp(1.0, -(d0_exp + f0_exp)/4);
+      scale = gsl_ldexp(1.0, -(d0_exp + f0_exp)/4);
       d0 *= scale;
       f0 *= scale;
       d1 *= scale;
