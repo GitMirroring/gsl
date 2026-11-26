@@ -91,7 +91,8 @@ figures =                              \
   images/siman-final-route.png         \
   images/siman-initial-route.png       \
   images/siman-test.png                \
-  images/sparse_poisson.png
+  images/sparse_poisson.png            \
+  images/specfun2.png
 
 rst_files =                            \
   autoconf.rst                         \
@@ -143,6 +144,7 @@ rst_files =                            \
   sort.rst                             \
   spblas.rst                           \
   specfunc-airy.rst                    \
+  specfunc-alf.rst                     \
   specfunc-bessel.rst                  \
   specfunc-clausen.rst                 \
   specfunc-coulomb.rst                 \

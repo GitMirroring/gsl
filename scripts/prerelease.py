@@ -112,6 +112,7 @@ class Context:
         self.src = None             # exported source tree
         self.commit = None
         self.builds = {}            # name -> build dir of successful builds
+        self.dist_src = None        # unpacked tarball for the docs checks
         self.current_log = None
 
     # status output: terminal and master log
@@ -833,24 +834,35 @@ def check_distcheck(ctx, install_sh=False):
     return Result("PASS", "distribution tarball builds and passes make check")
 
 
-def check_tarball(ctx):
-    """make dist, unpack, configure, then build the library and the test
-    programs under ulimit -v (HACKING: compiling must not need excessive
-    memory), and run the tests under a looser limit"""
+def make_dist(ctx):
+    """make dist-gzip in the default build; the path of the tarball"""
     bdir = ensure_default_build(ctx)
     ctx.make(bdir, ["dist-gzip"])
     tars = sorted(glob.glob(os.path.join(bdir, "gsl-*.tar.gz")), key=os.path.getmtime)
     if not tars:
         raise CheckError("make dist produced no tarball")
-    tdir = os.path.join(ctx.workdir, "tarball")
+    return tars[-1]
+
+
+def unpack(ctx, tar, tdir):
+    """unpack tar into the emptied directory tdir; its top directory"""
     if os.path.exists(tdir):
         shutil.rmtree(tdir)
     os.makedirs(tdir)
-    ctx.run(["tar", "-xzf", tars[-1]], tdir)
-    top = os.path.join(tdir, os.path.basename(tars[-1])[:-len(".tar.gz")])
+    ctx.run(["tar", "-xzf", tar], tdir)
+    return os.path.join(tdir, os.path.basename(tar)[:-len(".tar.gz")])
+
+
+def check_tarball(ctx):
+    """make dist, unpack, configure, then build the library and the test
+    programs under ulimit -v (HACKING: compiling must not need excessive
+    memory), and run the tests under a looser limit"""
+    tar = make_dist(ctx)
+    tdir = os.path.join(ctx.workdir, "tarball")
+    top = unpack(ctx, tar, tdir)
     ctx.run(["./configure"], top)
     kb, test_kb = ctx.args.ulimit_kb, ctx.args.test_ulimit_kb
-    name = os.path.basename(tars[-1])
+    name = os.path.basename(tar)
     for what, targets in (("the library", ""), ("the test programs", " -k check TESTS=")):
         rc = ctx.run("ulimit -v %d && make -j%d%s" % (kb, ctx.jobs, targets), top, shell=True, check=False)
         if rc != 0:
@@ -874,15 +886,23 @@ def check_docs(ctx, target):
         return Result("SKIP", "latexmk not found")
     if target == "info" and not which("makeinfo"):
         return Result("SKIP", "makeinfo not found")
-    src = prepare_source(ctx)
+    # build from the unpacked distribution tarball, so that files missing
+    # from the doc/ Makefile.am lists are found
+    if not ctx.dist_src:
+        ctx.dist_src = unpack(ctx, make_dist(ctx), os.path.join(ctx.workdir, "docs-src"))
+    src = ctx.dist_src
     out = os.path.join(ctx.workdir, "docs")
     rc = ctx.run(["sphinx-build", "-M", target, os.path.join(src, "doc"), out, "-q"], src, check=False)
     log = tail(ctx.current_log, 5000)
-    warns = [l for l in log if "WARNING" in l or "ERROR" in l]
+    # docutils reports a missing include as CRITICAL, without a nonzero exit
+    errors = [l for l in log if "ERROR" in l or "SEVERE" in l or "CRITICAL" in l]
+    warns = [l for l in log if "WARNING" in l]
     latex_err = [l for l in log if l.startswith("!")]
-    details = warns[:25] + latex_err[:10]
+    details = errors[:25] + warns[:25] + latex_err[:10]
     if rc != 0:
         return Result("FAIL", "sphinx-build -M %s failed (exit %d)" % (target, rc), details + tail(ctx.current_log, 10))
+    if errors:
+        return Result("FAIL", "%d errors, %d warnings" % (len(errors), len(warns)), details)
     return Result("WARN" if warns else "PASS", "%d warnings" % len(warns), details)
 
 
@@ -1048,9 +1068,9 @@ def all_checks():
         if name != "default":
             checks.append(("build:" + name, "build", BUILDS[name][0], (lambda n: lambda c: check_build(c, n))(name)))
     checks += [
-        ("docs:html", "docs", "Sphinx HTML manual", lambda c: check_docs(c, "html")),
-        ("docs:pdf", "docs", "Sphinx PDF manual (LaTeX)", lambda c: check_docs(c, "latexpdf")),
-        ("docs:info", "docs", "Sphinx info manual", lambda c: check_docs(c, "info")),
+        ("docs:html", "docs", "Sphinx HTML manual, from the tarball", lambda c: check_docs(c, "html")),
+        ("docs:pdf", "docs", "Sphinx PDF manual (LaTeX), from the tarball", lambda c: check_docs(c, "latexpdf")),
+        ("docs:info", "docs", "Sphinx info manual, from the tarball", lambda c: check_docs(c, "info")),
     ]
     for t in QEMU_TARGETS:
         checks.append(("qemu:" + t, "qemu", "test programs under QEMU (%s)" % t, (lambda tt: lambda c: check_qemu(c, tt))(t)))
